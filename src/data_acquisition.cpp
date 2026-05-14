@@ -15,6 +15,8 @@
 #include <string>
 
 #include <boost/filesystem.hpp>
+#include <boost/function.hpp>
+#include <boost/algorithm/string.hpp>
 
 /* #include <ros/xmlrpc_manager.h> */
 /* #include <XmlRpcClient.h> */
