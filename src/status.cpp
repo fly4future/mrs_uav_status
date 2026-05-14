@@ -1,25 +1,38 @@
 /* includes //{ */
 
-#include <menu.hpp>
+#include <fstream>
+#include <iostream>
+#include <filesystem>
+#include <functional>
+#include <stdexcept>
+
+#include <mrs_uav_status/ros/service.hpp>
+#include <mrs_uav_status/ros/topic_info.hpp>
+#include <mrs_uav_status/ros/topic_status.hpp>
+#include <mrs_uav_status/tui/control_bar.hpp>
+#include <mrs_uav_status/tui/status_window.hpp>
+#include <mrs_uav_status/tui/tui_constants.hpp>
+#include <mrs_uav_status/utils/node_info.hpp>
+#include <mrs_uav_status/utils/split.hpp>
+#include <mrs_uav_status/utils/string_info.hpp>
 
 #include <mrs_msgs/msg/node_cpu_load.hpp>
 #include <mrs_msgs/msg/reference.hpp>
 #include <mrs_msgs/msg/gimbal_state.hpp>
 #include <mrs_msgs/msg/float64_stamped.hpp>
+#include <mrs_msgs/msg/uav_status.hpp>
+#include <mrs_msgs/msg/uav_status_short.hpp>
 
-#include <input_box.hpp>
-#include <commons.hpp>
-#include <iostream>
-#include <fstream>
-#include <stdexcept>
+#include <mrs_msgs/srv/string.hpp>
+#include <mrs_msgs/srv/reference_stamped_srv.hpp>
+#include <mrs_msgs/srv/trajectory_reference_srv.hpp>
 
 #include <mrs_lib/node.h>
 #include <mrs_lib/geometry/cyclic.h>
 #include <mrs_lib/profiler.h>
 #include <mrs_lib/subscriber_handler.h>
 #include <mrs_lib/transformer.h>
-
-#include <boost/filesystem.hpp>
+#include <mrs_lib/param_loader.h>
 
 using std::getline;
 using std::ifstream;
@@ -248,8 +261,8 @@ public:
 
   // | ------------------ Data storage, inputs ------------------ |
 
-  vector<Menu> menu_vec_;
-  vector<Menu> submenu_vec_;
+  vector<mrs_uav_status::tui::StatusWindow> menu_vec_;
+  vector<mrs_uav_status::tui::StatusWindow> submenu_vec_;
 
   vector<Service> service_vec_;
   vector<string>  service_input_vec_;
@@ -265,7 +278,7 @@ public:
 
   vector<double>   goto_double_vec_;
   vector<string>   goto_menu_text_;
-  vector<InputBox> goto_menu_inputs_;
+  vector<mrs_uav_status::tui::ControlBar> goto_menu_inputs_;
 
   string old_constraints_;
 
@@ -461,7 +474,7 @@ void Status::initialize() {
 
   _display_config_filename_ = _pwd_ + "/.mrs_status_display_config~";
 
-  if (boost::filesystem::exists(_display_config_filename_)) {
+  if (std::filesystem::exists(_display_config_filename_)) {
 
     selected_tmux_window_.clear();
 
@@ -503,7 +516,7 @@ void Status::setupWindows() {
   command                           = "tmux list-panes -F '#{pane_width}x#{pane_height}'";
   std::string              response = callTerminal(command.c_str());
   std::vector<std::string> results;
-  boost::split(results, response, [](char c) { return c == 'x'; });
+  results = mrs_uav_status::utils::splitByChar(response, 'x');
 
   /* int cols, lines; */
 
@@ -583,7 +596,7 @@ bool Status::updateTermSize() {
 
   std::vector<std::string> results;
 
-  boost::split(results, response, [](char c) { return c == 'x'; });
+  results = mrs_uav_status::utils::splitByChar(response, 'x');
 
   int cols, lines;
 
@@ -727,7 +740,7 @@ void Status::timerStatusFast() {
     flushinp();
     remoteHandler(key_in, top_bar_window_);
 
-    if (key_in == 'R' || key_in == kKeyEsc) {
+    if (key_in == 'R' || key_in == static_cast<int>(mrs_uav_status::tui::Key::Escape)) {
 
       if (turbo_remote_) {
 
@@ -762,7 +775,7 @@ void Status::timerStatusFast() {
 
     gimbalHandler(key_in, top_bar_window_);
 
-    if (key_in == 'G' || key_in == kKeyEsc) {
+    if (key_in == 'G' || key_in == static_cast<int>(mrs_uav_status::tui::Key::Escape)) {
       state_ = STANDARD;
     }
 
@@ -920,12 +933,12 @@ bool Status::mainMenuHandler(int key_in) {
 
     auto result = submenu_vec_[0].iterate(key_in, true);
 
-    if (result.action == Menu::Result::Action::Exit) {
+    if (result.action == mrs_uav_status::tui::StatusWindow::Result::Action::Exit) {
       submenu_vec_.clear();
       return false;
     }
 
-    if (key_in == kKeyEnt) {
+    if (key_in == static_cast<int>(mrs_uav_status::tui::Key::Enter)) {
       sub_menu_rows_[result.selected_line].on_open();
       submenu_vec_.clear();
       sub_menu_rows_.clear();
@@ -940,13 +953,13 @@ bool Status::mainMenuHandler(int key_in) {
 
   auto result = menu_vec_[0].iterate(main_menu_text_, key_in, true);
 
-  if (result.action == Menu::Result::Action::Exit) {
+  if (result.action == mrs_uav_status::tui::StatusWindow::Result::Action::Exit) {
     menu_vec_.clear();
     submenu_vec_.clear();
     return true;
   }
 
-  if (result.pressed_key == kKeyEnt && isValidMenuIndex(result.selected_line, main_menu_rows_.size())) {
+  if (result.pressed_key == static_cast<int>(mrs_uav_status::tui::Key::Enter) && isValidMenuIndex(result.selected_line, main_menu_rows_.size())) {
     main_menu_rows_[result.selected_line].on_open();
   }
 
@@ -963,12 +976,12 @@ bool Status::gotoMenuHandler(int key_in) {
   // optional<tuple<int, int>> ret = menu_vec_[0].iterate(goto_menu_text_, key_in, false);
   auto result = menu_vec_[0].iterate(goto_menu_text_, key_in, false);
 
-  if (result.action == Menu::Result::Action::Exit) {
+  if (result.action == mrs_uav_status::tui::StatusWindow::Result::Action::Exit) {
     menu_vec_.clear();
     return true;
   }
 
-  if (result.pressed_key == kKeyEnt) {
+  if (result.pressed_key == static_cast<int>(mrs_uav_status::tui::Key::Enter)) {
 
     goto_double_vec_[0] = goto_menu_inputs_[0].getDouble();
     goto_double_vec_[1] = goto_menu_inputs_[1].getDouble();
@@ -1025,12 +1038,12 @@ bool Status::displayMenuHandler(int key_in) {
   // optional<tuple<int, int>> ret = menu_vec_[0].iterate(display_menu_text_, key_in, false);
   auto result = menu_vec_[0].iterate(display_menu_text_, key_in, false);
 
-  if (result.action == Menu::Result::Action::Exit) {
+  if (result.action == mrs_uav_status::tui::StatusWindow::Result::Action::Exit) {
     menu_vec_.clear();
     return true;
   }
 
-  if (result.pressed_key == kKeyEnt) {
+  if (result.pressed_key == static_cast<int>(mrs_uav_status::tui::Key::Enter)) {
 
     auto it = std::find(selected_tmux_window_.begin(), selected_tmux_window_.end(), result.selected_line);
 
@@ -1068,7 +1081,7 @@ void Status::createSubMenu(std::vector<std::string> &submenu_entries) {
     getyx(menu_vec_[0].getWin(), x, y);
     getmaxyx(menu_vec_[0].getWin(), rows, cols);
 
-    Menu menu(x, 31 + cols, submenu_entries);
+    mrs_uav_status::tui::StatusWindow menu(x, 31 + cols, submenu_entries);
     submenu_vec_.push_back(menu);
   }
 }
@@ -1118,7 +1131,7 @@ void Status::remoteHandler(int key, WINDOW *win) {
   }
 
   wattron(win, A_BOLD);
-  wattron(win, COLOR_PAIR(kColorPairRed));
+  wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
   if (mini_) {
     mvwprintw(win, 0, 33, "REM");
   } else {
@@ -1149,7 +1162,7 @@ void Status::remoteHandler(int key, WINDOW *win) {
     wattroff(win, A_BLINK);
   }
 
-  wattroff(win, COLOR_PAIR(kColorPairRed));
+  wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
 
   mrs_msgs::msg::Reference       reference;
   mrs_msgs::srv::String::Request string_service;
@@ -1350,7 +1363,7 @@ void Status::gimbalHandler(int key, WINDOW *win) {
   }
 
   wattron(win, A_BOLD);
-  wattron(win, COLOR_PAIR(kColorPairRed));
+  wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
   mvwprintw(win, 0, 43, "GIMBAL      MODE IS ACTIVE");
 
   if (gimbal_command_.fpv_mode) {
@@ -1359,7 +1372,7 @@ void Status::gimbalHandler(int key, WINDOW *win) {
     mvwprintw(win, 0, 50, "P-T");
   }
 
-  wattroff(win, COLOR_PAIR(kColorPairRed));
+  wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
 
   const uint16_t gimbal_max       = 2000;
   const uint16_t gimbal_min       = 1000;
@@ -1721,34 +1734,34 @@ void Status::stringHandler(WINDOW *win) {
 
   for (unsigned long i = 0; i < string_vector.size(); i++) {
 
-    int    tmp_color          = kColorPairNormal;
+    int    tmp_color          = static_cast<int>(mrs_uav_status::tui::ColorPair::Normal);
     bool   blink              = false;
     string tmp_display_string = string_vector[i];
 
     if (tmp_display_string.at(0) == '-') {
 
       if (tmp_display_string.at(1) == 'r') {
-        tmp_color = kColorPairRed;
+        tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Red);
       } else if (tmp_display_string.at(1) == 'R') {
-        tmp_color = kColorPairRed;
+        tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Red);
         blink     = true;
       }
 
       else if (tmp_display_string.at(1) == 'y') {
-        tmp_color = kColorPairYellow;
+        tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow);
       } else if (tmp_display_string.at(1) == 'Y') {
-        tmp_color = kColorPairYellow;
+        tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow);
         blink     = true;
       }
 
       else if (tmp_display_string.at(1) == 'g') {
-        tmp_color = kColorPairGreen;
+        tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
       } else if (tmp_display_string.at(1) == 'G') {
-        tmp_color = kColorPairGreen;
+        tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
         blink     = true;
       }
 
-      if (tmp_color != kColorPairNormal) {
+      if (tmp_color != static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)) {
         tmp_display_string.erase(0, 3);
       }
     }
@@ -1856,9 +1869,9 @@ void Status::nodeStatsHandler(WINDOW *win) {
       tmp_num_lines = 9;
     }
 
-    wattron(win, COLOR_PAIR(kColorPairGreen));
+    wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
     printLimitedString(win, 0, 1, "ROS Node CPU usage", 40);
-    wattroff(win, COLOR_PAIR(kColorPairGreen));
+    wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
     printLimitedDouble(win, 0, 37, "%5.1f", cpu_load_total, 9999);
     printLimitedString(win, 0, 43, "CPU %%", 6);
@@ -1866,11 +1879,11 @@ void Status::nodeStatsHandler(WINDOW *win) {
 
       printLimitedString(win, 1 + i, 1, node_cpu_load_vec.node_names[i], 42);
 
-      short tmp_color = kColorPairGreen;
+      short tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
       if (node_cpu_load_vec.cpu_loads[i] > 99.9) {
-        tmp_color = kColorPairRed;
+        tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Red);
       } else if (node_cpu_load_vec.cpu_loads[i] > 49.9) {
-        tmp_color = kColorPairYellow;
+        tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow);
       }
 
       wattron(win, COLOR_PAIR(tmp_color));
@@ -1999,43 +2012,43 @@ void Status::uavStateHandler(WINDOW *win) {
       printLimitedDouble(win, 4, 1, "hdg %5.2f", heading, 1000);
 
       if (!null_tracker) {
-        wattron(win, COLOR_PAIR(kColorPairNormal));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
         mvwprintw(win, 5, 1, "C/E");
 
         if (cerr_x < 0.5) {
-          wattron(win, COLOR_PAIR(kColorPairGreen));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
         } else if (cerr_x < 1.0) {
-          wattron(win, COLOR_PAIR(kColorPairYellow));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
         } else {
-          wattron(win, COLOR_PAIR(kColorPairRed));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         }
         printLimitedDouble(win, 5, 5, "X%1.1f", cerr_x, 10);
 
 
         if (cerr_y < 0.5) {
-          wattron(win, COLOR_PAIR(kColorPairGreen));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
         } else if (cerr_y < 1.0) {
-          wattron(win, COLOR_PAIR(kColorPairYellow));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
         } else {
-          wattron(win, COLOR_PAIR(kColorPairRed));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         }
         printLimitedDouble(win, 5, 10, "Y%1.1f", cerr_y, 10);
 
         if (cerr_z < 0.5) {
-          wattron(win, COLOR_PAIR(kColorPairGreen));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
         } else if (cerr_z < 1.0) {
-          wattron(win, COLOR_PAIR(kColorPairYellow));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
         } else {
-          wattron(win, COLOR_PAIR(kColorPairRed));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         }
         printLimitedDouble(win, 5, 15, "Z%1.1f", cerr_z, 10);
 
         if (cerr_hdg < 0.2) {
-          wattron(win, COLOR_PAIR(kColorPairGreen));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
         } else if (cerr_hdg < 0.4) {
-          wattron(win, COLOR_PAIR(kColorPairYellow));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
         } else {
-          wattron(win, COLOR_PAIR(kColorPairRed));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         }
         printLimitedDouble(win, 5, 20, "H%1.1f", cerr_hdg, 10);
 
@@ -2068,14 +2081,14 @@ void Status::uavStateHandler(WINDOW *win) {
 
       double dist_to_max_z = max_flight_z - state_z;
       if (dist_to_max_z < 0.0) {
-        wattron(win, COLOR_PAIR(kColorPairRed));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         wattron(win, A_BLINK);
       } else if (dist_to_max_z < 0.3) {
-        wattron(win, COLOR_PAIR(kColorPairRed));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       } else if (dist_to_max_z < 1.0) {
-        wattron(win, COLOR_PAIR(kColorPairYellow));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
       } else {
-        wattron(win, COLOR_PAIR(kColorPairGreen));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
       }
 
       printLimitedDouble(win, 3, 11, "Max: %5.1f", max_flight_z, 1000);
@@ -2145,7 +2158,7 @@ void Status::controlManagerHandler(WINDOW *win) {
     if (rate == 0.0) {
 
       printNoData(win, 0, 1);
-      wattron(win, COLOR_PAIR(kColorPairRed));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       mvwprintw(win, 1, 1, "ERR");
       mvwprintw(win, 2, 1, "ERR");
       wattroff(win, COLOR_PAIR(color));
@@ -2153,11 +2166,11 @@ void Status::controlManagerHandler(WINDOW *win) {
     } else {
 
       if (curr_controller != "Se3Controller" && curr_controller != "MpcController") {
-        wattron(win, COLOR_PAIR(kColorPairRed));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         printLimitedString(win, 1, 1, curr_controller, 3);
       } else {
         printLimitedString(win, 1, 1, curr_controller, 3);
-        wattron(win, COLOR_PAIR(kColorPairNormal));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
         mvwprintw(win, 1, 4, "%s", "/");
       }
 
@@ -2168,17 +2181,17 @@ void Status::controlManagerHandler(WINDOW *win) {
       }
 
       if (curr_tracker != "MpcTracker") {
-        if (curr_tracker == "LandoffTracker" && color != kColorPairRed) {
-          wattron(win, COLOR_PAIR(kColorPairYellow));
+        if (curr_tracker == "LandoffTracker" && color != static_cast<int>(mrs_uav_status::tui::ColorPair::Red)) {
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
         } else {
-          wattron(win, COLOR_PAIR(kColorPairRed));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         }
 
         printLimitedString(win, 2, 1, curr_tracker, 3);
 
       } else {
         printLimitedString(win, 2, 1, curr_tracker, 3);
-        wattron(win, COLOR_PAIR(kColorPairNormal));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
         mvwprintw(win, 2, 4, "%s", "/");
         wattron(win, COLOR_PAIR(color));
       }
@@ -2201,17 +2214,17 @@ void Status::controlManagerHandler(WINDOW *win) {
 
       printNoData(win, 0, 1);
 
-      wattron(win, COLOR_PAIR(kColorPairRed));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       mvwprintw(win, 1, 1, "NO_CONTROLLER");
       mvwprintw(win, 2, 1, "NO_TRACKER");
       wattroff(win, COLOR_PAIR(color));
 
     } else {
       if (curr_controller != "Se3Controller" && curr_controller != "MpcController") {
-        wattron(win, COLOR_PAIR(kColorPairRed));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       }
       printLimitedString(win, 1, 1, curr_controller, 13);
-      wattron(win, COLOR_PAIR(kColorPairNormal));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
       printLimitedString(win, 1, 1 + std::min(int(curr_controller.length()), 13), "/" + curr_gains, 10);
       wattron(win, COLOR_PAIR(color));
 
@@ -2220,46 +2233,46 @@ void Status::controlManagerHandler(WINDOW *win) {
       }
 
       if (curr_tracker != "MpcTracker") {
-        if (curr_tracker == "LandoffTracker" && color != kColorPairRed) {
-          wattron(win, COLOR_PAIR(kColorPairYellow));
+        if (curr_tracker == "LandoffTracker" && color != static_cast<int>(mrs_uav_status::tui::ColorPair::Red)) {
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
         } else {
-          wattron(win, COLOR_PAIR(kColorPairRed));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         }
       }
 
       printLimitedString(win, 2, 1, curr_tracker, 13);
-      wattron(win, COLOR_PAIR(kColorPairNormal));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
       printLimitedString(win, 2, 1 + std::min(int(curr_tracker.length()), 13), "/" + curr_constraints, 8);
       wattron(win, COLOR_PAIR(color));
     }
 
     if (rc_mode) {
       wattron(win, A_BLINK);
-      wattron(win, COLOR_PAIR(kColorPairRed));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       mvwprintw(win, 1, 18, "RC_MODE");
-      wattroff(win, COLOR_PAIR(kColorPairRed));
+      wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       wattroff(win, A_BLINK);
 
     } else if (!callbacks_enabled) {
-      wattron(win, COLOR_PAIR(kColorPairRed));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       mvwprintw(win, 1, 20, "NO_CB");
-      wattroff(win, COLOR_PAIR(kColorPairRed));
+      wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
     }
 
     if (tracking_trajectory) {
-      wattron(win, COLOR_PAIR(kColorPairGreen));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
       mvwprintw(win, 2, 21, "TRAJ");
-      wattroff(win, COLOR_PAIR(kColorPairGreen));
+      wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
     } else if (have_goal) {
-      wattron(win, COLOR_PAIR(kColorPairGreen));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
       mvwprintw(win, 2, 21, "GOTO");
-      wattroff(win, COLOR_PAIR(kColorPairGreen));
+      wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
     } else {
-      wattron(win, COLOR_PAIR(kColorPairYellow));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
       mvwprintw(win, 2, 21, "IDLE");
-      wattroff(win, COLOR_PAIR(kColorPairYellow));
+      wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
     }
   }
 
@@ -2340,26 +2353,26 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     if (state_rate == 0) {
 
-      wattron(win, COLOR_PAIR(kColorPairRed));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       printLimitedString(win, 1, 1, "ERR", 3);
       printLimitedString(win, 2, 1, "ERR", 3);
-      wattroff(win, COLOR_PAIR(kColorPairRed));
+      wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
 
     } else {
 
       if (armed) {
         tmp_string = "ARM";
-        wattron(win, COLOR_PAIR(kColorPairGreen));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
       } else {
         tmp_string = "DIS";
-        wattron(win, COLOR_PAIR(kColorPairRed));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       }
 
       printLimitedString(win, 1, 1, tmp_string, 15);
       wattron(win, COLOR_PAIR(color));
 
       if (mode != "OFFBOARD") {
-        wattron(win, COLOR_PAIR(kColorPairRed));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       }
 
       printLimitedString(win, 2, 1, mode, 3);
@@ -2372,14 +2385,14 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     } else {
 
-      wattron(win, COLOR_PAIR(kColorPairGreen));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
       (battery_volt > 17.0) ? (battery_volt = battery_volt / 6) : (battery_volt = battery_volt / 4);
 
       if (battery_volt < 3.6) {
-        wattron(win, COLOR_PAIR(kColorPairRed));
-      } else if (battery_volt < 3.7 && color != kColorPairRed) {
-        wattron(win, COLOR_PAIR(kColorPairYellow));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
+      } else if (battery_volt < 3.7 && color != static_cast<int>(mrs_uav_status::tui::ColorPair::Red)) {
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
       }
       printLimitedString(win, 3, 1, "Bat", 3);
     }
@@ -2392,23 +2405,23 @@ void Status::hwApiStateHandler(WINDOW *win) {
     } else {
 
       if (thrust > 0.75) {
-        wattron(win, COLOR_PAIR(kColorPairRed));
-      } else if (thrust > 0.65 && color != kColorPairRed) {
-        wattron(win, COLOR_PAIR(kColorPairYellow));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
+      } else if (thrust > 0.65 && color != static_cast<int>(mrs_uav_status::tui::ColorPair::Red)) {
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
       }
       printLimitedDouble(win, 3, 5, ".%2.0f", thrust * 100, 100);
       wattron(win, COLOR_PAIR(color));
 
-      color            = kColorPairGreen;
+      color            = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
       double mass_diff = fabs(mass_estimate - mass_set) / mass_set;
 
       if (mass_diff > 0.3) {
 
-        color = kColorPairRed;
+        color = static_cast<int>(mrs_uav_status::tui::ColorPair::Red);
 
       } else if (mass_diff > 0.2) {
 
-        color = kColorPairYellow;
+        color = static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow);
       }
 
       printLimitedDouble(win, 4, 1, "%4.1f kg", mass_estimate, 99.99);
@@ -2416,22 +2429,22 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     if (!gnss_ok) {
 
-      wattron(win, COLOR_PAIR(kColorPairRed));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       printLimitedString(win, 1, 5, "GPS", 6);
-      wattroff(win, COLOR_PAIR(kColorPairRed));
+      wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
 
     } else {
 
-      wattron(win, COLOR_PAIR(kColorPairGreen));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
       printLimitedString(win, 1, 5, "GPS", 6);
-      wattroff(win, COLOR_PAIR(kColorPairGreen));
+      wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
-      color = kColorPairRed;
+      color = static_cast<int>(mrs_uav_status::tui::ColorPair::Red);
 
       if (gnss_qual < 5.0) {
-        color = kColorPairGreen;
+        color = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
       } else if (gnss_qual < 10.0) {
-        color = kColorPairYellow;
+        color = static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow);
       }
 
       wattron(win, COLOR_PAIR(color));
@@ -2462,28 +2475,28 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     if (state_rate == 0) {
 
-      wattron(win, COLOR_PAIR(kColorPairRed));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       printLimitedString(win, 1, 1, "State: ", 15);
       printNoData(win, 1, 9);
       printLimitedString(win, 2, 1, "Mode: ", 15);
       printNoData(win, 1, 9);
-      wattroff(win, COLOR_PAIR(kColorPairRed));
+      wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
 
     } else {
 
       if (armed) {
         tmp_string = "ARMED";
-        wattron(win, COLOR_PAIR(kColorPairGreen));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
       } else {
         tmp_string = "DISARMED";
-        wattron(win, COLOR_PAIR(kColorPairRed));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       }
 
       printLimitedString(win, 1, 1, "State: " + tmp_string, 15);
-      wattron(win, COLOR_PAIR(kColorPairGreen));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
       if (mode != "OFFBOARD") {
-        wattron(win, COLOR_PAIR(kColorPairRed));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       }
 
       printLimitedString(win, 2, 1, "Mode:  " + mode, 15);
@@ -2496,14 +2509,14 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     } else {
 
-      wattron(win, COLOR_PAIR(kColorPairGreen));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
       (battery_volt > 17.0) ? (battery_volt = battery_volt / 6) : (battery_volt = battery_volt / 4);
 
       if (battery_volt < 3.6) {
-        wattron(win, COLOR_PAIR(kColorPairRed));
-      } else if (battery_volt < 3.7 && color != kColorPairRed) {
-        wattron(win, COLOR_PAIR(kColorPairYellow));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
+      } else if (battery_volt < 3.7 && color != static_cast<int>(mrs_uav_status::tui::ColorPair::Red)) {
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
       }
       printLimitedDouble(win, 4, 1, "%4.2fV ", battery_volt, 10);
       printLimitedDouble(win, 4, 8, "%5.2fA", battery_curr, 100);
@@ -2516,12 +2529,12 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     } else {
 
-      wattron(win, COLOR_PAIR(kColorPairGreen));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
       if (mag_norm > 0.9 || mag_norm < 0.25) {
-        wattron(win, COLOR_PAIR(kColorPairRed));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       } else if (mag_norm > 0.65) {
-        wattron(win, COLOR_PAIR(kColorPairYellow));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
       }
       printLimitedDouble(win, 3, 1, "Mag: %4.2f", mag_norm, 9.99);
     }
@@ -2532,31 +2545,31 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     } else {
 
-      wattron(win, COLOR_PAIR(kColorPairGreen));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
       if (thrust > 0.75) {
-        wattron(win, COLOR_PAIR(kColorPairRed));
-      } else if (thrust > 0.65 && color != kColorPairRed) {
-        wattron(win, COLOR_PAIR(kColorPairYellow));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
+      } else if (thrust > 0.65 && color != static_cast<int>(mrs_uav_status::tui::ColorPair::Red)) {
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
       }
       printLimitedDouble(win, 5, 1, "Thrst: %4.2f", thrust, 1.01);
       wattron(win, COLOR_PAIR(color));
 
-      color            = kColorPairGreen;
+      color            = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
       double mass_diff = fabs(mass_estimate - mass_set) / mass_set;
 
       if (mass_diff > 0.3) {
 
-        color = kColorPairRed;
+        color = static_cast<int>(mrs_uav_status::tui::ColorPair::Red);
 
       } else if (mass_diff > 0.2) {
 
-        color = kColorPairYellow;
+        color = static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow);
       }
 
       if (mass_set > 10.0 || mass_estimate > 10.0) {
 
-        wattron(win, COLOR_PAIR(kColorPairNormal));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
         printLimitedDouble(win, 5, 13, "%.1f/", mass_set, 99.99);
         wattron(win, COLOR_PAIR(color));
         printLimitedDouble(win, 5, 18, "%.1f", mass_estimate, 99.99);
@@ -2564,7 +2577,7 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
       } else {
 
-        wattron(win, COLOR_PAIR(kColorPairNormal));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
         printLimitedDouble(win, 5, 15, "%.1f/", mass_set, 99.99);
         wattron(win, COLOR_PAIR(color));
         printLimitedDouble(win, 5, 19, "%.1f", mass_estimate, 99.99);
@@ -2574,22 +2587,22 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     if (!gnss_ok) {
 
-      wattron(win, COLOR_PAIR(kColorPairRed));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       printLimitedString(win, 1, 18, "NO_GPS", 6);
-      wattroff(win, COLOR_PAIR(kColorPairRed));
+      wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
 
     } else {
 
-      wattron(win, COLOR_PAIR(kColorPairGreen));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
       printLimitedString(win, 1, 18, "GPS_OK", 6);
-      wattroff(win, COLOR_PAIR(kColorPairGreen));
+      wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
-      color = kColorPairRed;
+      color = static_cast<int>(mrs_uav_status::tui::ColorPair::Red);
 
       if (gnss_qual < 5.0) {
-        color = kColorPairGreen;
+        color = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
       } else if (gnss_qual < 10.0) {
-        color = kColorPairYellow;
+        color = static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow);
       }
 
       wattron(win, COLOR_PAIR(color));
@@ -2678,59 +2691,59 @@ void Status::topLineHandler(WINDOW *win) {
 
     if (collision_avoidance_enabled) {
       if (avoiding_collision_) {
-        wattron(win, COLOR_PAIR(kColorPairRed));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         wattron(win, A_BLINK);
         mvwprintw(win, 0, 26, "!! AVOIDING COLLISION !!");
-        wattroff(win, COLOR_PAIR(kColorPairRed));
+        wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         wattroff(win, A_BLINK);
       } else {
-        wattron(win, COLOR_PAIR(kColorPairGreen));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
         mvwprintw(win, 0, 26, "COL AVOID ENABLED,");
         if (num_other_uavs == 0) {
-          wattron(win, COLOR_PAIR(kColorPairRed));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         }
         mvwprintw(win, 0, 45, "UAVs: ");
         printLimitedInt(win, 0, 51, "%i", num_other_uavs, 100);
-        wattroff(win, COLOR_PAIR(kColorPairGreen));
-        wattroff(win, COLOR_PAIR(kColorPairRed));
+        wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
+        wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       }
     } else {
-      wattron(win, COLOR_PAIR(kColorPairRed));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       mvwprintw(win, 0, 26, "COL AVOID DISABLED");
-      wattroff(win, COLOR_PAIR(kColorPairRed));
+      wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
     }
   } else {
 
     if (collision_avoidance_enabled) {
 
       if (avoiding_collision_) {
-        wattron(win, COLOR_PAIR(kColorPairRed));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         wattron(win, A_BLINK);
         mvwprintw(win, 0, 22, "!AVOIDING!");
-        wattroff(win, COLOR_PAIR(kColorPairRed));
+        wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         wattroff(win, A_BLINK);
       } else {
-        wattron(win, COLOR_PAIR(kColorPairGreen));
+        wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
         mvwprintw(win, 0, 27, "C/A");
         if (num_other_uavs == 0) {
-          wattron(win, COLOR_PAIR(kColorPairRed));
+          wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         }
         printLimitedInt(win, 0, 31, "%i", num_other_uavs, 100);
-        wattroff(win, COLOR_PAIR(kColorPairGreen));
-        wattroff(win, COLOR_PAIR(kColorPairRed));
+        wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
+        wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       }
     } else {
-      wattron(win, COLOR_PAIR(kColorPairRed));
+      wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       mvwprintw(win, 0, 27, "C/A");
-      wattroff(win, COLOR_PAIR(kColorPairRed));
+      wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
     }
   }
 
   if (!have_data_) {
     wattron(win, A_BLINK);
-    wattron(win, COLOR_PAIR(kColorPairAlwaysRed));
+    wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::AlwaysRed)));
     mvwprintw(win, 0, 0, "!NO MSGS!");
-    wattroff(win, COLOR_PAIR(kColorPairAlwaysRed));
+    wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::AlwaysRed)));
     wattroff(win, A_BLINK);
   }
 
@@ -2750,8 +2763,8 @@ void Status::topLineHandler(WINDOW *win) {
 void Status::generalInfoHandler(WINDOW *win) {
   werase(win);
   wattron(win, A_BOLD);
-  wattron(win, COLOR_PAIR(kColorPairNormal));
-  wattroff(win, COLOR_PAIR(kColorPairNormal));
+  wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
+  wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
   wattroff(win, A_STANDOUT);
   printBox(win);
 
@@ -2898,7 +2911,7 @@ void Status::setupMainMenu() {
     }
 
     std::vector<std::string> results;
-    boost::split(results, service_input_vec_[i], [](char c) { return c == ' '; }); // split the input string into words and put them in results vector
+    results = mrs_uav_status::utils::splitByChar(service_input_vec_[i], ' '); // split the input string into words and put them in results vector
 
     for (unsigned long j = 2; j < results.size(); j++) {
       results[1] = results[1] + " " + results[j];
@@ -3007,7 +3020,7 @@ void Status::setupMainMenu() {
     main_menu_text_.push_back(rows.label);
   }
 
-  Menu menu(1, 32, main_menu_text_);
+  mrs_uav_status::tui::StatusWindow menu(1, 32, main_menu_text_);
   menu_vec_.push_back(menu);
 }
 
@@ -3031,11 +3044,11 @@ void Status::setupGotoMenu() {
   goto_menu_text_.push_back(" hdg:              ");
   goto_menu_text_.push_back(" " + odom_frame + " ");
 
-  Menu menu(1, 32, goto_menu_text_);
+  mrs_uav_status::tui::StatusWindow menu(1, 32, goto_menu_text_);
   menu_vec_.push_back(menu);
 
   for (int i = 0; i < 4; i++) {
-    InputBox tmpbox(8, menu.getWin(), goto_double_vec_[i]);
+    mrs_uav_status::tui::ControlBar tmpbox(8, menu.getWin(), goto_double_vec_[i]);
     goto_menu_inputs_.push_back(tmpbox);
   }
 }
@@ -3047,7 +3060,7 @@ void Status::setupGotoMenu() {
 void Status::setupDisplayMenu() {
   setupDisplayText();
 
-  Menu menu(1, 32, display_menu_text_);
+  mrs_uav_status::tui::StatusWindow menu(1, 32, display_menu_text_);
   menu_vec_.push_back(menu);
 }
 
@@ -3061,9 +3074,11 @@ void Status::setupDisplayText() {
   char                     command[50] = "tmux list-windows | cut -d' ' -f-2";
   std::string              response    = callTerminal(command);
   std::vector<std::string> results;
-  boost::split(results, response, boost::is_any_of("\n"));
+  results = mrs_uav_status::utils::splitByChar(response, '\n');
 
-  for (size_t i = 0; i < results.size() - 1; i++) {
+  const bool skip_last = !results.empty() && results.back().empty();
+  const auto end_index = skip_last ? results.size() - 1 : results.size();
+  for (size_t i = 0; i < end_index; i++) {
     display_menu_text_.push_back("[ ] " + results[i]);
   }
 
@@ -3092,13 +3107,13 @@ void Status::printMemLoad(WINDOW *win) {
 
   double used_ram = total_ram - free_ram;
 
-  int    tmp_color = kColorPairGreen;
+  int    tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
   double ram_ratio = used_ram / total_ram;
   if (ram_ratio > 0.7) {
-    tmp_color = kColorPairRed;
+    tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Red);
     wattron(win, A_BLINK);
   } else if (ram_ratio > 0.5) {
-    tmp_color = kColorPairYellow;
+    tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow);
   }
 
   wattron(win, COLOR_PAIR(tmp_color));
@@ -3121,11 +3136,11 @@ void Status::printCpuLoad(WINDOW *win) {
     cpu_load = uav_status_.cpu_load;
   }
 
-  int tmp_color = kColorPairGreen;
+  int tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
   if (cpu_load > 80.0) {
-    tmp_color = kColorPairRed;
+    tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Red);
   } else if (cpu_load > 60.0) {
-    tmp_color = kColorPairYellow;
+    tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow);
   }
 
   wattron(win, COLOR_PAIR(tmp_color));
@@ -3146,11 +3161,11 @@ void Status::printCpuTemp(WINDOW *win) {
     cpu_temp = uav_status_.cpu_temperature;
   }
 
-  int tmp_color = kColorPairGreen;
+  int tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
   if (cpu_temp > 90.0) {
-    tmp_color = kColorPairRed;
+    tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Red);
   } else if (cpu_temp > 75.0) {
-    tmp_color = kColorPairYellow;
+    tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow);
   }
 
   wattron(win, COLOR_PAIR(tmp_color));
@@ -3172,7 +3187,7 @@ void Status::printCpuFreq(WINDOW *win) {
     avg_cpu_ghz = uav_status_.cpu_ghz;
   }
 
-  wattron(win, COLOR_PAIR(kColorPairGreen));
+  wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
   printLimitedDouble(win, 1, 16, "%4.2f GHz", avg_cpu_ghz, 10);
 }
 
@@ -3189,14 +3204,14 @@ void Status::printDiskSpace(WINDOW *win) {
 
   // Default color is green, change to yellow if less than 20%
   // or if value changed since last time, change to red if less than 10%
-  wattron(win, COLOR_PAIR(kColorPairGreen));
+  wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
   if (gigas < 20 || gigas != last_gigas_) {
-    wattron(win, COLOR_PAIR(kColorPairYellow));
+    wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
   }
 
   if (gigas < 10) {
-    wattron(win, COLOR_PAIR(kColorPairRed));
+    wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
     if (mini_) {
       printLimitedString(win, 1, 5, "HDD", 3);
       printLimitedDouble(win, 2, 5, "%3.1f", double(gigas), 10);
@@ -3244,7 +3259,7 @@ void Status::printServiceResult(bool success, string msg) {
   werase(bottom_window_);
 
   wattron(bottom_window_, A_BOLD);
-  wattron(bottom_window_, COLOR_PAIR(kColorPairGreen));
+  wattron(bottom_window_, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
 
   if (success) {
@@ -3253,16 +3268,16 @@ void Status::printServiceResult(bool success, string msg) {
 
   } else {
 
-    wattron(bottom_window_, COLOR_PAIR(kColorPairRed));
+    wattron(bottom_window_, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
 
     printLimitedString(bottom_window_, 0, 0, "Service call failed: " + msg, 120);
 
-    wattroff(bottom_window_, COLOR_PAIR(kColorPairRed));
+    wattroff(bottom_window_, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
   }
 
   bottom_window_clear_time_ = clock_->now();
 
-  wattroff(bottom_window_, COLOR_PAIR(kColorPairGreen));
+  wattroff(bottom_window_, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
   wattroff(bottom_window_, A_BOLD);
 }
 
@@ -3350,18 +3365,18 @@ void Status::printCompressedLimitedString(WINDOW *win, int y, int x, string str_
 
 void Status::printNoData(WINDOW *win, int y, int x) {
   wattron(win, A_BLINK);
-  wattron(win, COLOR_PAIR(kColorPairRed));
+  wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
   if (mini_) {
     mvwprintw(win, y, x, "NO DATA");
   } else {
     mvwprintw(win, y, x, "!NO DATA!");
   }
-  wattroff(win, COLOR_PAIR(kColorPairRed));
+  wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
   wattroff(win, A_BLINK);
 }
 
 void Status::printNoData(WINDOW *win, int y, int x, string text) {
-  wattron(win, COLOR_PAIR(kColorPairRed));
+  wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
   mvwprintw(win, y, x, text.c_str());
   printNoData(win, y, x + text.length());
 }
@@ -3371,9 +3386,9 @@ void Status::printNoData(WINDOW *win, int y, int x, string text) {
 /* printError() //{ */
 
 void Status::printError(string msg) {
-  wattron(debug_window_, COLOR_PAIR(kColorPairRed));
+  wattron(debug_window_, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
   printLimitedString(debug_window_, 0, 0, msg, 120);
-  wattroff(debug_window_, COLOR_PAIR(kColorPairRed));
+  wattroff(debug_window_, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
 
   wnoutrefresh(debug_window_);
 }
@@ -3475,21 +3490,21 @@ void Status::printTmuxDump() {
 void Status::printBox(WINDOW *win) {
   if (avoiding_collision_) {
 
-    wattron(win, COLOR_PAIR(kColorPairRed));
+    wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
     wattron(win, A_BLINK);
     wattron(win, A_STANDOUT);
   }
 
   if (!automatic_start_can_takeoff_ && null_tracker_) {
 
-    wattron(win, COLOR_PAIR(kColorPairYellow));
+    wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
     wattron(win, A_STANDOUT);
   }
 
 
   box(win, 0, 0);
   wattroff(win, A_BLINK);
-  wattroff(win, COLOR_PAIR(kColorPairRed));
+  wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
   wattroff(win, A_STANDOUT);
 }
 
@@ -3498,46 +3513,46 @@ void Status::printBox(WINDOW *win) {
 /* setupColors() //{ */
 
 void Status::setupColors(bool active) {
-  init_pair(kColorPairAlwaysRed, kColorNiceRed, kBackgroundDefault);
+  init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::AlwaysRed), static_cast<int>(mrs_uav_status::tui::Color::NiceRed), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
 
   if (active) {
 
-    init_pair(kColorPairNormal, COLOR_WHITE, kBackgroundDefault);
-    init_pair(kColorPairField, COLOR_WHITE, 235);
-    init_pair(kColorPairRed, kColorNiceRed, kBackgroundDefault);
-    init_pair(kColorPairYellow, kColorNiceYellow, kBackgroundDefault);
+    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal), COLOR_WHITE, static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Field), COLOR_WHITE, 235);
+    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Red), static_cast<int>(mrs_uav_status::tui::Color::NiceRed), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow), static_cast<int>(mrs_uav_status::tui::Color::NiceYellow), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
 
     if (_colorblind_mode_) {
-      init_pair(kColorPairGreen, kColorNiceBlue, kBackgroundDefault);
+      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::NiceBlue), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
     } else {
-      init_pair(kColorPairGreen, kColorNiceGreen, kBackgroundDefault);
+      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::NiceGreen), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
     }
     _light_ = false;
 
 
     if (_colorscheme_.find("COLORSCHEME_LIGHT") != std::string::npos) {
-      init_pair(kColorPairNormal, COLOR_BLACK, kBackgroundDefault);
-      init_pair(kColorPairField, COLOR_WHITE, 237);
-      init_pair(kColorPairYellow, kColorDarkYellow, kBackgroundDefault);
+      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal), COLOR_BLACK, static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Field), COLOR_WHITE, 237);
+      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow), static_cast<int>(mrs_uav_status::tui::Color::DarkYellow), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
       if (_colorblind_mode_) {
-        init_pair(kColorPairGreen, kColorDarkBlue, kBackgroundDefault);
+        init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::DarkBlue), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
       } else {
-        init_pair(kColorPairGreen, kColorDarkGreen, kBackgroundDefault);
+        init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::DarkGreen), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
       }
       _light_ = true;
     }
 
   } else {
-    init_pair(kColorPairNormal, kColorDarkRed, kBackgroundDefault);
-    init_pair(kColorPairField, kColorDarkRed, 235);
-    init_pair(kColorPairRed, kColorDarkRed, kBackgroundDefault);
-    init_pair(kColorPairYellow, kColorDarkRed, kBackgroundDefault);
-    init_pair(kColorPairGreen, kColorDarkRed, kBackgroundDefault);
+    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal), static_cast<int>(mrs_uav_status::tui::Color::DarkRed), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Field), static_cast<int>(mrs_uav_status::tui::Color::DarkRed), 235);
+    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Red), static_cast<int>(mrs_uav_status::tui::Color::DarkRed), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow), static_cast<int>(mrs_uav_status::tui::Color::DarkRed), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::DarkRed), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
     _light_ = false;
 
 
     if (_colorscheme_.find("COLORSCHEME_LIGHT") != std::string::npos) {
-      init_pair(kColorPairField, kColorDarkRed, 237);
+      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Field), static_cast<int>(mrs_uav_status::tui::Color::DarkRed), 237);
       _light_ = true;
     }
   }

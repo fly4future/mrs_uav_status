@@ -23,7 +23,6 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(mrs_lib REQUIRED)
 find_package(backward_ros REQUIRED)
-find_package(Boost REQUIRED COMPONENTS filesystem)
 find_package(Curses REQUIRED)
 
 find_package(std_msgs REQUIRED)
@@ -53,10 +52,10 @@ add_executable(MrsUavStatus_Status)
 
 target_sources(MrsUavStatus_Status
   PRIVATE
-    "src/input_box.cpp"
-    "src/menu.cpp"
+    "src/tui/control_bar.cpp"
+    "src/tui/status_window.cpp"
     "src/status.cpp"
-    "src/topic_info.cpp"
+    "src/ros/topic_info.cpp"
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
   FILES
     "include/mrs_uav_status/ros/service.hpp"
@@ -66,6 +65,7 @@ target_sources(MrsUavStatus_Status
     "include/mrs_uav_status/tui/status_window.hpp"
     "include/mrs_uav_status/tui/tui_constants.hpp"
     "include/mrs_uav_status/utils/node_info.hpp"
+    "include/mrs_uav_status/utils/split.hpp"
     "include/mrs_uav_status/utils/string_info.hpp"
 )
 
@@ -74,7 +74,6 @@ target_link_libraries(MrsUavStatus_Status
     rclcpp::rclcpp
     rclcpp_components::component
     mrs_lib::mrs_lib
-    Boost::filesystem
     Curses::Curses
     ${std_msgs_TARGETS}
     ${mrs_msgs_TARGETS}
@@ -92,12 +91,18 @@ add_library(MrsUavStatus_Acquisition SHARED)
 target_sources(MrsUavStatus_Acquisition
   PRIVATE
     "src/data_acquisition.cpp"
-    "src/topic_info.cpp"
+    "src/ros/topic_info.cpp"
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
   FILES
-    "include/commons.hpp"
-    "include/input_box.hpp"
-    "include/menu.hpp"
+    "include/mrs_uav_status/ros/service.hpp"
+    "include/mrs_uav_status/ros/topic_info.hpp"
+    "include/mrs_uav_status/ros/topic_status.hpp"
+    "include/mrs_uav_status/tui/control_bar.hpp"
+    "include/mrs_uav_status/tui/status_window.hpp"
+    "include/mrs_uav_status/tui/tui_constants.hpp"
+    "include/mrs_uav_status/utils/node_info.hpp"
+    "include/mrs_uav_status/utils/split.hpp"
+    "include/mrs_uav_status/utils/string_info.hpp"
 )
 
 target_link_libraries(MrsUavStatus_Acquisition
@@ -105,7 +110,6 @@ target_link_libraries(MrsUavStatus_Acquisition
     rclcpp::rclcpp
     rclcpp_components::component
     mrs_lib::mrs_lib
-    Boost::filesystem
     Curses::Curses
     ${std_msgs_TARGETS}
     ${mrs_msgs_TARGETS}
