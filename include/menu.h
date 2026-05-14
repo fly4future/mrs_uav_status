@@ -10,8 +10,21 @@ public:
   int     getLine();
   int     getId();
 
-  std::optional<std::tuple<int, int>> iterate(int key, bool refresh);
-  std::optional<std::tuple<int, int>> iterate(std::vector<std::string> &text, int key, bool refresh);
+  struct Result
+  {
+    enum class Action
+    {
+      None,
+      Select,
+      Exit
+    } action = Action::None; // default value
+
+    int selected_line = -1; // default value, -1 indicates no line selected
+    int pressed_key   = -1; // default value, -1 indicates no key pressed
+  };
+
+  Result iterate(std::vector<std::string> &text, int key, bool refresh);
+  Result iterate(int key, bool refresh);
 
 private:
   WINDOW                  *win_;
