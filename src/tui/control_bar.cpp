@@ -20,10 +20,14 @@ ControlBar::ControlBar(unsigned long size, WINDOW *win, double initial_value) {
 
   ControlBar::cursor_ = (size_ / 2) - 2;
 
-  const unsigned long tmpbuffer_size = (size_ + 1 > 64) ? size_ + 1 : 64;
-  std::vector<char>   tmpbuffer(tmpbuffer_size, '\0');
+  const int required_length = std::snprintf(nullptr, 0, "%6.2f", initial_value);
+  const unsigned long tmpbuffer_size =
+      size_ + 1 > static_cast<unsigned long>(required_length + 1) ? size_ + 1 : static_cast<unsigned long>(required_length + 1);
+  std::vector<char> tmpbuffer(tmpbuffer_size, '\0');
 
-  std::snprintf(tmpbuffer.data(), tmpbuffer.size(), "%6.2f", initial_value);
+  if (std::snprintf(tmpbuffer.data(), tmpbuffer.size(), "%6.2f", initial_value) < 0) {
+    tmpbuffer[0] = '\0';
+  }
 
   for (unsigned long i = 0; i < size_; i++) {
     if (std::isdigit(tmpbuffer[i]) || tmpbuffer[i] == '.' || tmpbuffer[i] == '-') {
