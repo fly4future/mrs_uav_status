@@ -1,31 +1,39 @@
 /* includes //{ */
 
+#include <fstream>
+#include <iostream>
+#include <stdexcept>
+
+#include <mrs_uav_status/ros/service.hpp>
+#include <mrs_uav_status/ros/topic_info.hpp>
+#include <mrs_uav_status/ros/topic_status.hpp>
+#include <mrs_uav_status/tui/control_bar.hpp>
 #include <mrs_uav_status/tui/status_window.hpp>
+#include <mrs_uav_status/tui/tui_constants.hpp>
+#include <mrs_uav_status/utils/node_info.hpp>
+#include <mrs_uav_status/utils/string_info.hpp>
 
 #include <mrs_msgs/msg/node_cpu_load.hpp>
 #include <mrs_msgs/msg/reference.hpp>
 #include <mrs_msgs/msg/gimbal_state.hpp>
 #include <mrs_msgs/msg/float64_stamped.hpp>
+#include <mrs_msgs/msg/uav_status.hpp>
+#include <mrs_msgs/msg/uav_status_short.hpp>
 
-#include <mrs_uav_status/tui/control_bar.hpp>
-#include <mrs_uav_status/tui/tui_constants.hpp>
-
-#include <mrs_uav_status/ros/topic_info.hpp>
-#include <mrs_uav_status/ros/topic_status.hpp>
-#include <mrs_uav_status/ros/service.hpp>
-#include <mrs_uav_status/utils/node_info.hpp>
-#include <mrs_uav_status/utils/string_info.hpp>
-#include <iostream>
-#include <fstream>
-#include <stdexcept>
+#include <mrs_msgs/srv/string.hpp>
+#include <mrs_msgs/srv/reference_stamped_srv.hpp>
+#include <mrs_msgs/srv/trajectory_reference_srv.hpp>
 
 #include <mrs_lib/node.h>
 #include <mrs_lib/geometry/cyclic.h>
 #include <mrs_lib/profiler.h>
 #include <mrs_lib/subscriber_handler.h>
 #include <mrs_lib/transformer.h>
+#include <mrs_lib/param_loader.h>
 
 #include <boost/filesystem.hpp>
+#include <boost/function.hpp>
+#include <boost/algorithm/string.hpp>
 
 using std::getline;
 using std::ifstream;
