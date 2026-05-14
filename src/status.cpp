@@ -20,7 +20,14 @@
 
 #include <boost/filesystem.hpp>
 
-using namespace std;
+using std::getline;
+using std::ifstream;
+using std::ofstream;
+using std::stoi;
+using std::string;
+using std::stringstream;
+using std::to_string;
+using std::vector;
 
 using radians = mrs_lib::geometry::radians;
 
@@ -717,7 +724,7 @@ void Status::timerStatusFast() {
     flushinp();
     remoteHandler(key_in, top_bar_window_);
 
-    if (key_in == 'R' || key_in == KEY_ESC) {
+    if (key_in == 'R' || key_in == kKeyEsc) {
 
       if (turbo_remote_) {
 
@@ -752,7 +759,7 @@ void Status::timerStatusFast() {
 
     gimbalHandler(key_in, top_bar_window_);
 
-    if (key_in == 'G' || key_in == KEY_ESC) {
+    if (key_in == 'G' || key_in == kKeyEsc) {
       state_ = STANDARD;
     }
 
@@ -908,7 +915,7 @@ bool Status::mainMenuHandler(int key_in) {
       return false;
     }
 
-    if (key_in == KEY_ENT) {
+    if (key_in == kKeyEnt) {
       sub_menu_rows_[result.selected_line].on_open();
       submenu_vec_.clear();
       sub_menu_rows_.clear();
@@ -917,9 +924,9 @@ bool Status::mainMenuHandler(int key_in) {
     return false;
     //}
 
-    /* NORMAL CASE //{ */
+    /* kColorPairNormal CASE //{ */
   }
-  // NORMAL CASE - NO SUBMENU
+  // kColorPairNormal CASE - NO SUBMENU
 
   auto result = menu_vec_[0].iterate(main_menu_text_, key_in, true);
 
@@ -929,7 +936,7 @@ bool Status::mainMenuHandler(int key_in) {
     return true;
   }
 
-  if (result.pressed_key == KEY_ENT && result.selected_line < main_menu_rows_.size()) {
+  if (result.pressed_key == kKeyEnt && result.selected_line < main_menu_rows_.size()) {
     main_menu_rows_[result.selected_line].on_open();
   }
 
@@ -951,7 +958,7 @@ bool Status::gotoMenuHandler(int key_in) {
     return true;
   }
 
-  if (result.pressed_key == KEY_ENT) {
+  if (result.pressed_key == kKeyEnt) {
 
     goto_double_vec_[0] = goto_menu_inputs_[0].getDouble();
     goto_double_vec_[1] = goto_menu_inputs_[1].getDouble();
@@ -1013,7 +1020,7 @@ bool Status::displayMenuHandler(int key_in) {
     return true;
   }
 
-  if (result.pressed_key == KEY_ENT) {
+  if (result.pressed_key == kKeyEnt) {
 
     auto it = std::find(selected_tmux_window_.begin(), selected_tmux_window_.end(), result.selected_line);
 
@@ -1101,7 +1108,7 @@ void Status::remoteHandler(int key, WINDOW *win) {
   }
 
   wattron(win, A_BOLD);
-  wattron(win, COLOR_PAIR(RED));
+  wattron(win, COLOR_PAIR(kColorPairRed));
   if (mini_) {
     mvwprintw(win, 0, 33, "REM");
   } else {
@@ -1132,7 +1139,7 @@ void Status::remoteHandler(int key, WINDOW *win) {
     wattroff(win, A_BLINK);
   }
 
-  wattroff(win, COLOR_PAIR(RED));
+  wattroff(win, COLOR_PAIR(kColorPairRed));
 
   mrs_msgs::msg::Reference       reference;
   mrs_msgs::srv::String::Request string_service;
@@ -1333,7 +1340,7 @@ void Status::gimbalHandler(int key, WINDOW *win) {
   }
 
   wattron(win, A_BOLD);
-  wattron(win, COLOR_PAIR(RED));
+  wattron(win, COLOR_PAIR(kColorPairRed));
   mvwprintw(win, 0, 43, "GIMBAL      MODE IS ACTIVE");
 
   if (gimbal_command_.fpv_mode) {
@@ -1342,7 +1349,7 @@ void Status::gimbalHandler(int key, WINDOW *win) {
     mvwprintw(win, 0, 50, "P-T");
   }
 
-  wattroff(win, COLOR_PAIR(RED));
+  wattroff(win, COLOR_PAIR(kColorPairRed));
 
   const uint16_t gimbal_max       = 2000;
   const uint16_t gimbal_min       = 1000;
@@ -1704,34 +1711,34 @@ void Status::stringHandler(WINDOW *win) {
 
   for (unsigned long i = 0; i < string_vector.size(); i++) {
 
-    int    tmp_color          = NORMAL;
+    int    tmp_color          = kColorPairNormal;
     bool   blink              = false;
     string tmp_display_string = string_vector[i];
 
     if (tmp_display_string.at(0) == '-') {
 
       if (tmp_display_string.at(1) == 'r') {
-        tmp_color = RED;
+        tmp_color = kColorPairRed;
       } else if (tmp_display_string.at(1) == 'R') {
-        tmp_color = RED;
+        tmp_color = kColorPairRed;
         blink     = true;
       }
 
       else if (tmp_display_string.at(1) == 'y') {
-        tmp_color = YELLOW;
+        tmp_color = kColorPairYellow;
       } else if (tmp_display_string.at(1) == 'Y') {
-        tmp_color = YELLOW;
+        tmp_color = kColorPairYellow;
         blink     = true;
       }
 
       else if (tmp_display_string.at(1) == 'g') {
-        tmp_color = GREEN;
+        tmp_color = kColorPairGreen;
       } else if (tmp_display_string.at(1) == 'G') {
-        tmp_color = GREEN;
+        tmp_color = kColorPairGreen;
         blink     = true;
       }
 
-      if (tmp_color != NORMAL) {
+      if (tmp_color != kColorPairNormal) {
         tmp_display_string.erase(0, 3);
       }
     }
@@ -1839,9 +1846,9 @@ void Status::nodeStatsHandler(WINDOW *win) {
       tmp_num_lines = 9;
     }
 
-    wattron(win, COLOR_PAIR(GREEN));
+    wattron(win, COLOR_PAIR(kColorPairGreen));
     printLimitedString(win, 0, 1, "ROS Node CPU usage", 40);
-    wattroff(win, COLOR_PAIR(GREEN));
+    wattroff(win, COLOR_PAIR(kColorPairGreen));
 
     printLimitedDouble(win, 0, 37, "%5.1f", cpu_load_total, 9999);
     printLimitedString(win, 0, 43, "CPU %%", 6);
@@ -1849,11 +1856,11 @@ void Status::nodeStatsHandler(WINDOW *win) {
 
       printLimitedString(win, 1 + i, 1, node_cpu_load_vec.node_names[i], 42);
 
-      short tmp_color = GREEN;
+      short tmp_color = kColorPairGreen;
       if (node_cpu_load_vec.cpu_loads[i] > 99.9) {
-        tmp_color = RED;
+        tmp_color = kColorPairRed;
       } else if (node_cpu_load_vec.cpu_loads[i] > 49.9) {
-        tmp_color = YELLOW;
+        tmp_color = kColorPairYellow;
       }
 
       wattron(win, COLOR_PAIR(tmp_color));
@@ -1982,43 +1989,43 @@ void Status::uavStateHandler(WINDOW *win) {
       printLimitedDouble(win, 4, 1, "hdg %5.2f", heading, 1000);
 
       if (!null_tracker) {
-        wattron(win, COLOR_PAIR(NORMAL));
+        wattron(win, COLOR_PAIR(kColorPairNormal));
         mvwprintw(win, 5, 1, "C/E");
 
         if (cerr_x < 0.5) {
-          wattron(win, COLOR_PAIR(GREEN));
+          wattron(win, COLOR_PAIR(kColorPairGreen));
         } else if (cerr_x < 1.0) {
-          wattron(win, COLOR_PAIR(YELLOW));
+          wattron(win, COLOR_PAIR(kColorPairYellow));
         } else {
-          wattron(win, COLOR_PAIR(RED));
+          wattron(win, COLOR_PAIR(kColorPairRed));
         }
         printLimitedDouble(win, 5, 5, "X%1.1f", cerr_x, 10);
 
 
         if (cerr_y < 0.5) {
-          wattron(win, COLOR_PAIR(GREEN));
+          wattron(win, COLOR_PAIR(kColorPairGreen));
         } else if (cerr_y < 1.0) {
-          wattron(win, COLOR_PAIR(YELLOW));
+          wattron(win, COLOR_PAIR(kColorPairYellow));
         } else {
-          wattron(win, COLOR_PAIR(RED));
+          wattron(win, COLOR_PAIR(kColorPairRed));
         }
         printLimitedDouble(win, 5, 10, "Y%1.1f", cerr_y, 10);
 
         if (cerr_z < 0.5) {
-          wattron(win, COLOR_PAIR(GREEN));
+          wattron(win, COLOR_PAIR(kColorPairGreen));
         } else if (cerr_z < 1.0) {
-          wattron(win, COLOR_PAIR(YELLOW));
+          wattron(win, COLOR_PAIR(kColorPairYellow));
         } else {
-          wattron(win, COLOR_PAIR(RED));
+          wattron(win, COLOR_PAIR(kColorPairRed));
         }
         printLimitedDouble(win, 5, 15, "Z%1.1f", cerr_z, 10);
 
         if (cerr_hdg < 0.2) {
-          wattron(win, COLOR_PAIR(GREEN));
+          wattron(win, COLOR_PAIR(kColorPairGreen));
         } else if (cerr_hdg < 0.4) {
-          wattron(win, COLOR_PAIR(YELLOW));
+          wattron(win, COLOR_PAIR(kColorPairYellow));
         } else {
-          wattron(win, COLOR_PAIR(RED));
+          wattron(win, COLOR_PAIR(kColorPairRed));
         }
         printLimitedDouble(win, 5, 20, "H%1.1f", cerr_hdg, 10);
 
@@ -2051,14 +2058,14 @@ void Status::uavStateHandler(WINDOW *win) {
 
       double dist_to_max_z = max_flight_z - state_z;
       if (dist_to_max_z < 0.0) {
-        wattron(win, COLOR_PAIR(RED));
+        wattron(win, COLOR_PAIR(kColorPairRed));
         wattron(win, A_BLINK);
       } else if (dist_to_max_z < 0.3) {
-        wattron(win, COLOR_PAIR(RED));
+        wattron(win, COLOR_PAIR(kColorPairRed));
       } else if (dist_to_max_z < 1.0) {
-        wattron(win, COLOR_PAIR(YELLOW));
+        wattron(win, COLOR_PAIR(kColorPairYellow));
       } else {
-        wattron(win, COLOR_PAIR(GREEN));
+        wattron(win, COLOR_PAIR(kColorPairGreen));
       }
 
       printLimitedDouble(win, 3, 11, "Max: %5.1f", max_flight_z, 1000);
@@ -2128,7 +2135,7 @@ void Status::controlManagerHandler(WINDOW *win) {
     if (rate == 0.0) {
 
       printNoData(win, 0, 1);
-      wattron(win, COLOR_PAIR(RED));
+      wattron(win, COLOR_PAIR(kColorPairRed));
       mvwprintw(win, 1, 1, "ERR");
       mvwprintw(win, 2, 1, "ERR");
       wattroff(win, COLOR_PAIR(color));
@@ -2136,11 +2143,11 @@ void Status::controlManagerHandler(WINDOW *win) {
     } else {
 
       if (curr_controller != "Se3Controller" && curr_controller != "MpcController") {
-        wattron(win, COLOR_PAIR(RED));
+        wattron(win, COLOR_PAIR(kColorPairRed));
         printLimitedString(win, 1, 1, curr_controller, 3);
       } else {
         printLimitedString(win, 1, 1, curr_controller, 3);
-        wattron(win, COLOR_PAIR(NORMAL));
+        wattron(win, COLOR_PAIR(kColorPairNormal));
         mvwprintw(win, 1, 4, "%s", "/");
       }
 
@@ -2151,17 +2158,17 @@ void Status::controlManagerHandler(WINDOW *win) {
       }
 
       if (curr_tracker != "MpcTracker") {
-        if (curr_tracker == "LandoffTracker" && color != RED) {
-          wattron(win, COLOR_PAIR(YELLOW));
+        if (curr_tracker == "LandoffTracker" && color != kColorPairRed) {
+          wattron(win, COLOR_PAIR(kColorPairYellow));
         } else {
-          wattron(win, COLOR_PAIR(RED));
+          wattron(win, COLOR_PAIR(kColorPairRed));
         }
 
         printLimitedString(win, 2, 1, curr_tracker, 3);
 
       } else {
         printLimitedString(win, 2, 1, curr_tracker, 3);
-        wattron(win, COLOR_PAIR(NORMAL));
+        wattron(win, COLOR_PAIR(kColorPairNormal));
         mvwprintw(win, 2, 4, "%s", "/");
         wattron(win, COLOR_PAIR(color));
       }
@@ -2184,17 +2191,17 @@ void Status::controlManagerHandler(WINDOW *win) {
 
       printNoData(win, 0, 1);
 
-      wattron(win, COLOR_PAIR(RED));
+      wattron(win, COLOR_PAIR(kColorPairRed));
       mvwprintw(win, 1, 1, "NO_CONTROLLER");
       mvwprintw(win, 2, 1, "NO_TRACKER");
       wattroff(win, COLOR_PAIR(color));
 
     } else {
       if (curr_controller != "Se3Controller" && curr_controller != "MpcController") {
-        wattron(win, COLOR_PAIR(RED));
+        wattron(win, COLOR_PAIR(kColorPairRed));
       }
       printLimitedString(win, 1, 1, curr_controller, 13);
-      wattron(win, COLOR_PAIR(NORMAL));
+      wattron(win, COLOR_PAIR(kColorPairNormal));
       printLimitedString(win, 1, 1 + std::min(int(curr_controller.length()), 13), "/" + curr_gains, 10);
       wattron(win, COLOR_PAIR(color));
 
@@ -2203,46 +2210,46 @@ void Status::controlManagerHandler(WINDOW *win) {
       }
 
       if (curr_tracker != "MpcTracker") {
-        if (curr_tracker == "LandoffTracker" && color != RED) {
-          wattron(win, COLOR_PAIR(YELLOW));
+        if (curr_tracker == "LandoffTracker" && color != kColorPairRed) {
+          wattron(win, COLOR_PAIR(kColorPairYellow));
         } else {
-          wattron(win, COLOR_PAIR(RED));
+          wattron(win, COLOR_PAIR(kColorPairRed));
         }
       }
 
       printLimitedString(win, 2, 1, curr_tracker, 13);
-      wattron(win, COLOR_PAIR(NORMAL));
+      wattron(win, COLOR_PAIR(kColorPairNormal));
       printLimitedString(win, 2, 1 + std::min(int(curr_tracker.length()), 13), "/" + curr_constraints, 8);
       wattron(win, COLOR_PAIR(color));
     }
 
     if (rc_mode) {
       wattron(win, A_BLINK);
-      wattron(win, COLOR_PAIR(RED));
+      wattron(win, COLOR_PAIR(kColorPairRed));
       mvwprintw(win, 1, 18, "RC_MODE");
-      wattroff(win, COLOR_PAIR(RED));
+      wattroff(win, COLOR_PAIR(kColorPairRed));
       wattroff(win, A_BLINK);
 
     } else if (!callbacks_enabled) {
-      wattron(win, COLOR_PAIR(RED));
+      wattron(win, COLOR_PAIR(kColorPairRed));
       mvwprintw(win, 1, 20, "NO_CB");
-      wattroff(win, COLOR_PAIR(RED));
+      wattroff(win, COLOR_PAIR(kColorPairRed));
     }
 
     if (tracking_trajectory) {
-      wattron(win, COLOR_PAIR(GREEN));
+      wattron(win, COLOR_PAIR(kColorPairGreen));
       mvwprintw(win, 2, 21, "TRAJ");
-      wattroff(win, COLOR_PAIR(GREEN));
+      wattroff(win, COLOR_PAIR(kColorPairGreen));
 
     } else if (have_goal) {
-      wattron(win, COLOR_PAIR(GREEN));
+      wattron(win, COLOR_PAIR(kColorPairGreen));
       mvwprintw(win, 2, 21, "GOTO");
-      wattroff(win, COLOR_PAIR(GREEN));
+      wattroff(win, COLOR_PAIR(kColorPairGreen));
 
     } else {
-      wattron(win, COLOR_PAIR(YELLOW));
+      wattron(win, COLOR_PAIR(kColorPairYellow));
       mvwprintw(win, 2, 21, "IDLE");
-      wattroff(win, COLOR_PAIR(YELLOW));
+      wattroff(win, COLOR_PAIR(kColorPairYellow));
     }
   }
 
@@ -2323,26 +2330,26 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     if (state_rate == 0) {
 
-      wattron(win, COLOR_PAIR(RED));
+      wattron(win, COLOR_PAIR(kColorPairRed));
       printLimitedString(win, 1, 1, "ERR", 3);
       printLimitedString(win, 2, 1, "ERR", 3);
-      wattroff(win, COLOR_PAIR(RED));
+      wattroff(win, COLOR_PAIR(kColorPairRed));
 
     } else {
 
       if (armed) {
         tmp_string = "ARM";
-        wattron(win, COLOR_PAIR(GREEN));
+        wattron(win, COLOR_PAIR(kColorPairGreen));
       } else {
         tmp_string = "DIS";
-        wattron(win, COLOR_PAIR(RED));
+        wattron(win, COLOR_PAIR(kColorPairRed));
       }
 
       printLimitedString(win, 1, 1, tmp_string, 15);
       wattron(win, COLOR_PAIR(color));
 
       if (mode != "OFFBOARD") {
-        wattron(win, COLOR_PAIR(RED));
+        wattron(win, COLOR_PAIR(kColorPairRed));
       }
 
       printLimitedString(win, 2, 1, mode, 3);
@@ -2355,14 +2362,14 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     } else {
 
-      wattron(win, COLOR_PAIR(GREEN));
+      wattron(win, COLOR_PAIR(kColorPairGreen));
 
       (battery_volt > 17.0) ? (battery_volt = battery_volt / 6) : (battery_volt = battery_volt / 4);
 
       if (battery_volt < 3.6) {
-        wattron(win, COLOR_PAIR(RED));
-      } else if (battery_volt < 3.7 && color != RED) {
-        wattron(win, COLOR_PAIR(YELLOW));
+        wattron(win, COLOR_PAIR(kColorPairRed));
+      } else if (battery_volt < 3.7 && color != kColorPairRed) {
+        wattron(win, COLOR_PAIR(kColorPairYellow));
       }
       printLimitedString(win, 3, 1, "Bat", 3);
     }
@@ -2375,23 +2382,23 @@ void Status::hwApiStateHandler(WINDOW *win) {
     } else {
 
       if (thrust > 0.75) {
-        wattron(win, COLOR_PAIR(RED));
-      } else if (thrust > 0.65 && color != RED) {
-        wattron(win, COLOR_PAIR(YELLOW));
+        wattron(win, COLOR_PAIR(kColorPairRed));
+      } else if (thrust > 0.65 && color != kColorPairRed) {
+        wattron(win, COLOR_PAIR(kColorPairYellow));
       }
       printLimitedDouble(win, 3, 5, ".%2.0f", thrust * 100, 100);
       wattron(win, COLOR_PAIR(color));
 
-      color            = GREEN;
+      color            = kColorPairGreen;
       double mass_diff = fabs(mass_estimate - mass_set) / mass_set;
 
       if (mass_diff > 0.3) {
 
-        color = RED;
+        color = kColorPairRed;
 
       } else if (mass_diff > 0.2) {
 
-        color = YELLOW;
+        color = kColorPairYellow;
       }
 
       printLimitedDouble(win, 4, 1, "%4.1f kg", mass_estimate, 99.99);
@@ -2399,22 +2406,22 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     if (!gnss_ok) {
 
-      wattron(win, COLOR_PAIR(RED));
+      wattron(win, COLOR_PAIR(kColorPairRed));
       printLimitedString(win, 1, 5, "GPS", 6);
-      wattroff(win, COLOR_PAIR(RED));
+      wattroff(win, COLOR_PAIR(kColorPairRed));
 
     } else {
 
-      wattron(win, COLOR_PAIR(GREEN));
+      wattron(win, COLOR_PAIR(kColorPairGreen));
       printLimitedString(win, 1, 5, "GPS", 6);
-      wattroff(win, COLOR_PAIR(GREEN));
+      wattroff(win, COLOR_PAIR(kColorPairGreen));
 
-      color = RED;
+      color = kColorPairRed;
 
       if (gnss_qual < 5.0) {
-        color = GREEN;
+        color = kColorPairGreen;
       } else if (gnss_qual < 10.0) {
-        color = YELLOW;
+        color = kColorPairYellow;
       }
 
       wattron(win, COLOR_PAIR(color));
@@ -2445,28 +2452,28 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     if (state_rate == 0) {
 
-      wattron(win, COLOR_PAIR(RED));
+      wattron(win, COLOR_PAIR(kColorPairRed));
       printLimitedString(win, 1, 1, "State: ", 15);
       printNoData(win, 1, 9);
       printLimitedString(win, 2, 1, "Mode: ", 15);
       printNoData(win, 1, 9);
-      wattroff(win, COLOR_PAIR(RED));
+      wattroff(win, COLOR_PAIR(kColorPairRed));
 
     } else {
 
       if (armed) {
         tmp_string = "ARMED";
-        wattron(win, COLOR_PAIR(GREEN));
+        wattron(win, COLOR_PAIR(kColorPairGreen));
       } else {
         tmp_string = "DISARMED";
-        wattron(win, COLOR_PAIR(RED));
+        wattron(win, COLOR_PAIR(kColorPairRed));
       }
 
       printLimitedString(win, 1, 1, "State: " + tmp_string, 15);
-      wattron(win, COLOR_PAIR(GREEN));
+      wattron(win, COLOR_PAIR(kColorPairGreen));
 
       if (mode != "OFFBOARD") {
-        wattron(win, COLOR_PAIR(RED));
+        wattron(win, COLOR_PAIR(kColorPairRed));
       }
 
       printLimitedString(win, 2, 1, "Mode:  " + mode, 15);
@@ -2479,14 +2486,14 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     } else {
 
-      wattron(win, COLOR_PAIR(GREEN));
+      wattron(win, COLOR_PAIR(kColorPairGreen));
 
       (battery_volt > 17.0) ? (battery_volt = battery_volt / 6) : (battery_volt = battery_volt / 4);
 
       if (battery_volt < 3.6) {
-        wattron(win, COLOR_PAIR(RED));
-      } else if (battery_volt < 3.7 && color != RED) {
-        wattron(win, COLOR_PAIR(YELLOW));
+        wattron(win, COLOR_PAIR(kColorPairRed));
+      } else if (battery_volt < 3.7 && color != kColorPairRed) {
+        wattron(win, COLOR_PAIR(kColorPairYellow));
       }
       printLimitedDouble(win, 4, 1, "%4.2fV ", battery_volt, 10);
       printLimitedDouble(win, 4, 8, "%5.2fA", battery_curr, 100);
@@ -2499,12 +2506,12 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     } else {
 
-      wattron(win, COLOR_PAIR(GREEN));
+      wattron(win, COLOR_PAIR(kColorPairGreen));
 
       if (mag_norm > 0.9 || mag_norm < 0.25) {
-        wattron(win, COLOR_PAIR(RED));
+        wattron(win, COLOR_PAIR(kColorPairRed));
       } else if (mag_norm > 0.65) {
-        wattron(win, COLOR_PAIR(YELLOW));
+        wattron(win, COLOR_PAIR(kColorPairYellow));
       }
       printLimitedDouble(win, 3, 1, "Mag: %4.2f", mag_norm, 9.99);
     }
@@ -2515,31 +2522,31 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     } else {
 
-      wattron(win, COLOR_PAIR(GREEN));
+      wattron(win, COLOR_PAIR(kColorPairGreen));
 
       if (thrust > 0.75) {
-        wattron(win, COLOR_PAIR(RED));
-      } else if (thrust > 0.65 && color != RED) {
-        wattron(win, COLOR_PAIR(YELLOW));
+        wattron(win, COLOR_PAIR(kColorPairRed));
+      } else if (thrust > 0.65 && color != kColorPairRed) {
+        wattron(win, COLOR_PAIR(kColorPairYellow));
       }
       printLimitedDouble(win, 5, 1, "Thrst: %4.2f", thrust, 1.01);
       wattron(win, COLOR_PAIR(color));
 
-      color            = GREEN;
+      color            = kColorPairGreen;
       double mass_diff = fabs(mass_estimate - mass_set) / mass_set;
 
       if (mass_diff > 0.3) {
 
-        color = RED;
+        color = kColorPairRed;
 
       } else if (mass_diff > 0.2) {
 
-        color = YELLOW;
+        color = kColorPairYellow;
       }
 
       if (mass_set > 10.0 || mass_estimate > 10.0) {
 
-        wattron(win, COLOR_PAIR(NORMAL));
+        wattron(win, COLOR_PAIR(kColorPairNormal));
         printLimitedDouble(win, 5, 13, "%.1f/", mass_set, 99.99);
         wattron(win, COLOR_PAIR(color));
         printLimitedDouble(win, 5, 18, "%.1f", mass_estimate, 99.99);
@@ -2547,7 +2554,7 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
       } else {
 
-        wattron(win, COLOR_PAIR(NORMAL));
+        wattron(win, COLOR_PAIR(kColorPairNormal));
         printLimitedDouble(win, 5, 15, "%.1f/", mass_set, 99.99);
         wattron(win, COLOR_PAIR(color));
         printLimitedDouble(win, 5, 19, "%.1f", mass_estimate, 99.99);
@@ -2557,22 +2564,22 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
     if (!gnss_ok) {
 
-      wattron(win, COLOR_PAIR(RED));
+      wattron(win, COLOR_PAIR(kColorPairRed));
       printLimitedString(win, 1, 18, "NO_GPS", 6);
-      wattroff(win, COLOR_PAIR(RED));
+      wattroff(win, COLOR_PAIR(kColorPairRed));
 
     } else {
 
-      wattron(win, COLOR_PAIR(GREEN));
+      wattron(win, COLOR_PAIR(kColorPairGreen));
       printLimitedString(win, 1, 18, "GPS_OK", 6);
-      wattroff(win, COLOR_PAIR(GREEN));
+      wattroff(win, COLOR_PAIR(kColorPairGreen));
 
-      color = RED;
+      color = kColorPairRed;
 
       if (gnss_qual < 5.0) {
-        color = GREEN;
+        color = kColorPairGreen;
       } else if (gnss_qual < 10.0) {
-        color = YELLOW;
+        color = kColorPairYellow;
       }
 
       wattron(win, COLOR_PAIR(color));
@@ -2661,59 +2668,59 @@ void Status::topLineHandler(WINDOW *win) {
 
     if (collision_avoidance_enabled) {
       if (avoiding_collision_) {
-        wattron(win, COLOR_PAIR(RED));
+        wattron(win, COLOR_PAIR(kColorPairRed));
         wattron(win, A_BLINK);
         mvwprintw(win, 0, 26, "!! AVOIDING COLLISION !!");
-        wattroff(win, COLOR_PAIR(RED));
+        wattroff(win, COLOR_PAIR(kColorPairRed));
         wattroff(win, A_BLINK);
       } else {
-        wattron(win, COLOR_PAIR(GREEN));
+        wattron(win, COLOR_PAIR(kColorPairGreen));
         mvwprintw(win, 0, 26, "COL AVOID ENABLED,");
         if (num_other_uavs == 0) {
-          wattron(win, COLOR_PAIR(RED));
+          wattron(win, COLOR_PAIR(kColorPairRed));
         }
         mvwprintw(win, 0, 45, "UAVs: ");
         printLimitedInt(win, 0, 51, "%i", num_other_uavs, 100);
-        wattroff(win, COLOR_PAIR(GREEN));
-        wattroff(win, COLOR_PAIR(RED));
+        wattroff(win, COLOR_PAIR(kColorPairGreen));
+        wattroff(win, COLOR_PAIR(kColorPairRed));
       }
     } else {
-      wattron(win, COLOR_PAIR(RED));
+      wattron(win, COLOR_PAIR(kColorPairRed));
       mvwprintw(win, 0, 26, "COL AVOID DISABLED");
-      wattroff(win, COLOR_PAIR(RED));
+      wattroff(win, COLOR_PAIR(kColorPairRed));
     }
   } else {
 
     if (collision_avoidance_enabled) {
 
       if (avoiding_collision_) {
-        wattron(win, COLOR_PAIR(RED));
+        wattron(win, COLOR_PAIR(kColorPairRed));
         wattron(win, A_BLINK);
         mvwprintw(win, 0, 22, "!AVOIDING!");
-        wattroff(win, COLOR_PAIR(RED));
+        wattroff(win, COLOR_PAIR(kColorPairRed));
         wattroff(win, A_BLINK);
       } else {
-        wattron(win, COLOR_PAIR(GREEN));
+        wattron(win, COLOR_PAIR(kColorPairGreen));
         mvwprintw(win, 0, 27, "C/A");
         if (num_other_uavs == 0) {
-          wattron(win, COLOR_PAIR(RED));
+          wattron(win, COLOR_PAIR(kColorPairRed));
         }
         printLimitedInt(win, 0, 31, "%i", num_other_uavs, 100);
-        wattroff(win, COLOR_PAIR(GREEN));
-        wattroff(win, COLOR_PAIR(RED));
+        wattroff(win, COLOR_PAIR(kColorPairGreen));
+        wattroff(win, COLOR_PAIR(kColorPairRed));
       }
     } else {
-      wattron(win, COLOR_PAIR(RED));
+      wattron(win, COLOR_PAIR(kColorPairRed));
       mvwprintw(win, 0, 27, "C/A");
-      wattroff(win, COLOR_PAIR(RED));
+      wattroff(win, COLOR_PAIR(kColorPairRed));
     }
   }
 
   if (!have_data_) {
     wattron(win, A_BLINK);
-    wattron(win, COLOR_PAIR(ALWAYS_RED));
+    wattron(win, COLOR_PAIR(kColorPairAlwaysRed));
     mvwprintw(win, 0, 0, "!NO MSGS!");
-    wattroff(win, COLOR_PAIR(ALWAYS_RED));
+    wattroff(win, COLOR_PAIR(kColorPairAlwaysRed));
     wattroff(win, A_BLINK);
   }
 
@@ -2733,8 +2740,8 @@ void Status::topLineHandler(WINDOW *win) {
 void Status::generalInfoHandler(WINDOW *win) {
   werase(win);
   wattron(win, A_BOLD);
-  wattron(win, COLOR_PAIR(NORMAL));
-  wattroff(win, COLOR_PAIR(NORMAL));
+  wattron(win, COLOR_PAIR(kColorPairNormal));
+  wattroff(win, COLOR_PAIR(kColorPairNormal));
   wattroff(win, A_STANDOUT);
   printBox(win);
 
@@ -3075,13 +3082,13 @@ void Status::printMemLoad(WINDOW *win) {
 
   double used_ram = total_ram - free_ram;
 
-  int    tmp_color = GREEN;
+  int    tmp_color = kColorPairGreen;
   double ram_ratio = used_ram / total_ram;
   if (ram_ratio > 0.7) {
-    tmp_color = RED;
+    tmp_color = kColorPairRed;
     wattron(win, A_BLINK);
   } else if (ram_ratio > 0.5) {
-    tmp_color = YELLOW;
+    tmp_color = kColorPairYellow;
   }
 
   wattron(win, COLOR_PAIR(tmp_color));
@@ -3104,11 +3111,11 @@ void Status::printCpuLoad(WINDOW *win) {
     cpu_load = uav_status_.cpu_load;
   }
 
-  int tmp_color = GREEN;
+  int tmp_color = kColorPairGreen;
   if (cpu_load > 80.0) {
-    tmp_color = RED;
+    tmp_color = kColorPairRed;
   } else if (cpu_load > 60.0) {
-    tmp_color = YELLOW;
+    tmp_color = kColorPairYellow;
   }
 
   wattron(win, COLOR_PAIR(tmp_color));
@@ -3129,11 +3136,11 @@ void Status::printCpuTemp(WINDOW *win) {
     cpu_temp = uav_status_.cpu_temperature;
   }
 
-  int tmp_color = GREEN;
+  int tmp_color = kColorPairGreen;
   if (cpu_temp > 90.0) {
-    tmp_color = RED;
+    tmp_color = kColorPairRed;
   } else if (cpu_temp > 75.0) {
-    tmp_color = YELLOW;
+    tmp_color = kColorPairYellow;
   }
 
   wattron(win, COLOR_PAIR(tmp_color));
@@ -3155,7 +3162,7 @@ void Status::printCpuFreq(WINDOW *win) {
     avg_cpu_ghz = uav_status_.cpu_ghz;
   }
 
-  wattron(win, COLOR_PAIR(GREEN));
+  wattron(win, COLOR_PAIR(kColorPairGreen));
   printLimitedDouble(win, 1, 16, "%4.2f GHz", avg_cpu_ghz, 10);
 }
 
@@ -3172,14 +3179,14 @@ void Status::printDiskSpace(WINDOW *win) {
 
   // Default color is green, change to yellow if less than 20%
   // or if value changed since last time, change to red if less than 10%
-  wattron(win, COLOR_PAIR(GREEN));
+  wattron(win, COLOR_PAIR(kColorPairGreen));
 
   if (gigas < 20 || gigas != last_gigas_) {
-    wattron(win, COLOR_PAIR(YELLOW));
+    wattron(win, COLOR_PAIR(kColorPairYellow));
   }
 
   if (gigas < 10) {
-    wattron(win, COLOR_PAIR(RED));
+    wattron(win, COLOR_PAIR(kColorPairRed));
     if (mini_) {
       printLimitedString(win, 1, 5, "HDD", 3);
       printLimitedDouble(win, 2, 5, "%3.1f", double(gigas), 10);
@@ -3227,7 +3234,7 @@ void Status::printServiceResult(bool success, string msg) {
   werase(bottom_window_);
 
   wattron(bottom_window_, A_BOLD);
-  wattron(bottom_window_, COLOR_PAIR(GREEN));
+  wattron(bottom_window_, COLOR_PAIR(kColorPairGreen));
 
 
   if (success) {
@@ -3236,16 +3243,16 @@ void Status::printServiceResult(bool success, string msg) {
 
   } else {
 
-    wattron(bottom_window_, COLOR_PAIR(RED));
+    wattron(bottom_window_, COLOR_PAIR(kColorPairRed));
 
     printLimitedString(bottom_window_, 0, 0, "Service call failed: " + msg, 120);
 
-    wattroff(bottom_window_, COLOR_PAIR(RED));
+    wattroff(bottom_window_, COLOR_PAIR(kColorPairRed));
   }
 
   bottom_window_clear_time_ = clock_->now();
 
-  wattroff(bottom_window_, COLOR_PAIR(GREEN));
+  wattroff(bottom_window_, COLOR_PAIR(kColorPairGreen));
   wattroff(bottom_window_, A_BOLD);
 }
 
@@ -3333,18 +3340,18 @@ void Status::printCompressedLimitedString(WINDOW *win, int y, int x, string str_
 
 void Status::printNoData(WINDOW *win, int y, int x) {
   wattron(win, A_BLINK);
-  wattron(win, COLOR_PAIR(RED));
+  wattron(win, COLOR_PAIR(kColorPairRed));
   if (mini_) {
     mvwprintw(win, y, x, "NO DATA");
   } else {
     mvwprintw(win, y, x, "!NO DATA!");
   }
-  wattroff(win, COLOR_PAIR(RED));
+  wattroff(win, COLOR_PAIR(kColorPairRed));
   wattroff(win, A_BLINK);
 }
 
 void Status::printNoData(WINDOW *win, int y, int x, string text) {
-  wattron(win, COLOR_PAIR(RED));
+  wattron(win, COLOR_PAIR(kColorPairRed));
   mvwprintw(win, y, x, text.c_str());
   printNoData(win, y, x + text.length());
 }
@@ -3354,9 +3361,9 @@ void Status::printNoData(WINDOW *win, int y, int x, string text) {
 /* printError() //{ */
 
 void Status::printError(string msg) {
-  wattron(debug_window_, COLOR_PAIR(RED));
+  wattron(debug_window_, COLOR_PAIR(kColorPairRed));
   printLimitedString(debug_window_, 0, 0, msg, 120);
-  wattroff(debug_window_, COLOR_PAIR(RED));
+  wattroff(debug_window_, COLOR_PAIR(kColorPairRed));
 
   wnoutrefresh(debug_window_);
 }
@@ -3458,21 +3465,21 @@ void Status::printTmuxDump() {
 void Status::printBox(WINDOW *win) {
   if (avoiding_collision_) {
 
-    wattron(win, COLOR_PAIR(RED));
+    wattron(win, COLOR_PAIR(kColorPairRed));
     wattron(win, A_BLINK);
     wattron(win, A_STANDOUT);
   }
 
   if (!automatic_start_can_takeoff_ && null_tracker_) {
 
-    wattron(win, COLOR_PAIR(YELLOW));
+    wattron(win, COLOR_PAIR(kColorPairYellow));
     wattron(win, A_STANDOUT);
   }
 
 
   box(win, 0, 0);
   wattroff(win, A_BLINK);
-  wattroff(win, COLOR_PAIR(RED));
+  wattroff(win, COLOR_PAIR(kColorPairRed));
   wattroff(win, A_STANDOUT);
 }
 
@@ -3481,46 +3488,46 @@ void Status::printBox(WINDOW *win) {
 /* setupColors() //{ */
 
 void Status::setupColors(bool active) {
-  init_pair(ALWAYS_RED, COLOR_NICE_RED, BACKGROUND_DEFAULT);
+  init_pair(kColorPairAlwaysRed, kColorNiceRed, kBackgroundDefault);
 
   if (active) {
 
-    init_pair(NORMAL, COLOR_WHITE, BACKGROUND_DEFAULT);
-    init_pair(FIELD, COLOR_WHITE, 235);
-    init_pair(RED, COLOR_NICE_RED, BACKGROUND_DEFAULT);
-    init_pair(YELLOW, COLOR_NICE_YELLOW, BACKGROUND_DEFAULT);
+    init_pair(kColorPairNormal, COLOR_WHITE, kBackgroundDefault);
+    init_pair(kColorPairField, COLOR_WHITE, 235);
+    init_pair(kColorPairRed, kColorNiceRed, kBackgroundDefault);
+    init_pair(kColorPairYellow, kColorNiceYellow, kBackgroundDefault);
 
     if (_colorblind_mode_) {
-      init_pair(GREEN, COLOR_NICE_BLUE, BACKGROUND_DEFAULT);
+      init_pair(kColorPairGreen, kColorNiceBlue, kBackgroundDefault);
     } else {
-      init_pair(GREEN, COLOR_NICE_GREEN, BACKGROUND_DEFAULT);
+      init_pair(kColorPairGreen, kColorNiceGreen, kBackgroundDefault);
     }
     _light_ = false;
 
 
     if (_colorscheme_.find("COLORSCHEME_LIGHT") != std::string::npos) {
-      init_pair(NORMAL, COLOR_BLACK, BACKGROUND_DEFAULT);
-      init_pair(FIELD, COLOR_WHITE, 237);
-      init_pair(YELLOW, COLOR_DARK_YELLOW, BACKGROUND_DEFAULT);
+      init_pair(kColorPairNormal, COLOR_BLACK, kBackgroundDefault);
+      init_pair(kColorPairField, COLOR_WHITE, 237);
+      init_pair(kColorPairYellow, kColorDarkYellow, kBackgroundDefault);
       if (_colorblind_mode_) {
-        init_pair(GREEN, COLOR_DARK_BLUE, BACKGROUND_DEFAULT);
+        init_pair(kColorPairGreen, kColorDarkBlue, kBackgroundDefault);
       } else {
-        init_pair(GREEN, COLOR_DARK_GREEN, BACKGROUND_DEFAULT);
+        init_pair(kColorPairGreen, kColorDarkGreen, kBackgroundDefault);
       }
       _light_ = true;
     }
 
   } else {
-    init_pair(NORMAL, COLOR_DARK_RED, BACKGROUND_DEFAULT);
-    init_pair(FIELD, COLOR_DARK_RED, 235);
-    init_pair(RED, COLOR_DARK_RED, BACKGROUND_DEFAULT);
-    init_pair(YELLOW, COLOR_DARK_RED, BACKGROUND_DEFAULT);
-    init_pair(GREEN, COLOR_DARK_RED, BACKGROUND_DEFAULT);
+    init_pair(kColorPairNormal, kColorDarkRed, kBackgroundDefault);
+    init_pair(kColorPairField, kColorDarkRed, 235);
+    init_pair(kColorPairRed, kColorDarkRed, kBackgroundDefault);
+    init_pair(kColorPairYellow, kColorDarkRed, kBackgroundDefault);
+    init_pair(kColorPairGreen, kColorDarkRed, kBackgroundDefault);
     _light_ = false;
 
 
     if (_colorscheme_.find("COLORSCHEME_LIGHT") != std::string::npos) {
-      init_pair(FIELD, COLOR_DARK_RED, 237);
+      init_pair(kColorPairField, kColorDarkRed, 237);
       _light_ = true;
     }
   }

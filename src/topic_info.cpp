@@ -52,7 +52,7 @@ std::tuple<double, int16_t> TopicInfo::getHz() {
   double       interval = (time_now - last_time_).seconds();
 
   if (interval == 0.0) {
-    return std::make_tuple(0.0, RED);
+    return std::make_tuple(0.0, kColorPairRed);
   }
 
   last_time_ = time_now;
@@ -79,12 +79,12 @@ std::tuple<double, int16_t> TopicInfo::getHz() {
     avg_rate = avg_rate / double(rates_.size());
   }
 
-  int16_t color = RED;
+  int16_t color = kColorPairRed;
 
   if (avg_rate > 0.9 * desired_rate_) {
-    color = GREEN;
+    color = kColorPairGreen;
   } else if (avg_rate > 0.5 * desired_rate_) {
-    color = YELLOW;
+    color = kColorPairYellow;
   }
 
   return std::make_tuple(avg_rate, color);

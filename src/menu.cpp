@@ -66,15 +66,15 @@ Menu::Result Menu::iterate(std::vector<std::string> &text, int key, bool refresh
 
   wattron(win_, A_BOLD);
 
-  if (key == 'q' || key == KEY_ESC) {
+  if (key == 'q' || key == kKeyEsc) {
     result.action = Result::Action::Exit;
     wattroff(win_, A_BOLD);
     return result;
   }
 
-  wattron(win_, COLOR_PAIR(GREEN));
+  wattron(win_, COLOR_PAIR(kColorPairGreen));
   box(win_, 0, 0);
-  wattroff(win_, COLOR_PAIR(GREEN));
+  wattroff(win_, COLOR_PAIR(kColorPairGreen));
 
   for (unsigned long j = 0; j < text.size(); j++) {
     mvwaddstr(win_, j + 1, 1, text[j].c_str());

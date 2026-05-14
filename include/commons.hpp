@@ -1,6 +1,4 @@
 #pragma once
-#ifndef COMMONS_HPP
-#define COMMONS_HPP
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -31,7 +29,6 @@
 #include <mrs_msgs/msg/reference.hpp>
 #include <mrs_msgs/srv/trajectory_reference_srv.hpp>
 #include <mrs_msgs/srv/string.hpp>
-#include <mrs_msgs/msg/uav_status.hpp>
 #include <mrs_msgs/msg/custom_topic.hpp>
 
 #include <std_msgs/msg/string.hpp>
@@ -53,35 +50,32 @@
 
 #include <tf2_msgs/msg/tf_message.hpp>
 
-#define KEY_ENT 10
-#define KEY_ESC 27
-/* #define KEY_BACKSPACE 263 */
-#define KEY_DELETE 330
+inline constexpr int kKeyEnt    = 10;
+inline constexpr int kKeyEsc    = 27;
+/* inline constexpr int kKeyBackspace = 263; */
+inline constexpr int kKeyDelete = 330;
 
-#define NORMAL 100
-#define FIELD 101
-#define GREEN 102
-#define RED 103
-#define YELLOW 104
-#define BLUE 105
-#define ALWAYS_RED 106
+inline constexpr int kColorPairNormal    = 100;
+inline constexpr int kColorPairField     = 101;
+inline constexpr int kColorPairGreen     = 102;
+inline constexpr int kColorPairRed       = 103;
+inline constexpr int kColorPairYellow    = 104;
+inline constexpr int kColorPairBlue      = 105;
+inline constexpr int kColorPairAlwaysRed = 106;
 
-#define BACKGROUND_DEFAULT -1
-#define BACKGROUND_TRUE_BLACK 16
+inline constexpr int kBackgroundDefault   = -1;
+inline constexpr int kBackgroundTrueBlack = 16;
 
-#define COLOR_NICE_RED 196
-#define COLOR_DARK_RED 88
+inline constexpr int kColorNiceRed   = 196;
+inline constexpr int kColorDarkRed   = 88;
+inline constexpr int kColorNiceGreen = 82;
+inline constexpr int kColorDarkGreen = 2;
+inline constexpr int kColorNiceBlue  = 33;
+inline constexpr int kColorDarkBlue  = 19;
+inline constexpr int kColorNiceYellow = 220;
+inline constexpr int kColorDarkYellow = 172;
 
-#define COLOR_NICE_GREEN 82
-#define COLOR_DARK_GREEN 2
-
-#define COLOR_NICE_BLUE 33
-#define COLOR_DARK_BLUE 19
-
-#define COLOR_NICE_YELLOW 220
-#define COLOR_DARK_YELLOW 172
-
-#define BUFFER_SECS_LEN 4
+inline constexpr int kBufferSecsLen = 4;
 
 class TopicInfo {
 
@@ -135,7 +129,11 @@ struct TopicStatus
     rates.resize(buffer_len * int(window_rate));
     rates.assign(rates.size(), 0.0);
     rates_iterator = 0;
-    last_time      = node->get_clock()->now();
+    if (node) {
+      last_time = node->get_clock()->now();
+    } else {
+      last_time = rclcpp::Time(0, 0, RCL_ROS_TIME);
+    }
     counter        = 0;
   }
 };
@@ -173,6 +171,3 @@ struct NodeInfo
     last_stime     = 0;
   }
 };
-
-
-#endif
