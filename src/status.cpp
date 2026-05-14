@@ -11,6 +11,7 @@
 #include <commons.hpp>
 #include <iostream>
 #include <fstream>
+#include <stdexcept>
 
 #include <mrs_lib/node.h>
 #include <mrs_lib/geometry/cyclic.h>
@@ -473,7 +474,7 @@ void Status::initialize() {
       try {
         selected_tmux_window_.push_back(stoi(line));
       }
-      catch (const invalid_argument &e) {
+      catch (const std::invalid_argument &e) {
       }
     }
 
@@ -589,7 +590,7 @@ bool Status::updateTermSize() {
     lines = stoi(results[1]);
   }
 
-  catch (const invalid_argument &e) {
+  catch (const std::invalid_argument &e) {
     cols  = 0;
     lines = 0;
   }
