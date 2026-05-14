@@ -135,13 +135,8 @@ rclcpp_components_register_nodes(MrsUavStatus_Acquisition "mrs_uav_status::Acqui
 ## |                           testing                          |
 ## --------------------------------------------------------------
 
-if(ENABLE_TESTS)
-
-  find_package(ament_cmake_clang_format REQUIRED)
-  ament_clang_format(CONFIG_FILE "${PROJECT_SOURCE_DIR}/.clang-format")
-  find_package(ament_cmake_xmllint REQUIRED)
-  ament_xmllint()
-
+if(BUILD_TESTING)
+  add_subdirectory(test)
 endif()
 
 ## --------------------------------------------------------------
