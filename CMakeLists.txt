@@ -47,24 +47,6 @@ endif()
 ## |                           Compile                          |
 ## --------------------------------------------------------------
 
-# NCurses test
-
-add_executable(MrsUavStatus_NcursesTest)
-
-target_sources(MrsUavStatus_NcursesTest
-  PRIVATE
-    src/ncurses_test.cpp
-)
-
-target_link_libraries(MrsUavStatus_NcursesTest
-  PRIVATE
-    mrs_lib::mrs_lib
-    Boost::filesystem
-    Curses::Curses
-)
-
-target_compile_definitions(MrsUavStatus_NcursesTest PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
-
 # MRS UAV Status
 
 add_executable(MrsUavStatus_Status)
@@ -139,6 +121,15 @@ if(BUILD_TESTING)
   add_subdirectory(test)
 endif()
 
+if(ENABLE_TESTS)
+
+  find_package(ament_cmake_clang_format REQUIRED)
+  ament_clang_format(CONFIG_FILE "${PROJECT_SOURCE_DIR}/.clang-format")
+  find_package(ament_cmake_xmllint REQUIRED)
+  ament_xmllint()
+
+endif()
+
 ## --------------------------------------------------------------
 ## |                           Install                          |
 ## --------------------------------------------------------------
@@ -153,7 +144,6 @@ install(
 
 install(
   TARGETS
-    MrsUavStatus_NcursesTest
     MrsUavStatus_Status
   DESTINATION lib/${PROJECT_NAME}
 )
