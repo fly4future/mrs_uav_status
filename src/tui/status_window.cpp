@@ -8,8 +8,7 @@ namespace tui
 
 /* StatusWindow() //{ */
 
-StatusWindow::StatusWindow(int begin_y, int begin_x, const std::vector<std::string> &text)
-    : StatusWindow(begin_y, begin_x, text, 0) {
+StatusWindow::StatusWindow(int begin_y, int begin_x, const std::vector<std::string> &text) : StatusWindow(begin_y, begin_x, text, 0) {
 }
 
 StatusWindow::StatusWindow(int begin_y, int begin_x, const std::vector<std::string> &text, int id) {
@@ -54,7 +53,7 @@ int StatusWindow::getLine() const {
 
 //}
 
-/* iterate() //{ */
+/* iterate(int key, bool refresh) //{ */
 
 StatusWindow::Result StatusWindow::iterate(const std::vector<std::string> &text, int key, bool refresh) {
 

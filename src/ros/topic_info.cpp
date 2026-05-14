@@ -13,28 +13,28 @@ TopicInfo::TopicInfo() {
 
 /* TopicInfo() //{ */
 
-TopicInfo::TopicInfo(rclcpp::Node::SharedPtr node, double window_rate_in, int buffer_len, double desired_rate_in)
-    : TopicInfo(node, window_rate_in, buffer_len, desired_rate_in, "NOT_DEFINED", "NOT_DEFINED") {
+TopicInfo::TopicInfo(rclcpp::Node::SharedPtr node, double window_rate, int buffer_length, double desired_rate)
+    : TopicInfo(node, window_rate, buffer_length, desired_rate, "NOT_DEFINED", "NOT_DEFINED") {
 }
 
 //}
 
 /* TopicInfo() //{ */
 
-TopicInfo::TopicInfo(rclcpp::Node::SharedPtr node, double window_rate_in, int buffer_len, double desired_rate_in, const std::string &topic_name_in,
-                     const std::string &topic_display_name_in)
+TopicInfo::TopicInfo(rclcpp::Node::SharedPtr node, double window_rate, int buffer_length, double desired_rate, const std::string &topic_name,
+                     const std::string &topic_display_name)
 {
 
   node_         = node;
-  window_rate_  = window_rate_in;
-  desired_rate_ = desired_rate_in;
-  rates_.resize(buffer_len * int(window_rate_));
+  window_rate_  = window_rate;
+  desired_rate_ = desired_rate;
+  rates_.resize(buffer_length * int(window_rate_));
   rates_.assign(rates_.size(), 0.0);
   rates_iterator_ = 0;
   last_time_      = rclcpp::Time(0, 0, node_->get_clock()->get_clock_type());
   counter_        = 0;
-  topic_name_         = topic_name_in;
-  topic_display_name_ = topic_display_name_in;
+  topic_name_         = topic_name;
+  topic_display_name_ = topic_display_name;
 }
 
 //}
