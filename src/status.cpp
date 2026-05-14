@@ -927,7 +927,7 @@ bool Status::mainMenuHandler(int key_in) {
 
     /* MAIN MENU CASE //{ */
   }
-  // kColorPairNormal CASE - NO SUBMENU
+  // MAIN MENU CASE - NO SUBMENU
 
   auto result = menu_vec_[0].iterate(main_menu_text_, key_in, true);
 
