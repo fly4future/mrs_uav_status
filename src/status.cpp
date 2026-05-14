@@ -924,7 +924,7 @@ bool Status::mainMenuHandler(int key_in) {
     return false;
     //}
 
-    /* kColorPairNormal CASE //{ */
+    /* MAIN MENU CASE //{ */
   }
   // kColorPairNormal CASE - NO SUBMENU
 
