@@ -213,6 +213,8 @@ public:
 
   // | ---------------------- Menu routines --------------------- |
 
+  static bool isValidMenuIndex(int index, size_t container_size);
+
   void setupMainMenu();
   bool mainMenuHandler(int key_in);
 
@@ -897,6 +899,13 @@ void Status::timerStatusSlow() {
 
 /* HANDLERS //{ */
 
+/* isValidMenuIndex() //{ */
+
+bool Status::isValidMenuIndex(int index, size_t container_size) {
+  return index >= 0 && static_cast<size_t>(index) < container_size;
+}
+
+//}
 
 /* mainMenuHandler() //{ */
 
@@ -937,7 +946,7 @@ bool Status::mainMenuHandler(int key_in) {
     return true;
   }
 
-  if (result.pressed_key == kKeyEnt && result.selected_line >= 0 && static_cast<size_t>(result.selected_line) < main_menu_rows_.size()) {
+  if (result.pressed_key == kKeyEnt && isValidMenuIndex(result.selected_line, main_menu_rows_.size())) {
     main_menu_rows_[result.selected_line].on_open();
   }
 
@@ -990,7 +999,7 @@ bool Status::gotoMenuHandler(int key_in) {
 
     return true;
 
-  } else if (result.selected_line >= 0 && static_cast<size_t>(result.selected_line) < goto_menu_inputs_.size()) {
+  } else if (isValidMenuIndex(result.selected_line, goto_menu_inputs_.size())) {
 
     goto_menu_inputs_[result.selected_line].process(result.pressed_key);
   }
