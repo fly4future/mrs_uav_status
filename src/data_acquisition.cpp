@@ -3,7 +3,11 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <mrs_msgs/msg/node_cpu_load.hpp>
-#include <commons.hpp>
+#include <mrs_uav_status/ros/topic_info.hpp>
+#include <mrs_uav_status/ros/topic_status.hpp>
+#include <mrs_uav_status/ros/service.hpp>
+#include <mrs_uav_status/utils/node_info.hpp>
+#include <mrs_uav_status/utils/string_info.hpp>
 
 #include <iostream>
 #include <fstream>

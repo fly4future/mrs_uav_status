@@ -1,0 +1,145 @@
+#include <mrs_uav_status/tui/control_bar.hpp>
+#include <mrs_uav_status/tui/tui_constants.hpp>
+
+#include <cctype>
+#include <cstdio>
+#include <cstdlib>
+
+namespace mrs_uav_status
+{
+namespace tui
+{
+
+/* ControlBar() //{ */
+
+ControlBar::ControlBar(unsigned long size, WINDOW *win, double initial_value) {
+
+  size_ = size;
+  win_  = win;
+  buffer_.resize(size_, ' ');
+
+  ControlBar::cursor_ = (size_ / 2) - 2;
+
+  char tmpbuffer[size_];
+
+  sprintf(tmpbuffer, "%6.2f", initial_value);
+
+  for (unsigned long i = 0; i < size_; i++) {
+    if (std::isdigit(tmpbuffer[i]) || tmpbuffer[i] == '.' || tmpbuffer[i] == '-') {
+      buffer_[i] = tmpbuffer[i];
+    } else {
+      buffer_[i] = ' ';
+    }
+  }
+}
+
+//}
+
+/* process() //{ */
+
+unsigned long ControlBar::process(int key) {
+
+  switch (key) {
+  case -1:
+    return ControlBar::cursor_;
+
+  case KEY_LEFT:
+  case 'h':
+    if (ControlBar::cursor_ > 0) {
+      ControlBar::cursor_--;
+    }
+    break;
+
+  case KEY_RIGHT:
+  case 'l':
+    if (ControlBar::cursor_ + 1 < size_) {
+      ControlBar::cursor_++;
+    }
+    break;
+
+  case KEY_BACKSPACE:
+    if (ControlBar::cursor_ > 0) {
+      buffer_.erase(buffer_.begin() + ControlBar::cursor_ - 1);
+      ControlBar::cursor_--;
+    }
+    break;
+
+  case static_cast<int>(Key::Delete):
+    buffer_.erase(buffer_.begin() + ControlBar::cursor_);
+    break;
+
+  default:
+    if (ControlBar::cursor_ < size_) {
+
+      if (std::isdigit(key) || key == '.' || key == '-') {
+        if (buffer_[size_ - 1] != ' ') {
+          if (buffer_[0] == ' ') {
+            buffer_.insert(buffer_.begin() + ControlBar::cursor_, key);
+            buffer_.erase(buffer_.begin());
+            return ControlBar::cursor_;
+
+          } else {
+
+            return ControlBar::cursor_;
+          }
+        }
+
+        buffer_.insert(buffer_.begin() + ControlBar::cursor_, key);
+
+        if (ControlBar::cursor_ + 1 < size_) {
+          ControlBar::cursor_++;
+        }
+      }
+    }
+    break;
+  }
+  buffer_.resize(size_, ' ');
+  return ControlBar::cursor_;
+}
+
+//}
+
+/* print() //{ */
+
+void ControlBar::print(int line, bool active) {
+
+  wattron(win_, COLOR_PAIR(static_cast<int>(ColorPair::Field)));
+  wattron(win_, A_BOLD);
+
+  for (unsigned long i = 0; i < buffer_.size(); i++) {
+    if (i == ControlBar::cursor_ && active) {
+      wattron(win_, A_UNDERLINE);
+    }
+    mvwprintw(win_, line, 10 + i, "%c", buffer_[i]);
+    wattroff(win_, A_UNDERLINE);
+  }
+
+  wattroff(win_, A_BOLD);
+  wattroff(win_, COLOR_PAIR(static_cast<int>(ColorPair::Field)));
+}
+
+//}
+
+/* getDouble() //{ */
+
+double ControlBar::getDouble() const {
+
+  double ret_val;
+
+  char tmparr[buffer_.size()];
+
+  for (unsigned long i = 0; i < buffer_.size(); i++) {
+    tmparr[i] = buffer_[i];
+  }
+
+  char *ptr;
+
+  ret_val = strtod(tmparr, &ptr);
+
+  return ret_val;
+}
+
+//}
+
+} // namespace tui
+} // namespace mrs_uav_status

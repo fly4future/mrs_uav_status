@@ -1,8 +1,14 @@
-#include <menu.hpp>
+#include <mrs_uav_status/tui/status_window.hpp>
+#include <mrs_uav_status/tui/tui_constants.hpp>
 
-/* Menu() //{ */
+namespace mrs_uav_status
+{
+namespace tui
+{
 
-Menu::Menu(int begin_y, int begin_x, std::vector<std::string> &text) {
+/* StatusWindow() //{ */
+
+StatusWindow::StatusWindow(int begin_y, int begin_x, const std::vector<std::string> &text) {
   unsigned long longest_string = 0;
 
   for (unsigned long line = 0; line < text.size(); line++) {
@@ -16,7 +22,7 @@ Menu::Menu(int begin_y, int begin_x, std::vector<std::string> &text) {
   win_  = newwin(text_.size() + 2, longest_string + 2, begin_y, begin_x);
 }
 
-Menu::Menu(int begin_y, int begin_x, std::vector<std::string> &text, int id) {
+StatusWindow::StatusWindow(int begin_y, int begin_x, const std::vector<std::string> &text, int id) {
 
   unsigned long longest_string = 0;
 
@@ -34,7 +40,7 @@ Menu::Menu(int begin_y, int begin_x, std::vector<std::string> &text, int id) {
 
 /* getWin() //{ */
 
-WINDOW *Menu::getWin() {
+WINDOW *StatusWindow::getWin() const {
   return win_;
 }
 
@@ -42,7 +48,7 @@ WINDOW *Menu::getWin() {
 
 /* getId() //{ */
 
-int Menu::getId() {
+int StatusWindow::getId() const {
   return id_;
 }
 
@@ -50,7 +56,7 @@ int Menu::getId() {
 
 /* getLine() //{ */
 
-int Menu::getLine() {
+int StatusWindow::getLine() const {
   return line_;
 }
 
@@ -60,21 +66,21 @@ int Menu::getLine() {
 
 /* iterate() //{ */
 
-Menu::Result Menu::iterate(std::vector<std::string> &text, int key, bool refresh) {
+StatusWindow::Result StatusWindow::iterate(const std::vector<std::string> &text, int key, bool refresh) {
 
   Result result;
 
   wattron(win_, A_BOLD);
 
-  if (key == 'q' || key == kKeyEsc) {
+  if (key == 'q' || key == static_cast<int>(Key::Escape)) {
     result.action = Result::Action::Exit;
     wattroff(win_, A_BOLD);
     return result;
   }
 
-  wattron(win_, COLOR_PAIR(kColorPairGreen));
+  wattron(win_, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
   box(win_, 0, 0);
-  wattroff(win_, COLOR_PAIR(kColorPairGreen));
+  wattroff(win_, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
 
   for (unsigned long j = 0; j < text.size(); j++) {
     mvwaddstr(win_, j + 1, 1, text[j].c_str());
@@ -105,7 +111,10 @@ Menu::Result Menu::iterate(std::vector<std::string> &text, int key, bool refresh
 
 /* iterate() //{ */
 
-Menu::Result Menu::iterate(int key, bool refresh) {
+StatusWindow::Result StatusWindow::iterate(int key, bool refresh) {
   return iterate(text_, key, refresh);
 }
 //}
+
+} // namespace tui
+} // namespace mrs_uav_status
