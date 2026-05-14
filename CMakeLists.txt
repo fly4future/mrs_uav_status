@@ -114,14 +114,12 @@ target_compile_definitions(MrsUavStatus_Acquisition PRIVATE USE_ROS_TIMER=${USE_
 rclcpp_components_register_nodes(MrsUavStatus_Acquisition "mrs_uav_status::Acquisition")
 
 ## --------------------------------------------------------------
-## |                           testing                          |
+## |                           Testing                          |
 ## --------------------------------------------------------------
 
-if(BUILD_TESTING)
-  add_subdirectory(test)
-endif()
-
 if(ENABLE_TESTS)
+
+  add_subdirectory(test)
 
   find_package(ament_cmake_clang_format REQUIRED)
   ament_clang_format(CONFIG_FILE "${PROJECT_SOURCE_DIR}/.clang-format")
