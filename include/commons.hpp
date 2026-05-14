@@ -124,6 +124,7 @@ struct TopicStatus
   size_t                  rates_iterator = 0;
   rclcpp::Node::SharedPtr node;
 
+  // `node_in` is optional; when null, `last_time` is initialized to zero ROS time.
   TopicStatus(double window_rate_in, int buffer_len, rclcpp::Node::SharedPtr node_in = nullptr) {
     node        = node_in;
     window_rate = window_rate_in;
