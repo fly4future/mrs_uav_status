@@ -22,7 +22,7 @@ ControlBar::ControlBar(unsigned long size, WINDOW *win, double initial_value) {
 
   std::vector<char> tmpbuffer(size_ + 1, '\0');
 
-  std::snprintf(tmpbuffer.data(), tmpbuffer.size(), "%6.2f", initial_value);
+  std::snprintf(tmpbuffer.data(), tmpbuffer.size(), "%.2f", initial_value);
 
   for (unsigned long i = 0; i < size_; i++) {
     if (std::isdigit(tmpbuffer[i]) || tmpbuffer[i] == '.' || tmpbuffer[i] == '-') {
