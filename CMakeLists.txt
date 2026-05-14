@@ -77,9 +77,9 @@ target_sources(MrsUavStatus_Status
     "src/topic_info.cpp"
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
   FILES
-    "include/commons.h"
-    "include/input_box.h"
-    "include/menu.h"
+    "include/commons.hpp"
+    "include/input_box.hpp"
+    "include/menu.hpp"
 )
 
 target_link_libraries(MrsUavStatus_Status
@@ -108,9 +108,9 @@ target_sources(MrsUavStatus_Acquisition
     "src/topic_info.cpp"
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
   FILES
-    "include/commons.h"
-    "include/input_box.h"
-    "include/menu.h"
+    "include/commons.hpp"
+    "include/input_box.hpp"
+    "include/menu.hpp"
 )
 
 target_link_libraries(MrsUavStatus_Acquisition

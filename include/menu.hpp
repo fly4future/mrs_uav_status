@@ -1,4 +1,4 @@
-#include <commons.h>
+#include <commons.hpp>
 
 class Menu {
 
@@ -17,10 +17,10 @@ public:
       None,
       Select,
       Exit
-    } action = Action::None; // default value
+    } action = Action::None;
 
-    int selected_line = -1; // default value, -1 indicates no line selected
-    int pressed_key   = -1; // default value, -1 indicates no key pressed
+    int selected_line = -1;
+    int pressed_key   = -1;
   };
 
   Result iterate(std::vector<std::string> &text, int key, bool refresh);
@@ -28,11 +28,11 @@ public:
 
 private:
   WINDOW                  *win_;
-  int                      line = 0;
+  int                      line_ = 0;
   int                      id_;
-  int                      y;
-  int                      x;
-  int                      rows;
-  int                      cols;
+  int                      y_;
+  int                      x_;
+  int                      rows_;
+  int                      cols_;
   std::vector<std::string> text_;
 };

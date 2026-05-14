@@ -1,4 +1,4 @@
-#include <commons.h>
+#include <commons.hpp>
 
 /* TopicInfo() //{ */
 
@@ -44,9 +44,9 @@ TopicInfo::TopicInfo(rclcpp::Node::SharedPtr node, double window_rate_in, int bu
 
 //}
 
-/* GetHz //{ */
+/* getHz //{ */
 
-std::tuple<double, int16_t> TopicInfo::GetHz() {
+std::tuple<double, int16_t> TopicInfo::getHz() {
 
   rclcpp::Time time_now = node_->get_clock()->now();
   double       interval = (time_now - last_time_).seconds();
@@ -92,25 +92,25 @@ std::tuple<double, int16_t> TopicInfo::GetHz() {
 
 //}
 
-/* GetTopicName //{ */
+/* getTopicName //{ */
 
-std::string TopicInfo::GetTopicName() {
+std::string TopicInfo::getTopicName() {
   return topic_name_;
 }
 
 //}
 
-/* GetTopicName //{ */
+/* getTopicName //{ */
 
-std::string TopicInfo::GetTopicDisplayName() {
+std::string TopicInfo::getTopicDisplayName() {
   return topic_display_name_;
 }
 
 //}
 
-/* Count //{ */
+/* count //{ */
 
-void TopicInfo::Count() {
+void TopicInfo::count() {
   counter_++;
 }
 

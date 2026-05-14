@@ -1,14 +1,14 @@
 /* includes //{ */
 
-#include <menu.h>
+#include <menu.hpp>
 
 #include <mrs_msgs/msg/node_cpu_load.hpp>
 #include <mrs_msgs/msg/reference.hpp>
 #include <mrs_msgs/msg/gimbal_state.hpp>
 #include <mrs_msgs/msg/float64_stamped.hpp>
 
-#include <input_box.h>
-#include <commons.h>
+#include <input_box.hpp>
+#include <commons.hpp>
 #include <iostream>
 #include <fstream>
 
@@ -36,16 +36,16 @@ typedef enum
   MAIN_MENU,
   GOTO_MENU,
   DISPLAY_MENU,
-} status_state;
+} StatusState;
 
 //}
 
 /* defines //{ */
 
 #if USE_ROS_TIMER == 1
-typedef mrs_lib::ROSTimer TimerType;
+using TimerType = mrs_lib::ROSTimer;
 #else
-typedef mrs_lib::ThreadTimer TimerType;
+using TimerType = mrs_lib::ThreadTimer;
 #endif
 
 //}
@@ -100,7 +100,7 @@ public:
   void timerStatusSlow();
   void timerResize();
 
-  // | --------------------- Print routines --------------------- |
+  // | --------------------- print routines --------------------- |
 
   void printLimitedInt(WINDOW *win, int y, int x, string str_in, int num, int limit);
   void printLimitedDouble(WINDOW *win, int y, int x, string str_in, double num, double limit);
@@ -122,10 +122,10 @@ public:
 
   void uavStateHandler(WINDOW *win);
   void controlManagerHandler(WINDOW *win);
-  void hwApiStateHander(WINDOW *win);
+  void hwApiStateHandler(WINDOW *win);
   void genericTopicHandler(WINDOW *win);
   void nodeStatsHandler(WINDOW *win);
-  void generalInfoHandeler(WINDOW *win);
+  void generalInfoHandler(WINDOW *win);
   void stringHandler(WINDOW *);
 
   double general_info_window_rate_  = 1;
@@ -222,14 +222,14 @@ public:
 
   // | --------------------- Service Clients -------------------- |
 
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>    service_goto_reference_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::TrajectoryReferenceSrv> service_trajectory_reference_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 service_set_constraints_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 service_set_gains_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 service_set_controller_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 service_set_tracker_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 service_set_estimator_;
-  mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>                service_hover_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>    sc_goto_reference_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::TrajectoryReferenceSrv> sc_trajectory_reference_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 sc_set_constraints_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 sc_set_gains_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 sc_set_controller_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 sc_set_tracker_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 sc_set_estimator_;
+  mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>                sc_hover_;
 
   // | -------------------- UAV configuration ------------------- |
 
@@ -241,7 +241,7 @@ public:
   vector<Menu> menu_vec_;
   vector<Menu> submenu_vec_;
 
-  vector<service> service_vec_;
+  vector<Service> service_vec_;
   vector<string>  service_input_vec_;
   vector<string>  main_menu_text_;
   vector<string>  display_menu_text_;
@@ -257,9 +257,9 @@ public:
   vector<string>   goto_menu_text_;
   vector<InputBox> goto_menu_inputs_;
 
-  string old_constraints;
+  string old_constraints_;
 
-  mrs_msgs::msg::GimbalState gimbal_command;
+  mrs_msgs::msg::GimbalState gimbal_command_;
   const uint16_t             gimbal_max = 2000;
   const uint16_t             gimbal_min = 1000;
 
@@ -278,7 +278,7 @@ public:
   bool null_tracker_                = false;
   bool is_flying_                   = false;
 
-  status_state state = STANDARD;
+  StatusState state_ = STANDARD;
   int          cols_, lines_;
 
   std::atomic<bool> initialized_ = false;
@@ -416,14 +416,14 @@ void Status::initialize() {
 
   // | --------------------- service clients -------------------- |
 
-  service_goto_reference_       = mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>(node_, "~/reference_out", cbkgrp_sc_);
-  service_trajectory_reference_ = mrs_lib::ServiceClientHandler<mrs_msgs::srv::TrajectoryReferenceSrv>(node_, "~/trajectory_reference_out", cbkgrp_sc_);
-  service_set_constraints_      = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_constraints_out", cbkgrp_sc_);
-  service_set_gains_            = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_gains_out", cbkgrp_sc_);
-  service_set_controller_       = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_controller_out", cbkgrp_sc_);
-  service_set_tracker_          = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_tracker_out", cbkgrp_sc_);
-  service_set_estimator_        = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_estimator_out", cbkgrp_sc_);
-  service_hover_                = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, "~/hover_out", cbkgrp_sc_);
+  sc_goto_reference_       = mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>(node_, "~/reference_out", cbkgrp_sc_);
+  sc_trajectory_reference_ = mrs_lib::ServiceClientHandler<mrs_msgs::srv::TrajectoryReferenceSrv>(node_, "~/trajectory_reference_out", cbkgrp_sc_);
+  sc_set_constraints_      = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_constraints_out", cbkgrp_sc_);
+  sc_set_gains_            = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_gains_out", cbkgrp_sc_);
+  sc_set_controller_       = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_controller_out", cbkgrp_sc_);
+  sc_set_tracker_          = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_tracker_out", cbkgrp_sc_);
+  sc_set_estimator_        = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_estimator_out", cbkgrp_sc_);
+  sc_hover_                = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, "~/hover_out", cbkgrp_sc_);
 
   // mrs_lib profiler
   profiler_ = mrs_lib::Profiler(node_, "Status", _profiler_enabled_);
@@ -633,7 +633,7 @@ void Status::timerStatusFast() {
   int  key_in = getch();
   bool is_flying_normally_;
 
-  switch (state) {
+  switch (state_) {
 
     /* STANDARD //{ */
 
@@ -652,7 +652,7 @@ void Status::timerStatusFast() {
 
       if (is_flying_normally_) {
         remote_hover_ = false;
-        state         = REMOTE;
+        state_ = REMOTE;
       }
 
       break;
@@ -664,21 +664,21 @@ void Status::timerStatusFast() {
 
     case 'G': {
 
-      gimbal_command.fpv_mode    = true;
-      gimbal_command.is_on       = true;
-      gimbal_command.gimbal_pan  = 1500;
-      gimbal_command.gimbal_tilt = 1500;
-      state                      = GIMBAL;
+      gimbal_command_.fpv_mode    = true;
+      gimbal_command_.is_on       = true;
+      gimbal_command_.gimbal_pan  = 1500;
+      gimbal_command_.gimbal_tilt = 1500;
+      state_ = GIMBAL;
       break;
 
     case 'm':
       setupMainMenu();
-      state = MAIN_MENU;
+      state_ = MAIN_MENU;
       break;
 
     case 'g':
       setupGotoMenu();
-      state = GOTO_MENU;
+      state_ = GOTO_MENU;
       break;
 
     case 'h':
@@ -694,7 +694,7 @@ void Status::timerStatusFast() {
 
     case 'D':
       setupDisplayMenu();
-      state = DISPLAY_MENU;
+      state_ = DISPLAY_MENU;
       break;
 
     default:
@@ -725,9 +725,9 @@ void Status::timerStatusFast() {
 
         auto request = std::make_shared<mrs_msgs::srv::String::Request>();
 
-        request->value = old_constraints;
+        request->value = old_constraints_;
 
-        auto response = service_set_constraints_.callSync(request);
+        auto response = sc_set_constraints_.callSync(request);
 
         if (response) {
           printServiceResult(response.value()->success, response.value()->message);
@@ -736,7 +736,7 @@ void Status::timerStatusFast() {
         }
       }
 
-      state = STANDARD;
+      state_ = STANDARD;
     }
 
     break;
@@ -753,7 +753,7 @@ void Status::timerStatusFast() {
     gimbalHandler(key_in, top_bar_window_);
 
     if (key_in == 'G' || key_in == KEY_ESC) {
-      state = STANDARD;
+      state_ = STANDARD;
     }
 
     break;
@@ -775,7 +775,7 @@ void Status::timerStatusFast() {
       wnoutrefresh(debug_window_);
       wnoutrefresh(bottom_window_);
 
-      state = STANDARD;
+      state_ = STANDARD;
     }
 
     break;
@@ -792,7 +792,7 @@ void Status::timerStatusFast() {
     if (gotoMenuHandler(key_in)) {
       menu_vec_.clear();
       submenu_vec_.clear();
-      state = STANDARD;
+      state_ = STANDARD;
     }
 
     break;
@@ -809,7 +809,7 @@ void Status::timerStatusFast() {
     if (displayMenuHandler(key_in)) {
       menu_vec_.clear();
       submenu_vec_.clear();
-      state = STANDARD;
+      state_ = STANDARD;
     }
 
     break;
@@ -826,7 +826,7 @@ void Status::timerStatusFast() {
   /*   printDebug("something else"); */
   /* } */
 
-  if (state != MAIN_MENU && state != GOTO_MENU && state != DISPLAY_MENU) {
+  if (state_ != MAIN_MENU && state_ != GOTO_MENU && state_ != DISPLAY_MENU) {
     wnoutrefresh(bottom_window_);
     /* wrefresh(bottom_window_); */
   }
@@ -855,8 +855,8 @@ void Status::timerStatusSlow() {
   estimator_display_counter_ += int(increment_counter_);
 
   {
-    mrs_lib::Routine profiler_routine = profiler_.createRoutine("hwApiStateHander");
-    hwApiStateHander(hw_api_state_window_);
+    mrs_lib::Routine profiler_routine = profiler_.createRoutine("hwApiStateHandler");
+    hwApiStateHandler(hw_api_state_window_);
   }
 
   {
@@ -881,7 +881,7 @@ void Status::timerStatusSlow() {
 
   {
     mrs_lib::Routine profiler_routine = profiler_.createRoutine("generalInfoHandler");
-    generalInfoHandeler(general_info_window_);
+    generalInfoHandler(general_info_window_);
   }
 }
 
@@ -970,7 +970,7 @@ bool Status::gotoMenuHandler(int key_in) {
       request->header.frame_id = uav_status_.odom_frame;
     }
 
-    auto response = service_goto_reference_.callSync(request);
+    auto response = sc_goto_reference_.callSync(request);
 
     if (response) {
       printServiceResult(response.value()->success, response.value()->message);
@@ -984,14 +984,14 @@ bool Status::gotoMenuHandler(int key_in) {
 
   } else if (result.selected_line < goto_menu_inputs_.size()) {
 
-    goto_menu_inputs_[result.selected_line].Process(result.pressed_key);
+    goto_menu_inputs_[result.selected_line].process(result.pressed_key);
   }
 
   for (size_t i = 0; i < goto_menu_inputs_.size(); i++) {
     if (int(i) == menu_vec_[0].getLine()) {
-      goto_menu_inputs_[i].Print(i + 1, true);
+      goto_menu_inputs_[i].print(i + 1, true);
     } else {
-      goto_menu_inputs_[i].Print(i + 1, false);
+      goto_menu_inputs_[i].print(i + 1, false);
     }
   }
 
@@ -1256,9 +1256,9 @@ void Status::remoteHandler(int key, WINDOW *win) {
 
         auto request = std::make_shared<mrs_msgs::srv::String::Request>();
 
-        request->value = old_constraints;
+        request->value = old_constraints_;
 
-        auto response = service_set_constraints_.callSync(request);
+        auto response = sc_set_constraints_.callSync(request);
 
         if (response) {
           printServiceResult(response.value()->success, response.value()->message);
@@ -1272,14 +1272,14 @@ void Status::remoteHandler(int key, WINDOW *win) {
 
         {
           std::scoped_lock lock(mutex_status_msg_);
-          old_constraints = uav_status_.constraints[0];
+          old_constraints_ = uav_status_.constraints[0];
         }
 
         auto request = std::make_shared<mrs_msgs::srv::String::Request>();
 
         request->value = _turbo_remote_constraints_;
 
-        auto response = service_set_constraints_.callSync(request);
+        auto response = sc_set_constraints_.callSync(request);
 
         if (response) {
           printServiceResult(response.value()->success, response.value()->message);
@@ -1311,7 +1311,7 @@ void Status::remoteHandler(int key, WINDOW *win) {
 
       auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
 
-      service_hover_.callSync(request);
+      sc_hover_.callSync(request);
 
       remote_hover_ = false;
     }
@@ -1336,7 +1336,7 @@ void Status::gimbalHandler(int key, WINDOW *win) {
   wattron(win, COLOR_PAIR(RED));
   mvwprintw(win, 0, 43, "GIMBAL      MODE IS ACTIVE");
 
-  if (gimbal_command.fpv_mode) {
+  if (gimbal_command_.fpv_mode) {
     mvwprintw(win, 0, 50, "FPV");
   } else {
     mvwprintw(win, 0, 50, "P-T");
@@ -1353,40 +1353,40 @@ void Status::gimbalHandler(int key, WINDOW *win) {
   case 'w':
   case 'k':
   case KEY_UP:
-    gimbal_command.gimbal_tilt -= gimbal_increment;
+    gimbal_command_.gimbal_tilt -= gimbal_increment;
     break;
 
   case 's':
   case 'j':
   case KEY_DOWN:
-    gimbal_command.gimbal_tilt += gimbal_increment;
+    gimbal_command_.gimbal_tilt += gimbal_increment;
     break;
 
   case 'a':
   case 'h':
   case KEY_LEFT:
-    gimbal_command.gimbal_pan -= gimbal_increment;
+    gimbal_command_.gimbal_pan -= gimbal_increment;
     break;
 
   case 'd':
   case 'l':
   case KEY_RIGHT:
-    gimbal_command.gimbal_pan += gimbal_increment;
+    gimbal_command_.gimbal_pan += gimbal_increment;
     break;
 
   case 'm':
-    gimbal_command.fpv_mode = !gimbal_command.fpv_mode;
+    gimbal_command_.fpv_mode = !gimbal_command_.fpv_mode;
     break;
 
   case 'o':
-    gimbal_command.is_on = !gimbal_command.is_on;
+    gimbal_command_.is_on = !gimbal_command_.is_on;
     break;
 
   case 'r':
-    gimbal_command.is_on       = true;
-    gimbal_command.fpv_mode    = true;
-    gimbal_command.gimbal_tilt = 1500;
-    gimbal_command.gimbal_pan  = 1500;
+    gimbal_command_.is_on       = true;
+    gimbal_command_.fpv_mode    = true;
+    gimbal_command_.gimbal_tilt = 1500;
+    gimbal_command_.gimbal_pan  = 1500;
     break;
 
     /* case 'r': */
@@ -1447,8 +1447,8 @@ void Status::gimbalHandler(int key, WINDOW *win) {
     /*     if (turbo_remote_) { */
 
     /*       turbo_remote_                = false; */
-    /*       string_service.request.value = old_constraints; */
-    /*       service_set_constraints_.call(string_service, _service_num_calls_, _service_delay_); */
+    /*       string_service.request.value = old_constraints_; */
+    /*       sc_set_constraints_.call(string_service, _service_num_calls_, _service_delay_); */
     /*       printServiceResult(string_service.response.success, string_service.response.message); */
 
     /*     } else { */
@@ -1457,11 +1457,11 @@ void Status::gimbalHandler(int key, WINDOW *win) {
 
     /*       { */
     /*         std::scoped_lock lock(mutex_status_msg_); */
-    /*         old_constraints = uav_status_.constraints[0]; */
+    /*         old_constraints_ = uav_status_.constraints[0]; */
     /*       } */
 
     /*       string_service.request.value = _turbo_remote_constraints_; */
-    /*       service_set_constraints_.call(string_service, _service_num_calls_, _service_delay_); */
+    /*       sc_set_constraints_.call(string_service, _service_num_calls_, _service_delay_); */
     /*       printServiceResult(string_service.response.success, string_service.response.message); */
     /*     } */
     /*   } */
@@ -1485,27 +1485,27 @@ void Status::gimbalHandler(int key, WINDOW *win) {
     /* default: */
     /*   if (remote_hover_) { */
 
-    /*     service_hover_.call(trig, _service_num_calls_, _service_delay_); */
+    /*     sc_hover_.call(trig, _service_num_calls_, _service_delay_); */
     /*     remote_hover_ = false; */
     /*   } */
     /*   break; */
   }
 
-  if (gimbal_command.gimbal_pan > gimbal_max) {
-    gimbal_command.gimbal_pan = gimbal_max;
+  if (gimbal_command_.gimbal_pan > gimbal_max) {
+    gimbal_command_.gimbal_pan = gimbal_max;
   }
-  if (gimbal_command.gimbal_tilt > gimbal_max) {
-    gimbal_command.gimbal_tilt = gimbal_max;
-  }
-
-  if (gimbal_command.gimbal_pan < gimbal_min) {
-    gimbal_command.gimbal_pan = gimbal_min;
-  }
-  if (gimbal_command.gimbal_tilt < gimbal_min) {
-    gimbal_command.gimbal_tilt = gimbal_min;
+  if (gimbal_command_.gimbal_tilt > gimbal_max) {
+    gimbal_command_.gimbal_tilt = gimbal_max;
   }
 
-  ph_gimbal_state_.publish(gimbal_command);
+  if (gimbal_command_.gimbal_pan < gimbal_min) {
+    gimbal_command_.gimbal_pan = gimbal_min;
+  }
+  if (gimbal_command_.gimbal_tilt < gimbal_min) {
+    gimbal_command_.gimbal_tilt = gimbal_min;
+  }
+
+  ph_gimbal_state_.publish(gimbal_command_);
 
   wattroff(win, A_BOLD);
 }
@@ -1590,7 +1590,7 @@ void Status::remoteModeFly(const mrs_msgs::msg::Reference &ref_in) {
 
   request->header.stamp = clock_->now();
 
-  auto response = service_goto_reference_.callSync(request);
+  auto response = sc_goto_reference_.callSync(request);
 }
 
 //}
@@ -2255,9 +2255,9 @@ void Status::controlManagerHandler(WINDOW *win) {
 
 //}
 
-/* hwApiStateHander() //{ */
+/* hwApiStateHandler() //{ */
 
-void Status::hwApiStateHander(WINDOW *win) {
+void Status::hwApiStateHandler(WINDOW *win) {
   int16_t     color;
   double      hw_api_rate;
   double      state_rate;
@@ -2728,9 +2728,9 @@ void Status::topLineHandler(WINDOW *win) {
 
 //}
 
-/* generalInfoHandeler() //{ */
+/* generalInfoHandler() //{ */
 
-void Status::generalInfoHandeler(WINDOW *win) {
+void Status::generalInfoHandler(WINDOW *win) {
   werase(win);
   wattron(win, A_BOLD);
   wattron(win, COLOR_PAIR(NORMAL));
@@ -2905,7 +2905,7 @@ void Status::setupMainMenu() {
       service_name = "/" + uav_name + "/" + results[0];
     }
 
-    service tmp_service(service_name, results[1]);
+    Service tmp_service(service_name, results[1]);
 
     tmp_service.service_client = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, service_name);
 
@@ -2935,7 +2935,7 @@ void Status::setupMainMenu() {
                                // Create the submenu with the constraints
                                createSubMenu(constraints_text);
                                // Add actions for each constraint
-                               createSubMenuActions(constraints_text, service_set_constraints_);
+                               createSubMenuActions(constraints_text, sc_set_constraints_);
                              }});
 
   main_menu_rows_.push_back({"Set Gains", [this]() {
@@ -2947,7 +2947,7 @@ void Status::setupMainMenu() {
                                // Create the submenu with the gains
                                createSubMenu(gains_text);
                                // Add actions for each gain
-                               createSubMenuActions(gains_text, service_set_gains_);
+                               createSubMenuActions(gains_text, sc_set_gains_);
                              }});
 
   main_menu_rows_.push_back({"Set Controller", [this]() {
@@ -2959,7 +2959,7 @@ void Status::setupMainMenu() {
                                // Create the submenu with the controllers
                                createSubMenu(controllers_text);
                                // Add actions for each controller
-                               createSubMenuActions(controllers_text, service_set_controller_);
+                               createSubMenuActions(controllers_text, sc_set_controller_);
                              }});
 
   main_menu_rows_.push_back({"Set Tracker", [this]() {
@@ -2971,7 +2971,7 @@ void Status::setupMainMenu() {
                                // Create the submenu with the trackers
                                createSubMenu(trackers_text);
                                // Add actions for each tracker
-                               createSubMenuActions(trackers_text, service_set_tracker_);
+                               createSubMenuActions(trackers_text, sc_set_tracker_);
                              }});
 
   main_menu_rows_.push_back({"Set Estimator", [this]() {
@@ -2983,7 +2983,7 @@ void Status::setupMainMenu() {
                                // Create the submenu with the odometry sources
                                createSubMenu(odometry_lat_sources_text);
                                // Add actions for each odometry source
-                               createSubMenuActions(odometry_lat_sources_text, service_set_estimator_);
+                               createSubMenuActions(odometry_lat_sources_text, sc_set_estimator_);
                              }});
 
   for (const auto &rows : main_menu_rows_) {

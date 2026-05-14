@@ -1,4 +1,4 @@
-#include <menu.h>
+#include <menu.hpp>
 
 /* Menu() //{ */
 
@@ -51,7 +51,7 @@ int Menu::getId() {
 /* getLine() //{ */
 
 int Menu::getLine() {
-  return line;
+  return line_;
 }
 
 //}
@@ -60,8 +60,6 @@ int Menu::getLine() {
 
 /* iterate() //{ */
 
-// return tuple - int selected_menu_line, int pressed key
-//
 Menu::Result Menu::iterate(std::vector<std::string> &text, int key, bool refresh) {
 
   Result result;
@@ -82,26 +80,23 @@ Menu::Result Menu::iterate(std::vector<std::string> &text, int key, bool refresh
     mvwaddstr(win_, j + 1, 1, text[j].c_str());
   }
 
-  // use a variable to increment or decrement the value based on the input.
   if (key == KEY_UP || key == 'k') {
-    line--;
-    line = (line < 0) ? text.size() - 1 : line;
+    line_--;
+    line_ = (line_ < 0) ? text.size() - 1 : line_;
   } else if (key == KEY_DOWN || key == 'j') {
-    line++;
-    line = (line > int(text.size() - 1)) ? 0 : line;
+    line_++;
+    line_ = (line_ > int(text.size() - 1)) ? 0 : line_;
   } else {
-    // No change in selection, return the pressed key and current line.
     result.pressed_key   = key;
-    result.selected_line = line;
+    result.selected_line = line_;
   }
 
-  // now highlight the next item in the list.
   wattron(win_, A_STANDOUT);
-  mvwaddstr(win_, line + 1, 1, text[line].c_str());
+  mvwaddstr(win_, line_ + 1, 1, text[line_].c_str());
   wattroff(win_, A_STANDOUT);
 
   if (refresh) {
-    wrefresh(win_); // update the terminal screen
+    wrefresh(win_);
   }
 
   wattroff(win_, A_BOLD);
@@ -110,8 +105,6 @@ Menu::Result Menu::iterate(std::vector<std::string> &text, int key, bool refresh
 
 /* iterate() //{ */
 
-// return tuple - int selected_menu_line, int pressed key
-//
 Menu::Result Menu::iterate(int key, bool refresh) {
   return iterate(text_, key, refresh);
 }

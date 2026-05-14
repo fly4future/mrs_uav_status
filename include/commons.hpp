@@ -1,6 +1,6 @@
 #pragma once
-#ifndef COMMONS_H
-#define COMMONS_H
+#ifndef COMMONS_HPP
+#define COMMONS_HPP
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -91,10 +91,10 @@ public:
   TopicInfo(rclcpp::Node::SharedPtr node, double window_rate_in, int buffer_len, double desired_rate_in, std::string topic_name_in,
             std::string topic_display_name_in);
 
-  std::string                 GetTopicName();
-  std::string                 GetTopicDisplayName();
-  std::tuple<double, int16_t> GetHz();
-  void                        Count();
+  std::string                 getTopicName();
+  std::string                 getTopicDisplayName();
+  std::tuple<double, int16_t> getHz();
+  void                        count();
 
 private:
   rclcpp::Node::SharedPtr node_;
@@ -108,20 +108,20 @@ private:
   size_t                  rates_iterator_;
 };
 
-struct service
+struct Service
 {
   std::string service_name;
   std::string service_display_name;
 
   mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger> service_client;
 
-  service(std::string name_in, std::string display_name_in) {
+  Service(std::string name_in, std::string display_name_in) {
     service_name         = name_in;
     service_display_name = display_name_in;
   }
 };
 
-struct topic_status
+struct TopicStatus
 {
   rclcpp::Time            last_time;
   int                     counter;
@@ -130,7 +130,7 @@ struct topic_status
   size_t                  rates_iterator = 0;
   rclcpp::Node::SharedPtr node;
 
-  topic_status(double window_rate_in, int buffer_len) {
+  TopicStatus(double window_rate_in, int buffer_len) {
     window_rate = window_rate_in;
     rates.resize(buffer_len * int(window_rate));
     rates.assign(rates.size(), 0.0);
@@ -140,7 +140,7 @@ struct topic_status
   }
 };
 
-struct string_info
+struct StringInfo
 {
   std::string  publisher_name;
   std::string  id;
@@ -148,7 +148,7 @@ struct string_info
   bool         persistent;
   rclcpp::Time last_time;
 
-  string_info(rclcpp::Time last_time, std::string publisher_name_in, std::string display_string_in, std::string id_in, bool persistent_in) {
+  StringInfo(rclcpp::Time last_time, std::string publisher_name_in, std::string display_string_in, std::string id_in, bool persistent_in) {
     publisher_name  = publisher_name_in;
     display_string  = display_string_in;
     id              = id_in;
@@ -157,7 +157,7 @@ struct string_info
   }
 };
 
-struct node_info
+struct NodeInfo
 {
   std::string node_name;
   int         node_pid;
@@ -165,7 +165,7 @@ struct node_info
   long        last_utime;
   long        last_stime;
 
-  node_info(std::string node_name_in) {
+  NodeInfo(std::string node_name_in) {
     node_name      = node_name_in;
     node_pid       = 0;
     node_cpu_usage = 0.0;
