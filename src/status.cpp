@@ -2,7 +2,6 @@
 
 #include <menu.h>
 
-/* #include <status_window.h> */
 #include <mrs_msgs/msg/node_cpu_load.hpp>
 #include <mrs_msgs/msg/reference.hpp>
 #include <mrs_msgs/msg/gimbal_state.hpp>
@@ -56,7 +55,6 @@ namespace mrs_uav_status
 
 /* class Status //{ */
 
-
 class Status : public mrs_lib::Node {
 
 public:
@@ -71,6 +69,15 @@ private:
   rclcpp::CallbackGroup::SharedPtr cbkgrp_sc_;
 
   void initialize();
+
+  struct MenuRow
+  {
+    std::string           label;
+    std::function<void()> on_open;
+  };
+
+  std::vector<MenuRow> main_menu_rows_;
+  std::vector<MenuRow> sub_menu_rows_;
 
 public:
   std::string _colorscheme_;
@@ -159,7 +166,6 @@ public:
   WINDOW *control_manager_window_;
   WINDOW *hw_api_state_window_;
 
-  /* vector<string_info> string_info_vec_; */
   vector<TopicInfo> string_topic_;
 
   // Vanilla windows
@@ -181,24 +187,15 @@ public:
 
   bool help_active_ = false;
 
-  /* StatusWindow* generic_topic_window_; */
-
   // | ---------------------- Misc routines --------------------- |
 
-  bool updateTermSize();
-
-  void prefillUavStatus();
-
-  void topLineHandler(WINDOW *win);
-
-  void remoteHandler(int key, WINDOW *win);
-
-  void gimbalHandler(int key, WINDOW *win);
-
-  void remoteModeFly(const mrs_msgs::msg::Reference &ref_in);
-
-  void setupColors(bool active);
-
+  bool        updateTermSize();
+  void        prefillUavStatus();
+  void        topLineHandler(WINDOW *win);
+  void        remoteHandler(int key, WINDOW *win);
+  void        gimbalHandler(int key, WINDOW *win);
+  void        remoteModeFly(const mrs_msgs::msg::Reference &ref_in);
+  void        setupColors(bool active);
   std::string callTerminal(const char *cmd);
 
   mrs_lib::Profiler profiler_;
@@ -219,8 +216,9 @@ public:
 
   bool displayMenuHandler(int key_in);
 
-  // | --------------------- Service Clients -------------------- |
+  bool processSubMenu(std::vector<std::string> &submenu_entries, int key_in, mrs_lib::ServiceClientHandler<mrs_msgs::srv::String> &service_client);
 
+  // | --------------------- Service Clients -------------------- |
 
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>    service_goto_reference_;
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::TrajectoryReferenceSrv> service_trajectory_reference_;
@@ -234,17 +232,9 @@ public:
   // | -------------------- UAV configuration ------------------- |
 
   string _uav_type_;
-  /* string _run_type_; */
-  /* double _uav_mass_; */
-  /* string _sensors_; */
-  /* bool   _pixgarm_; */
   string _turbo_remote_constraints_;
 
   // | ------------------ Data storage, inputs ------------------ |
-
-  /* vector<TopicInfo>       generic_topic_vec_; */
-  /* vector<string>          generic_topic_input_vec_; */
-  /* vector<ros::Subscriber> generic_subscriber_vec_; */
 
   vector<Menu> menu_vec_;
   vector<Menu> submenu_vec_;
@@ -908,383 +898,104 @@ bool Status::mainMenuHandler(int key_in) {
     // SUBMENU IS OPEN
 
     menu_vec_[0].iterate(main_menu_text_, -1, true);
-    optional<tuple<int, int>> ret;
+    Menu::Result result;
 
     switch (submenu_vec_[0].getId()) {
 
     case 0:
 
       // TRIGGER CONFIRMATION
-      ret = submenu_vec_[0].iterate(key_in, true);
+      result = submenu_vec_[0].iterate(key_in, true);
 
-      if (ret.has_value()) {
+      if (result.action == Menu::Result::Action::Exit) {
+        submenu_vec_.clear();
+        return false;
+      }
 
-        int line = get<0>(ret.value());
-        int key  = get<1>(ret.value());
+      if (result.pressed_key == KEY_ENT) {
+        if (result.selected_line == 1) {
+          auto request  = std::make_shared<std_srvs::srv::Trigger::Request>();
+          auto response = service_vec_[line_in_upper_menu_].service_client.callSync(request);
 
-        if (line == 666 && key == 666) {
+          if (response) {
+            printServiceResult(response.value()->success, response.value()->message);
+          } else {
+            printServiceResult(false, "service could not be called");
+          }
 
           submenu_vec_.clear();
+
+          return true;
+        } else {
+          submenu_vec_.clear();
           return false;
-
-        } else if (key == KEY_ENT) {
-
-          if (line == 1) {
-
-            auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
-
-            auto response = service_vec_[line_in_upper_menu_].service_client.callSync(request);
-
-            if (response) {
-              printServiceResult(response.value()->success, response.value()->message);
-            } else {
-              printServiceResult(false, "service could not be called");
-            }
-
-            submenu_vec_.clear();
-
-            return true;
-
-          } else {
-
-            submenu_vec_.clear();
-            return false;
-          }
         }
       }
       break;
 
     case 1:
       // CONSTRAINTS
-      ret = submenu_vec_[0].iterate(constraints_text_, key_in, true);
-
-      if (ret.has_value()) {
-
-        int line = get<0>(ret.value());
-        int key  = get<1>(ret.value());
-
-        if (line == 666 && key == 666) {
-
-          submenu_vec_.clear();
-          return false;
-
-        } else if (key == KEY_ENT) {
-
-          auto request = std::make_shared<mrs_msgs::srv::String::Request>();
-
-          request->value = constraints_text_[line];
-
-          auto response = service_set_constraints_.callSync(request);
-
-          if (response) {
-            printServiceResult(response.value()->success, response.value()->message);
-          } else {
-            printServiceResult(false, "service could not be called");
-          }
-
-          submenu_vec_.clear();
-
-          return true;
-        }
-      }
+      return processSubMenu(constraints_text_, key_in, service_set_constraints_);
       break;
 
     case 2:
       // GAINS
-      ret = submenu_vec_[0].iterate(gains_text_, key_in, true);
-
-      if (ret.has_value()) {
-
-        int line = get<0>(ret.value());
-        int key  = get<1>(ret.value());
-
-        if (line == 666 && key == 666) {
-
-          submenu_vec_.clear();
-          return false;
-
-        } else if (key == KEY_ENT) {
-
-          auto request = std::make_shared<mrs_msgs::srv::String::Request>();
-
-          request->value = gains_text_[line];
-
-          auto response = service_set_gains_.callSync(request);
-
-          if (response) {
-            printServiceResult(response.value()->success, response.value()->message);
-          } else {
-            printServiceResult(false, "service could not be called");
-          }
-
-          submenu_vec_.clear();
-          return true;
-        }
-      }
+      return processSubMenu(gains_text_, key_in, service_set_gains_);
       break;
 
     case 3:
       // CONTROLLERS
-      ret = submenu_vec_[0].iterate(controllers_text_, key_in, true);
-
-      if (ret.has_value()) {
-
-        int line = get<0>(ret.value());
-        int key  = get<1>(ret.value());
-
-        if (line == 666 && key == 666) {
-
-          submenu_vec_.clear();
-          return false;
-
-        } else if (key == KEY_ENT) {
-
-          auto request = std::make_shared<mrs_msgs::srv::String::Request>();
-
-          request->value = controllers_text_[line];
-
-          auto response = service_set_controller_.callSync(request);
-
-          if (response) {
-            printServiceResult(response.value()->success, response.value()->message);
-          } else {
-            printServiceResult(false, "service could not be called");
-          }
-
-          submenu_vec_.clear();
-          return true;
-        }
-      }
+      return processSubMenu(controllers_text_, key_in, service_set_controller_);
       break;
 
     case 4:
       // TRACKERS
-      ret = submenu_vec_[0].iterate(trackers_text_, key_in, true);
-
-      if (ret.has_value()) {
-
-        int line = get<0>(ret.value());
-        int key  = get<1>(ret.value());
-
-        if (line == 666 && key == 666) {
-
-          submenu_vec_.clear();
-          return false;
-
-        } else if (key == KEY_ENT) {
-
-          auto request = std::make_shared<mrs_msgs::srv::String::Request>();
-
-          request->value = trackers_text_[line];
-
-          auto response = service_set_tracker_.callSync(request);
-
-          if (response) {
-            printServiceResult(response.value()->success, response.value()->message);
-          } else {
-            printServiceResult(false, "service could not be called");
-          }
-
-          submenu_vec_.clear();
-          return true;
-        }
-      }
+      return processSubMenu(trackers_text_, key_in, service_set_tracker_);
       break;
 
     case 5:
       // Odometry source
-      ret = submenu_vec_[0].iterate(odometry_lat_sources_text_, key_in, true);
-
-      if (ret.has_value()) {
-
-        int line = get<0>(ret.value());
-        int key  = get<1>(ret.value());
-
-        if (line == 666 && key == 666) {
-
-          submenu_vec_.clear();
-          return false;
-
-        } else if (key == KEY_ENT) {
-
-          auto request = std::make_shared<mrs_msgs::srv::String::Request>();
-
-          request->value = odometry_lat_sources_text_[line];
-
-          auto response = service_set_estimator_.callSync(request);
-
-          if (response) {
-            printServiceResult(response.value()->success, response.value()->message);
-          } else {
-            printServiceResult(false, "service could not be called");
-          }
-
-          submenu_vec_.clear();
-          return true;
-        }
-      }
+      return processSubMenu(odometry_lat_sources_text_, key_in, service_set_estimator_);
       break;
     }
-
     return false;
-
     //}
 
     /* NORMAL CASE //{ */
+  }
+  // NORMAL CASE - NO SUBMENU
 
-  } else {
-    // NORMAL CASE - NO SUBMENU
+  auto result = menu_vec_[0].iterate(main_menu_text_, key_in, true);
 
-    optional<tuple<int, int>> ret = menu_vec_[0].iterate(main_menu_text_, key_in, true);
-
-    if (ret.has_value()) {
-
-      unsigned long line = get<0>(ret.value());
-      int           key  = get<1>(ret.value());
-
-      if (line == 666 && key == 666) {
-
-        menu_vec_.clear();
-        return true;
-
-      } else if (key == KEY_ENT) {
-
-        if (line < service_vec_.size()) {
-
-          int                  x;
-          int                  y;
-          [[maybe_unused]] int rows;
-          int                  cols;
-
-          line_in_upper_menu_ = line;
-
-          getyx(menu_vec_[0].getWin(), x, y);
-          getmaxyx(menu_vec_[0].getWin(), rows, cols);
-
-          std::vector<std::string> confirm_text;
-          confirm_text.push_back("CANCEL");
-          confirm_text.push_back(main_menu_text_[line]);
-          Menu menu(x, 31 + cols, confirm_text, 0);
-          submenu_vec_.push_back(menu);
-
-        } else if (line == main_menu_text_.size() - 5) {
-          // SET CONSTRAINTS
-
-          {
-            std::scoped_lock lock(mutex_status_msg_);
-            constraints_text_ = uav_status_.constraints;
-          }
-
-          if (!constraints_text_.empty()) {
-
-            int                  x;
-            int                  y;
-            [[maybe_unused]] int rows;
-            int                  cols;
-
-            getyx(menu_vec_[0].getWin(), x, y);
-            getmaxyx(menu_vec_[0].getWin(), rows, cols);
-
-            Menu menu(x, 31 + cols, constraints_text_, 1);
-            submenu_vec_.push_back(menu);
-          }
-
-        } else if (line == main_menu_text_.size() - 4) {
-          // SET GAINS
-
-          {
-            std::scoped_lock lock(mutex_status_msg_);
-            gains_text_ = uav_status_.gains;
-          }
-
-          if (!gains_text_.empty()) {
-
-            int                  x;
-            int                  y;
-            [[maybe_unused]] int rows;
-            int                  cols;
-
-            getyx(menu_vec_[0].getWin(), x, y);
-            getmaxyx(menu_vec_[0].getWin(), rows, cols);
-
-            Menu menu(x, 31 + cols, gains_text_, 2);
-            submenu_vec_.push_back(menu);
-          }
-
-        } else if (line == main_menu_text_.size() - 3) {
-          // SET CONTROLLER
-
-          {
-            std::scoped_lock lock(mutex_status_msg_);
-            controllers_text_ = uav_status_.controllers;
-          }
-
-          if (!controllers_text_.empty()) {
-
-            int                  x;
-            int                  y;
-            [[maybe_unused]] int rows;
-            int                  cols;
-
-            getyx(menu_vec_[0].getWin(), x, y);
-            getmaxyx(menu_vec_[0].getWin(), rows, cols);
-
-            Menu menu(x, 31 + cols, controllers_text_, 3);
-            submenu_vec_.push_back(menu);
-          }
-
-        } else if (line == main_menu_text_.size() - 2) {
-          // SET TRACKER
-
-          {
-            std::scoped_lock lock(mutex_status_msg_);
-            trackers_text_ = uav_status_.trackers;
-          }
-
-          if (!trackers_text_.empty()) {
-
-            int                  x;
-            int                  y;
-            [[maybe_unused]] int rows;
-            int                  cols;
-
-            getyx(menu_vec_[0].getWin(), x, y);
-            getmaxyx(menu_vec_[0].getWin(), rows, cols);
-
-            Menu menu(x, 31 + cols, trackers_text_, 4);
-            submenu_vec_.push_back(menu);
-          }
-
-        } else if (line == main_menu_text_.size() - 1) {
-          // SET ODOMETRY SOURCE
-
-          {
-            std::scoped_lock lock(mutex_status_msg_);
-            odometry_lat_sources_text_ = uav_status_.odom_estimators;
-          }
-
-          if (!odometry_lat_sources_text_.empty()) {
-
-            int                  x;
-            int                  y;
-            [[maybe_unused]] int rows;
-            int                  cols;
-
-            getyx(menu_vec_[0].getWin(), x, y);
-            getmaxyx(menu_vec_[0].getWin(), rows, cols);
-
-            Menu menu(x, 31 + cols, odometry_lat_sources_text_, 5);
-            submenu_vec_.push_back(menu);
-          }
-
-        } else {
-          printServiceResult(false, "undefined");
-        }
-      }
-    }
-    return false;
+  if (result.action == Menu::Result::Action::Exit) {
+    menu_vec_.clear();
+    submenu_vec_.clear();
+    return true;
   }
 
+  if (result.pressed_key == KEY_ENT) {
+    if (result.selected_line < service_vec_.size()) {
+
+      int                  x;
+      int                  y;
+      [[maybe_unused]] int rows;
+      int                  cols;
+
+      line_in_upper_menu_ = result.selected_line;
+
+      getyx(menu_vec_[0].getWin(), x, y);
+      getmaxyx(menu_vec_[0].getWin(), rows, cols);
+
+      std::vector<std::string> confirm_text;
+      confirm_text.push_back("CANCEL");
+      confirm_text.push_back(main_menu_text_[result.selected_line]);
+      Menu menu(x, 31 + cols, confirm_text, 0);
+      submenu_vec_.push_back(menu);
+    }
+
+    main_menu_rows_[result.selected_line].on_open();
+  }
+  return false;
   //}
 }
 
@@ -1294,54 +1005,49 @@ bool Status::mainMenuHandler(int key_in) {
 
 bool Status::gotoMenuHandler(int key_in) {
 
-  optional<tuple<int, int>> ret = menu_vec_[0].iterate(goto_menu_text_, key_in, false);
+  // optional<tuple<int, int>> ret = menu_vec_[0].iterate(goto_menu_text_, key_in, false);
+  auto result = menu_vec_[0].iterate(goto_menu_text_, key_in, false);
 
-  if (ret.has_value()) {
-    size_t line = get<0>(ret.value());
-    int    key  = get<1>(ret.value());
-
-    if (line == 666 && key == 666) {
-
-      menu_vec_.clear();
-      return true;
-
-    } else if (key == KEY_ENT) {
-
-      goto_double_vec_[0] = goto_menu_inputs_[0].getDouble();
-      goto_double_vec_[1] = goto_menu_inputs_[1].getDouble();
-      goto_double_vec_[2] = goto_menu_inputs_[2].getDouble();
-      goto_double_vec_[3] = goto_menu_inputs_[3].getDouble();
-
-      auto request = std::make_shared<mrs_msgs::srv::ReferenceStampedSrv::Request>();
-
-      request->reference.position.x = goto_double_vec_[0];
-      request->reference.position.y = goto_double_vec_[1];
-      request->reference.position.z = goto_double_vec_[2];
-      request->reference.heading    = goto_double_vec_[3];
-
-      {
-        std::scoped_lock lock(mutex_status_msg_);
-        request->header.frame_id = uav_status_.odom_frame;
-      }
-
-      auto response = service_goto_reference_.callSync(request);
-
-      if (response) {
-        printServiceResult(response.value()->success, response.value()->message);
-      } else {
-        printServiceResult(false, "service could not be called");
-      }
-
-      menu_vec_.clear();
-
-      return true;
-
-    } else if (line < goto_menu_inputs_.size()) {
-
-      goto_menu_inputs_[line].Process(key);
-    }
+  if (result.action == Menu::Result::Action::Exit) {
+    menu_vec_.clear();
+    return true;
   }
 
+  if (result.pressed_key == KEY_ENT) {
+
+    goto_double_vec_[0] = goto_menu_inputs_[0].getDouble();
+    goto_double_vec_[1] = goto_menu_inputs_[1].getDouble();
+    goto_double_vec_[2] = goto_menu_inputs_[2].getDouble();
+    goto_double_vec_[3] = goto_menu_inputs_[3].getDouble();
+
+    auto request = std::make_shared<mrs_msgs::srv::ReferenceStampedSrv::Request>();
+
+    request->reference.position.x = goto_double_vec_[0];
+    request->reference.position.y = goto_double_vec_[1];
+    request->reference.position.z = goto_double_vec_[2];
+    request->reference.heading    = goto_double_vec_[3];
+
+    {
+      std::scoped_lock lock(mutex_status_msg_);
+      request->header.frame_id = uav_status_.odom_frame;
+    }
+
+    auto response = service_goto_reference_.callSync(request);
+
+    if (response) {
+      printServiceResult(response.value()->success, response.value()->message);
+    } else {
+      printServiceResult(false, "service could not be called");
+    }
+
+    menu_vec_.clear();
+
+    return true;
+
+  } else if (result.selected_line < goto_menu_inputs_.size()) {
+
+    goto_menu_inputs_[result.selected_line].Process(result.pressed_key);
+  }
 
   for (size_t i = 0; i < goto_menu_inputs_.size(); i++) {
     if (int(i) == menu_vec_[0].getLine()) {
@@ -1361,37 +1067,32 @@ bool Status::gotoMenuHandler(int key_in) {
 
 bool Status::displayMenuHandler(int key_in) {
 
-  optional<tuple<int, int>> ret = menu_vec_[0].iterate(display_menu_text_, key_in, false);
+  // optional<tuple<int, int>> ret = menu_vec_[0].iterate(display_menu_text_, key_in, false);
+  auto result = menu_vec_[0].iterate(display_menu_text_, key_in, false);
 
-  if (ret.has_value()) {
-    size_t line = get<0>(ret.value());
-    int    key  = get<1>(ret.value());
+  if (result.action == Menu::Result::Action::Exit) {
+    menu_vec_.clear();
+    return true;
+  }
 
-    if (line == 666 && key == 666) {
+  if (result.pressed_key == KEY_ENT) {
 
-      menu_vec_.clear();
-      return true;
+    auto it = std::find(selected_tmux_window_.begin(), selected_tmux_window_.end(), result.selected_line);
+
+    if (it != selected_tmux_window_.end()) {
+      display_menu_text_[result.selected_line][1] = ' ';
+      selected_tmux_window_.erase(it);
+    } else if (int(selected_tmux_window_.size()) < MAX_SELECTED_TMUX_WINDOWS) {
+      display_menu_text_[result.selected_line][1] = '*';
+      selected_tmux_window_.push_back(result.selected_line);
     }
 
-    else if (key == KEY_ENT) {
+    std::ofstream outputFile(_display_config_filename_, std::ofstream::out | std::ofstream::trunc);
 
-      auto it = std::find(selected_tmux_window_.begin(), selected_tmux_window_.end(), line);
-
-      if (it != selected_tmux_window_.end()) {
-        display_menu_text_[line][1] = ' ';
-        selected_tmux_window_.erase(it);
-      } else if (int(selected_tmux_window_.size()) < MAX_SELECTED_TMUX_WINDOWS) {
-        display_menu_text_[line][1] = '*';
-        selected_tmux_window_.push_back(line);
-      }
-
-      std::ofstream outputFile(_display_config_filename_, std::ofstream::out | std::ofstream::trunc);
-
-      for (size_t i = 0; i < selected_tmux_window_.size(); i++) {
-        outputFile << selected_tmux_window_[i] << '\n';
-      }
-      outputFile.close();
+    for (size_t i = 0; i < selected_tmux_window_.size(); i++) {
+      outputFile << selected_tmux_window_[i] << '\n';
     }
+    outputFile.close();
   }
 
   wnoutrefresh(menu_vec_[0].getWin());
@@ -1399,6 +1100,33 @@ bool Status::displayMenuHandler(int key_in) {
 }
 
 //}
+
+bool Status::processSubMenu(std::vector<std::string> &submenu_entries, int key_in, mrs_lib::ServiceClientHandler<mrs_msgs::srv::String> &service_client) {
+  auto result = submenu_vec_[0].iterate(submenu_entries, key_in, true);
+
+  if (result.action == Menu::Result::Action::Exit) {
+    submenu_vec_.clear();
+    return false;
+  }
+
+  if (key_in == KEY_ENT) {
+    auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
+    request->value = submenu_entries[result.selected_line];
+
+    auto response = service_client.callSync(request);
+
+    if (!response) {
+      printServiceResult(false, "service could not be called");
+      submenu_vec_.clear();
+      return false;
+    }
+
+    printServiceResult(response.value()->success, response.value()->message);
+    submenu_vec_.clear();
+    return true;
+  }
+  return false;
+}
 
 /* remoteHandler() //{ */
 
@@ -3088,8 +2816,7 @@ void Status::callbackUavStatus(const mrs_msgs::msg::UavStatus::ConstSharedPtr ms
     uav_status_ = *msg;
   }
 
-  last_time_got_data_       = clock_->now();
-  last_time_got_short_data_ = clock_->now();
+  last_time_got_data_ = clock_->now();
 }
 
 //}
@@ -3234,17 +2961,141 @@ void Status::setupMainMenu() {
     service_vec_.push_back(tmp_service);
   }
 
+  main_menu_rows_.clear();
   main_menu_text_.clear();
 
   for (unsigned long i = 0; i < service_vec_.size(); i++) {
-    main_menu_text_.push_back(service_vec_[i].service_display_name);
+    const size_t idx = i;
+    main_menu_rows_.push_back({service_vec_[i].service_display_name, [this, idx]() {
+                                 int                  x;
+                                 int                  y;
+                                 [[maybe_unused]] int rows;
+                                 int                  cols;
+                                 getyx(menu_vec_[0].getWin(), x, y);
+                                 getmaxyx(menu_vec_[0].getWin(), rows, cols);
+                                 std::vector<std::string> confirm_text{"CANCEL", main_menu_text_[idx]};
+                                 Menu                     menu(x, 31 + rows, confirm_text, 0);
+                                 submenu_vec_.push_back(menu);
+                               }});
   }
 
-  main_menu_text_.push_back("Set Constraints");
-  main_menu_text_.push_back("Set Gains");
-  main_menu_text_.push_back("Set Controller");
-  main_menu_text_.push_back("Set Tracker");
-  main_menu_text_.push_back("Set Estimator");
+  main_menu_rows_.push_back({"Set Constraints", [this]() {
+                               {
+                                 std::scoped_lock lock(mutex_status_msg_);
+                                 constraints_text_ = uav_status_.constraints;
+                               }
+
+                               if (!constraints_text_.empty()) {
+
+                                 int                  x;
+                                 int                  y;
+                                 [[maybe_unused]] int rows;
+                                 int                  cols;
+
+                                 getyx(menu_vec_[0].getWin(), x, y);
+                                 getmaxyx(menu_vec_[0].getWin(), rows, cols);
+
+                                 Menu menu(x, 31 + cols, constraints_text_, 1);
+                                 submenu_vec_.push_back(menu);
+                               }
+                             }});
+
+  main_menu_rows_.push_back({"Set Gains", [this]() {
+                               {
+                                 std::scoped_lock lock(mutex_status_msg_);
+                                 gains_text_ = uav_status_.gains;
+                               }
+
+                               if (!gains_text_.empty()) {
+
+                                 int                  x;
+                                 int                  y;
+                                 [[maybe_unused]] int rows;
+                                 int                  cols;
+
+                                 getyx(menu_vec_[0].getWin(), x, y);
+                                 getmaxyx(menu_vec_[0].getWin(), rows, cols);
+
+                                 Menu menu(x, 31 + cols, gains_text_, 2);
+                                 submenu_vec_.push_back(menu);
+                               }
+                             }});
+
+  main_menu_rows_.push_back({"Set Controller", [this]() {
+                               {
+                                 std::scoped_lock lock(mutex_status_msg_);
+                                 controllers_text_.clear();
+                                 for (size_t i = 0; i < uav_status_.controllers.size(); i++) {
+                                   controllers_text_.push_back(uav_status_.controllers[i]);
+                                 }
+                               }
+
+                               if (!controllers_text_.empty()) {
+
+                                 int                  x;
+                                 int                  y;
+                                 [[maybe_unused]] int rows;
+                                 int                  cols;
+
+                                 getyx(menu_vec_[0].getWin(), x, y);
+                                 getmaxyx(menu_vec_[0].getWin(), rows, cols);
+
+                                 Menu menu(x, 31 + cols, controllers_text_, 3);
+                                 submenu_vec_.push_back(menu);
+                               }
+                             }});
+
+  main_menu_rows_.push_back({"Set Tracker", [this]() {
+                               {
+                                 std::scoped_lock lock(mutex_status_msg_);
+                                 trackers_text_.clear();
+                                 for (size_t i = 0; i < uav_status_.trackers.size(); i++) {
+                                   trackers_text_.push_back(uav_status_.trackers[i]);
+                                 }
+                               }
+
+                               if (!trackers_text_.empty()) {
+
+                                 int                  x;
+                                 int                  y;
+                                 [[maybe_unused]] int rows;
+                                 int                  cols;
+
+                                 getyx(menu_vec_[0].getWin(), x, y);
+                                 getmaxyx(menu_vec_[0].getWin(), rows, cols);
+
+                                 Menu menu(x, 31 + cols, trackers_text_, 4);
+                                 submenu_vec_.push_back(menu);
+                               }
+                             }});
+
+  main_menu_rows_.push_back({"Set Estimator", [this]() {
+                               {
+                                 std::scoped_lock lock(mutex_status_msg_);
+                                 odometry_lat_sources_text_.clear();
+                                 for (size_t i = 0; i < uav_status_.odom_estimators.size(); i++) {
+                                   odometry_lat_sources_text_.push_back(uav_status_.odom_estimators[i]);
+                                 }
+                               }
+
+                               if (!odometry_lat_sources_text_.empty()) {
+
+                                 int                  x;
+                                 int                  y;
+                                 [[maybe_unused]] int rows;
+                                 int                  cols;
+
+                                 getyx(menu_vec_[0].getWin(), x, y);
+                                 getmaxyx(menu_vec_[0].getWin(), rows, cols);
+
+                                 Menu menu(x, 31 + cols, odometry_lat_sources_text_, 5);
+                                 submenu_vec_.push_back(menu);
+                               }
+                             }});
+
+  for (const auto &rows : main_menu_rows_) {
+    main_menu_text_.push_back(rows.label);
+  }
 
   Menu menu(1, 32, main_menu_text_);
   menu_vec_.push_back(menu);
