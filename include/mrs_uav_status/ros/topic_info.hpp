@@ -21,7 +21,7 @@ public:
 
   std::string                 getTopicName() const;
   std::string                 getTopicDisplayName() const;
-  std::tuple<double, int16_t> getHz() const;
+  std::tuple<double, int16_t> getHz();
   
   void                        count();
 

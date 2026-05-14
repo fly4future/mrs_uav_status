@@ -50,45 +50,44 @@ TopicInfo::TopicInfo(rclcpp::Node::SharedPtr node, double window_rate_in, int bu
 
 /* getHz //{ */
 
-std::tuple<double, int16_t> TopicInfo::getHz() const {
+std::tuple<double, int16_t> TopicInfo::getHz() {
 
-  auto *self            = const_cast<TopicInfo *>(this);
-  rclcpp::Time time_now = self->node_->get_clock()->now();
-  double       interval = (time_now - self->last_time_).seconds();
+  rclcpp::Time time_now = node_->get_clock()->now();
+  double       interval = (time_now - last_time_).seconds();
 
   if (interval == 0.0) {
     return std::make_tuple(0.0, static_cast<int16_t>(tui::ColorPair::Red));
   }
 
-  self->last_time_ = time_now;
+  last_time_ = time_now;
 
-  double avg_rate = self->counter_ / interval;
-  self->counter_        = 0;
+  double avg_rate = counter_ / interval;
+  counter_        = 0;
 
-  self->rates_[self->rates_iterator_] = avg_rate;
-  self->rates_iterator_++;
+  rates_[rates_iterator_] = avg_rate;
+  rates_iterator_++;
 
-  if (self->rates_iterator_ >= self->rates_.size()) {
-    self->rates_iterator_ = 0;
+  if (rates_iterator_ >= rates_.size()) {
+    rates_iterator_ = 0;
   }
 
   avg_rate = 0.0;
 
-  for (unsigned long i = 0; i < self->rates_.size(); i++) {
-    avg_rate += self->rates_[i];
+  for (unsigned long i = 0; i < rates_.size(); i++) {
+    avg_rate += rates_[i];
   }
 
-  if (self->rates_.size() == 0) {
+  if (rates_.size() == 0) {
     avg_rate = 0.0;
   } else {
-    avg_rate = avg_rate / double(self->rates_.size());
+    avg_rate = avg_rate / double(rates_.size());
   }
 
   int16_t color = static_cast<int16_t>(tui::ColorPair::Red);
 
-  if (avg_rate > 0.9 * self->desired_rate_) {
+  if (avg_rate > 0.9 * desired_rate_) {
     color = static_cast<int16_t>(tui::ColorPair::Green);
-  } else if (avg_rate > 0.5 * self->desired_rate_) {
+  } else if (avg_rate > 0.5 * desired_rate_) {
     color = static_cast<int16_t>(tui::ColorPair::Yellow);
   }
 

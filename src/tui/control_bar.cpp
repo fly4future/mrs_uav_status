@@ -20,9 +20,9 @@ ControlBar::ControlBar(unsigned long size, WINDOW *win, double initial_value) {
 
   ControlBar::cursor_ = (size_ / 2) - 2;
 
-  char tmpbuffer[size_];
+  std::vector<char> tmpbuffer(size_ + 1, '\0');
 
-  sprintf(tmpbuffer, "%6.2f", initial_value);
+  std::snprintf(tmpbuffer.data(), tmpbuffer.size(), "%6.2f", initial_value);
 
   for (unsigned long i = 0; i < size_; i++) {
     if (std::isdigit(tmpbuffer[i]) || tmpbuffer[i] == '.' || tmpbuffer[i] == '-') {
@@ -126,15 +126,12 @@ double ControlBar::getDouble() const {
 
   double ret_val;
 
-  char tmparr[buffer_.size()];
-
-  for (unsigned long i = 0; i < buffer_.size(); i++) {
-    tmparr[i] = buffer_[i];
-  }
+  std::vector<char> tmparr(buffer_.begin(), buffer_.end());
+  tmparr.push_back('\0');
 
   char *ptr;
 
-  ret_val = strtod(tmparr, &ptr);
+  ret_val = strtod(tmparr.data(), &ptr);
 
   return ret_val;
 }
