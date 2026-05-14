@@ -23,7 +23,6 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(mrs_lib REQUIRED)
 find_package(backward_ros REQUIRED)
-find_package(Boost REQUIRED COMPONENTS filesystem)
 find_package(Curses REQUIRED)
 
 find_package(std_msgs REQUIRED)
@@ -66,6 +65,7 @@ target_sources(MrsUavStatus_Status
     "include/mrs_uav_status/tui/status_window.hpp"
     "include/mrs_uav_status/tui/tui_constants.hpp"
     "include/mrs_uav_status/utils/node_info.hpp"
+    "include/mrs_uav_status/utils/split.hpp"
     "include/mrs_uav_status/utils/string_info.hpp"
 )
 
@@ -74,7 +74,6 @@ target_link_libraries(MrsUavStatus_Status
     rclcpp::rclcpp
     rclcpp_components::component
     mrs_lib::mrs_lib
-    Boost::filesystem
     Curses::Curses
     ${std_msgs_TARGETS}
     ${mrs_msgs_TARGETS}
@@ -102,6 +101,7 @@ target_sources(MrsUavStatus_Acquisition
     "include/mrs_uav_status/tui/status_window.hpp"
     "include/mrs_uav_status/tui/tui_constants.hpp"
     "include/mrs_uav_status/utils/node_info.hpp"
+    "include/mrs_uav_status/utils/split.hpp"
     "include/mrs_uav_status/utils/string_info.hpp"
 )
 
@@ -110,7 +110,6 @@ target_link_libraries(MrsUavStatus_Acquisition
     rclcpp::rclcpp
     rclcpp_components::component
     mrs_lib::mrs_lib
-    Boost::filesystem
     Curses::Curses
     ${std_msgs_TARGETS}
     ${mrs_msgs_TARGETS}

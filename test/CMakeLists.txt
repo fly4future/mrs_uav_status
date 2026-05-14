@@ -10,7 +10,6 @@ target_sources(MrsUavStatus_NcursesTest
 target_link_libraries(MrsUavStatus_NcursesTest
   PRIVATE
     mrs_lib::mrs_lib
-    Boost::filesystem
     Curses::Curses
 )
 

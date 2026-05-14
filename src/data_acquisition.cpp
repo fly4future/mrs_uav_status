@@ -7,16 +7,14 @@
 #include <mrs_uav_status/ros/topic_status.hpp>
 #include <mrs_uav_status/ros/service.hpp>
 #include <mrs_uav_status/utils/node_info.hpp>
+#include <mrs_uav_status/utils/split.hpp>
 #include <mrs_uav_status/utils/string_info.hpp>
 
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 #include <stdexcept>
 #include <string>
-
-#include <boost/filesystem.hpp>
-#include <boost/function.hpp>
-#include <boost/algorithm/string.hpp>
 
 /* #include <ros/xmlrpc_manager.h> */
 /* #include <XmlRpcClient.h> */
@@ -446,7 +444,7 @@ void Acquisition::initialize() {
 
   // | ---------------------- Flight timer ---------------------- |
   //
-  if (boost::filesystem::exists(_time_filename_)) {
+  if (std::filesystem::exists(_time_filename_)) {
 
     // loads time flown from a tmp file, if it exists, if it does not exists, flight time is set to 0
 
@@ -463,7 +461,7 @@ void Acquisition::initialize() {
     file.close();
   }
 
-  if (boost::filesystem::exists(_wh_filename_)) {
+  if (std::filesystem::exists(_wh_filename_)) {
 
     // loads time flown from a tmp file, if it exists, if it does not exists, flight time is set to 0
 
@@ -484,7 +482,7 @@ void Acquisition::initialize() {
 
   // TODO this seems like a bad way to do this
   /* vector<string> results; */
-  /* split(results, _sensors_, boost::is_any_of(", "), boost::token_compress_on); */
+  /* split(results, _sensors_, ", "); */
 
   /* for (unsigned long i = 0; i < results.size(); i++) { */
   /*   if (results[i] == "garmin_down") { */
@@ -758,7 +756,7 @@ void Acquisition::nodeCpuLoadHandler() {
     file.close();
 
     vector<string> results;
-    boost::split(results, line, [](char c) { return c == ' '; });
+    results = mrs_uav_status::utils::splitByChar(line, ' ');
 
     long stime;
     long utime;
@@ -923,7 +921,7 @@ void Acquisition::setupGenericCallbacks() {
   for (size_t i = 0; i < generic_topic_input_vec_.size(); i++) {
 
     vector<string> results;
-    boost::split(results, generic_topic_input_vec_[i], [](char c) { return c == ' '; }); // split the input string into words and put them in results vector
+    results = mrs_uav_status::utils::splitByChar(generic_topic_input_vec_[i], ' '); // split the input string into words and put them in results vector
     if (results[2].back() == '+') {
       // TODO handle the + sign
       results[2].pop_back();
@@ -1033,7 +1031,7 @@ void Acquisition::getMemLoad() {
   file.close();
 
   vector<string> results;
-  boost::split(results, line1, [](char c) { return c == ' '; });
+  results = mrs_uav_status::utils::splitByChar(line1, ' ');
 
   double total_ram = 0;
   double free_ram  = 0;
@@ -1052,7 +1050,7 @@ void Acquisition::getMemLoad() {
     }
   }
 
-  boost::split(results, line3, [](char c) { return c == ' '; });
+  results = mrs_uav_status::utils::splitByChar(line3, ' ');
 
   for (unsigned long i = 1; i < results.size(); i++) {
 
@@ -1067,7 +1065,7 @@ void Acquisition::getMemLoad() {
     }
   }
 
-  boost::split(results, line4, [](char c) { return c == ' '; });
+  results = mrs_uav_status::utils::splitByChar(line4, ' ');
 
   for (size_t i = 1; i < results.size(); i++) {
 
@@ -1105,7 +1103,7 @@ void Acquisition::getCpuTemperature() {
     std::string temp_filename = "/sys/class/thermal/thermal_zone" + std::to_string(file_iterator) + "/temp";
     file_iterator++;
 
-    if (boost::filesystem::exists(temp_filename)) {
+    if (std::filesystem::exists(temp_filename)) {
 
       ifstream    file(temp_filename);
       std::string line;
@@ -1149,7 +1147,7 @@ void Acquisition::getCpuLoad() {
   file.close();
 
   vector<string> results;
-  boost::split(results, line, [](char c) { return c == ' '; });
+  results = mrs_uav_status::utils::splitByChar(line, ' ');
 
   long idle;
   long non_idle;
@@ -1193,7 +1191,7 @@ void Acquisition::getCpuFreq() {
   file.close();
 
   vector<string> results;
-  boost::split(results, line, [](char c) { return c == '-'; });
+  results = mrs_uav_status::utils::splitByChar(line, '-');
 
 
   try {
@@ -1232,7 +1230,7 @@ void Acquisition::getCpuFreq() {
 
 void Acquisition::getDiskSpace() {
 
-  boost::filesystem::space_info si = boost::filesystem::space(".");
+  std::filesystem::space_info si = std::filesystem::space(".");
 
   int gigas = round(si.available / 1073741824.0);
 

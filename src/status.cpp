@@ -2,6 +2,8 @@
 
 #include <fstream>
 #include <iostream>
+#include <filesystem>
+#include <functional>
 #include <stdexcept>
 
 #include <mrs_uav_status/ros/service.hpp>
@@ -11,6 +13,7 @@
 #include <mrs_uav_status/tui/status_window.hpp>
 #include <mrs_uav_status/tui/tui_constants.hpp>
 #include <mrs_uav_status/utils/node_info.hpp>
+#include <mrs_uav_status/utils/split.hpp>
 #include <mrs_uav_status/utils/string_info.hpp>
 
 #include <mrs_msgs/msg/node_cpu_load.hpp>
@@ -30,10 +33,6 @@
 #include <mrs_lib/subscriber_handler.h>
 #include <mrs_lib/transformer.h>
 #include <mrs_lib/param_loader.h>
-
-#include <boost/filesystem.hpp>
-#include <boost/function.hpp>
-#include <boost/algorithm/string.hpp>
 
 using std::getline;
 using std::ifstream;
@@ -475,7 +474,7 @@ void Status::initialize() {
 
   _display_config_filename_ = _pwd_ + "/.mrs_status_display_config~";
 
-  if (boost::filesystem::exists(_display_config_filename_)) {
+  if (std::filesystem::exists(_display_config_filename_)) {
 
     selected_tmux_window_.clear();
 
@@ -517,7 +516,7 @@ void Status::setupWindows() {
   command                           = "tmux list-panes -F '#{pane_width}x#{pane_height}'";
   std::string              response = callTerminal(command.c_str());
   std::vector<std::string> results;
-  boost::split(results, response, [](char c) { return c == 'x'; });
+  results = mrs_uav_status::utils::splitByChar(response, 'x');
 
   /* int cols, lines; */
 
@@ -597,7 +596,7 @@ bool Status::updateTermSize() {
 
   std::vector<std::string> results;
 
-  boost::split(results, response, [](char c) { return c == 'x'; });
+  results = mrs_uav_status::utils::splitByChar(response, 'x');
 
   int cols, lines;
 
@@ -2912,7 +2911,7 @@ void Status::setupMainMenu() {
     }
 
     std::vector<std::string> results;
-    boost::split(results, service_input_vec_[i], [](char c) { return c == ' '; }); // split the input string into words and put them in results vector
+    results = mrs_uav_status::utils::splitByChar(service_input_vec_[i], ' '); // split the input string into words and put them in results vector
 
     for (unsigned long j = 2; j < results.size(); j++) {
       results[1] = results[1] + " " + results[j];
@@ -3075,9 +3074,11 @@ void Status::setupDisplayText() {
   char                     command[50] = "tmux list-windows | cut -d' ' -f-2";
   std::string              response    = callTerminal(command);
   std::vector<std::string> results;
-  boost::split(results, response, boost::is_any_of("\n"));
+  results = mrs_uav_status::utils::splitByChar(response, '\n');
 
-  for (size_t i = 0; i < results.size() - 1; i++) {
+  const bool skip_last = !results.empty() && results.back().empty();
+  const auto end_index = skip_last ? results.size() - 1 : results.size();
+  for (size_t i = 0; i < end_index; i++) {
     display_menu_text_.push_back("[ ] " + results[i]);
   }
 
