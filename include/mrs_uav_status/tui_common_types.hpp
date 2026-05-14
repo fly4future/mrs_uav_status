@@ -1,7 +1,31 @@
-#include <commons.hpp>
+#pragma once
+
+#include <ncurses.h>
+
+#include <vector>
+#include <string>
+
+namespace mrs_uav_status
+{
+namespace tui
+{
+
+class InputBox {
+public:
+  InputBox(int size, WINDOW *win, double initial_value);
+  unsigned long process(int key_in);
+  void          print(int line, bool active);
+  double        getDouble();
+
+  inline static unsigned long cursor_;
+
+private:
+  WINDOW           *win_;
+  unsigned long     size_;
+  std::vector<char> buffer_;
+};
 
 class Menu {
-
 public:
   Menu(int begin_y, int begin_x, std::vector<std::string> &text);
   Menu(int begin_y, int begin_x, std::vector<std::string> &text, int id);
@@ -36,3 +60,6 @@ private:
   int                      cols_;
   std::vector<std::string> text_;
 };
+
+} // namespace tui
+} // namespace mrs_uav_status
