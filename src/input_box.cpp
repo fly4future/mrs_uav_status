@@ -1,4 +1,4 @@
-#include <input_box.h>
+#include <input_box.hpp>
 
 /* InputBox() //{ */
 
@@ -25,9 +25,9 @@ InputBox::InputBox(int size, WINDOW *win, double initial_value) {
 
 //}
 
-/* Process() //{ */
+/* process() //{ */
 
-unsigned long InputBox::Process(int key) {
+unsigned long InputBox::process(int key) {
 
   switch (key) {
   case -1:
@@ -89,9 +89,9 @@ unsigned long InputBox::Process(int key) {
 
 //}
 
-/* Print() //{ */
+/* print() //{ */
 
-void InputBox::Print(int line, bool active) {
+void InputBox::print(int line, bool active) {
 
   wattron(win_, COLOR_PAIR(FIELD));
   wattron(win_, A_BOLD);

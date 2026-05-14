@@ -3,7 +3,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <mrs_msgs/msg/node_cpu_load.hpp>
-#include <commons.h>
+#include <commons.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -68,9 +68,9 @@ using namespace std;
 /* defines //{ */
 
 #if USE_ROS_TIMER == 1
-typedef mrs_lib::ROSTimer TimerType;
+using TimerType = mrs_lib::ROSTimer;
 #else
-typedef mrs_lib::ThreadTimer TimerType;
+using TimerType = mrs_lib::ThreadTimer;
 #endif
 
 //}
@@ -117,7 +117,7 @@ private:
 
   void callbackUavState(const mrs_msgs::msg::UavState::ConstSharedPtr msg);
   void callbackTrackerCommand(const mrs_msgs::msg::TrackerCommand::ConstSharedPtr msg);
-  void callbackEstimationDiaag(const mrs_msgs::msg::EstimationDiagnostics::ConstSharedPtr msg);
+  void callbackEstimationDiag(const mrs_msgs::msg::EstimationDiagnostics::ConstSharedPtr msg);
   void callbackMpcTrackerDiag(const mrs_msgs::msg::MpcTrackerDiagnostics::ConstSharedPtr msg);
   void callbackHwApiStatus(const mrs_msgs::msg::HwApiStatus::ConstSharedPtr msg);
   void callbackBatteryState(const sensor_msgs::msg::BatteryState::ConstSharedPtr msg);
@@ -237,9 +237,9 @@ private:
   vector<TopicInfo>                                   generic_topic_vec_;
   vector<string>                                      generic_topic_input_vec_;
   std::vector<rclcpp::GenericSubscription::SharedPtr> generic_subscriber_vec_;
-  vector<string_info>                                 string_info_vec_;
+  vector<StringInfo>                                string_info_vec_;
 
-  vector<node_info> node_info_vec_;
+  vector<NodeInfo> node_info_vec_;
 
   vector<string> tf_static_list_compare_;
   vector<string> tf_static_list_add_;
@@ -401,7 +401,7 @@ void Acquisition::initialize() {
   sh_uav_state_   = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavState>(shopts, "~/uav_state_in", &Acquisition::callbackUavState, this);
   sh_tracker_cmd_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::TrackerCommand>(shopts, "~/cmd_tracker_in", &Acquisition::callbackTrackerCommand, this);
   sh_estimator_diag_ =
-      mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimationDiagnostics>(shopts, "~/estimation_diag_in", &Acquisition::callbackEstimationDiaag, this);
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimationDiagnostics>(shopts, "~/estimation_diag_in", &Acquisition::callbackEstimationDiag, this);
   sh_mpc_tracker_diag_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::MpcTrackerDiagnostics>(shopts, "~/mpc_diag_in", &Acquisition::callbackMpcTrackerDiag, this);
   sh_hw_api_status_    = mrs_lib::SubscriberHandler<mrs_msgs::msg::HwApiStatus>(shopts, "~/hw_api_status_in", &Acquisition::callbackHwApiStatus, this);
   sh_hw_api_gnss_      = mrs_lib::SubscriberHandler<sensor_msgs::msg::NavSatFix>(shopts, "~/gnss_in", &Acquisition::callbackHwApiGNSS, this);
@@ -607,9 +607,9 @@ void Acquisition::genericTopicHandler() {
     std::vector<mrs_msgs::msg::CustomTopic> custom_topic_vec_out;
 
     for (size_t i = 0; i < generic_topic_vec_.size(); i++) {
-      std::tuple<double, int16_t> rate_color = generic_topic_vec_[i].GetHz();
+      std::tuple<double, int16_t> rate_color = generic_topic_vec_[i].getHz();
       mrs_msgs::msg::CustomTopic  custom_topic;
-      custom_topic.topic_name  = generic_topic_vec_[i].GetTopicDisplayName();
+      custom_topic.topic_name  = generic_topic_vec_[i].getTopicDisplayName();
       custom_topic.topic_hz    = std::get<0>(rate_color);
       custom_topic.topic_color = std::get<1>(rate_color);
       custom_topic_vec_out.push_back(custom_topic);
@@ -628,7 +628,7 @@ void Acquisition::genericTopicHandler() {
 
 void Acquisition::uavStateHandler() {
 
-  std::tuple<double, int16_t> rate_color = uav_state_ts_.GetHz();
+  std::tuple<double, int16_t> rate_color = uav_state_ts_.getHz();
   {
     std::scoped_lock lock(mutex_status_msg_);
     uav_status_.odom_hz          = std::get<0>(rate_color);
@@ -767,7 +767,7 @@ void Acquisition::nodeCpuLoadHandler() {
     node_info_vec_[i].node_cpu_usage = cpu_cores_ * (user_util + sys_util);
   }
 
-  sort(node_info_vec_.begin(), node_info_vec_.end(), [](const node_info &a, const node_info &b) -> bool { return a.node_cpu_usage > b.node_cpu_usage; });
+  sort(node_info_vec_.begin(), node_info_vec_.end(), [](const NodeInfo &a, const NodeInfo &b) -> bool { return a.node_cpu_usage > b.node_cpu_usage; });
 
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -793,7 +793,7 @@ void Acquisition::nodeCpuLoadHandler() {
 
 void Acquisition::controlManagerHandler() {
 
-  std::tuple<double, int16_t> rate_color = control_manager_ts_.GetHz();
+  std::tuple<double, int16_t> rate_color = control_manager_ts_.getHz();
   {
     std::scoped_lock lock(mutex_status_msg_);
 
@@ -808,11 +808,11 @@ void Acquisition::controlManagerHandler() {
 
 void Acquisition::hwApiDiagHandler() {
 
-  std::tuple<double, int16_t> odometry_rate_color    = hw_api_odometry_ts_.GetHz();
-  std::tuple<double, int16_t> gnss_rate_color        = hw_api_gnss_ts_.GetHz();
-  std::tuple<double, int16_t> gnss_status_rate_color = hw_api_gnss_status_ts_.GetHz();
-  std::tuple<double, int16_t> state_rate_color       = hw_api_state_ts_.GetHz();
-  std::tuple<double, int16_t> battery_rate_color     = hw_api_battery_ts_.GetHz();
+  std::tuple<double, int16_t> odometry_rate_color    = hw_api_odometry_ts_.getHz();
+  std::tuple<double, int16_t> gnss_rate_color        = hw_api_gnss_ts_.getHz();
+  std::tuple<double, int16_t> gnss_status_rate_color = hw_api_gnss_status_ts_.getHz();
+  std::tuple<double, int16_t> state_rate_color       = hw_api_state_ts_.getHz();
+  std::tuple<double, int16_t> battery_rate_color     = hw_api_battery_ts_.getHz();
 
 
   bool gnss = false;
@@ -930,13 +930,13 @@ void Acquisition::setupGenericCallbacks() {
     int    id = i; // id to identify which topic called the generic callback
     string topic_name;
 
-    if (generic_topic_vec_[i].GetTopicName().at(0) == '/') {
+    if (generic_topic_vec_[i].getTopicName().at(0) == '/') {
 
-      topic_name = generic_topic_vec_[i].GetTopicName();
+      topic_name = generic_topic_vec_[i].getTopicName();
 
     } else {
 
-      topic_name = "/" + _uav_name_ + "/" + generic_topic_vec_[i].GetTopicName();
+      topic_name = "/" + _uav_name_ + "/" + generic_topic_vec_[i].getTopicName();
     }
 
     std::function<void(std::shared_ptr<rclcpp::SerializedMessage> msg)> callback_fcn =
@@ -1242,7 +1242,7 @@ void Acquisition::callbackUavState(const mrs_msgs::msg::UavState::ConstSharedPtr
     return;
   }
 
-  uav_state_ts_.Count();
+  uav_state_ts_.count();
 
   double heading;
 
@@ -1296,9 +1296,9 @@ void Acquisition::callbackTrackerCommand(const mrs_msgs::msg::TrackerCommand::Co
 
 //}
 
-/* callbackEstimationDiaag() //{ */
+/* callbackEstimationDiag() //{ */
 
-void Acquisition::callbackEstimationDiaag(const mrs_msgs::msg::EstimationDiagnostics::ConstSharedPtr msg) {
+void Acquisition::callbackEstimationDiag(const mrs_msgs::msg::EstimationDiagnostics::ConstSharedPtr msg) {
 
   if (!initialized_) {
     return;
@@ -1354,7 +1354,7 @@ void Acquisition::callbackHwApiStatus(const mrs_msgs::msg::HwApiStatus::ConstSha
     return;
   }
 
-  hw_api_state_ts_.Count();
+  hw_api_state_ts_.count();
 
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -1374,7 +1374,7 @@ void Acquisition::callbackBatteryState(const sensor_msgs::msg::BatteryState::Con
     return;
   }
 
-  hw_api_battery_ts_.Count();
+  hw_api_battery_ts_.count();
 
   if (!got_bat_) {
     // first time we got the battery message, set the last_bat time to now.
@@ -1461,7 +1461,7 @@ void Acquisition::callbackHwApiGNSS(const sensor_msgs::msg::NavSatFix::ConstShar
     return;
   }
 
-  hw_api_gnss_ts_.Count();
+  hw_api_gnss_ts_.count();
 
   double gnss_qual = (msg->position_covariance[0] + msg->position_covariance[4] + msg->position_covariance[8]) / 3;
 
@@ -1482,7 +1482,7 @@ void Acquisition::callbackHwApiGNSSStatus(const mrs_msgs::msg::GpsInfo::ConstSha
     return;
   }
 
-  hw_api_gnss_status_ts_.Count();
+  hw_api_gnss_status_ts_.count();
 
   double gnss_acc = (msg->h_acc + msg->v_acc) / 2;
 
@@ -1505,7 +1505,7 @@ void Acquisition::callbackHwApiOdom([[maybe_unused]] const nav_msgs::msg::Odomet
     return;
   }
 
-  hw_api_odometry_ts_.Count();
+  hw_api_odometry_ts_.count();
 }
 
 //}
@@ -1520,7 +1520,7 @@ void Acquisition::callbackControlManagerDiag(const mrs_msgs::msg::ControlManager
 
   RCLCPP_INFO_ONCE(node_->get_logger(), "callbackControlManagerDiag(): getting data");
 
-  control_manager_ts_.Count();
+  control_manager_ts_.count();
 
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -1636,12 +1636,12 @@ void Acquisition::callbackMagnetometer(const sensor_msgs::msg::MagneticField::Co
     return;
   }
 
-  hw_api_mag_ts_.Count();
+  hw_api_mag_ts_.count();
 
   {
     std::scoped_lock lock(mutex_status_msg_);
 
-    std::tuple<double, int16_t> rate_color = hw_api_mag_ts_.GetHz();
+    std::tuple<double, int16_t> rate_color = hw_api_mag_ts_.getHz();
     uav_status_.mag_norm                   = 10000 * (sqrt(pow(msg->magnetic_field.x, 2) + pow(msg->magnetic_field.y, 2) + pow(msg->magnetic_field.z, 2)));
     uav_status_.mag_norm_hz                = std::get<0>(rate_color);
   }
@@ -1789,7 +1789,7 @@ void Acquisition::callbackString(const std_msgs::msg::String::ConstSharedPtr msg
   }
 
   if (!contains) {
-    string_info tmp(clock_->now(), pub_name, msg_str, id, persistent);
+    StringInfo tmp(clock_->now(), pub_name, msg_str, id, persistent);
     string_info_vec_.push_back(tmp);
   }
 }
@@ -1804,7 +1804,7 @@ void Acquisition::callbackGeneric([[maybe_unused]] std::shared_ptr<rclcpp::Seria
     return;
   }
 
-  generic_topic_vec_[id].Count();
+  generic_topic_vec_[id].count();
 }
 
 //}

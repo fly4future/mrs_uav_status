@@ -11,9 +11,9 @@ using namespace std;
 /* defines //{ */
 
 #if USE_ROS_TIMER == 1
-typedef mrs_lib::ROSTimer TimerType;
+using TimerType = mrs_lib::ROSTimer;
 #else
-typedef mrs_lib::ThreadTimer TimerType;
+using TimerType = mrs_lib::ThreadTimer;
 #endif
 
 //}
