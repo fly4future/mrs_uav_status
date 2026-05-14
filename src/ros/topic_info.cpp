@@ -96,7 +96,7 @@ std::tuple<double, int16_t> TopicInfo::getHz() {
 
 //}
 
-/* getTopicName //{ */
+/* getTopicDisplayName //{ */
 
 std::string TopicInfo::getTopicName() const {
   return topic_name_;
