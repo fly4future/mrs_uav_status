@@ -26,8 +26,6 @@
 #include <mrs_msgs/msg/custom_topic.hpp>
 #include <mrs_msgs/msg/controller_diagnostics.hpp>
 #include <mrs_msgs/msg/reference.hpp>
-#include <mrs_msgs/msg/uav_status.hpp>
-#include <mrs_msgs/msg/custom_topic.hpp>
 #include <mrs_msgs/msg/hw_api_status.hpp>
 #include <mrs_msgs/msg/gps_info.hpp>
 
@@ -61,7 +59,16 @@
 
 #include <cmath>
 
-using namespace std;
+using std::getline;
+using std::ifstream;
+using std::ofstream;
+using std::sort;
+using std::stod;
+using std::stoi;
+using std::string;
+using std::stringstream;
+using std::to_string;
+using std::vector;
 
 //}
 

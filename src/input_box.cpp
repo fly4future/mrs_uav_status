@@ -54,7 +54,7 @@ unsigned long InputBox::process(int key) {
     }
     break;
 
-  case KEY_DELETE:
+  case kKeyDelete:
     buffer_.erase(buffer_.begin() + InputBox::cursor_);
     break;
 
@@ -93,7 +93,7 @@ unsigned long InputBox::process(int key) {
 
 void InputBox::print(int line, bool active) {
 
-  wattron(win_, COLOR_PAIR(FIELD));
+  wattron(win_, COLOR_PAIR(kColorPairField));
   wattron(win_, A_BOLD);
 
   for (unsigned long i = 0; i < buffer_.size(); i++) {
@@ -105,7 +105,7 @@ void InputBox::print(int line, bool active) {
   }
 
   wattroff(win_, A_BOLD);
-  wattroff(win_, COLOR_PAIR(FIELD));
+  wattroff(win_, COLOR_PAIR(kColorPairField));
 }
 
 //}
