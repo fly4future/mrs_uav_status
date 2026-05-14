@@ -59,9 +59,9 @@ target_sources(MrsUavStatus_Status
     "src/topic_info.cpp"
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
   FILES
-    "include/commons.hpp"
-    "include/input_box.hpp"
-    "include/menu.hpp"
+    "include/mrs_uav_status/tui_constants.hpp"
+    "include/mrs_uav_status/tui_common_types.hpp"
+    "include/mrs_uav_status/ros_common_types.hpp"
 )
 
 target_link_libraries(MrsUavStatus_Status

@@ -1,84 +1,19 @@
 #pragma once
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <ncurses.h>
-#include <form.h>
-
-/* #include <utility> */
+#include <string>
+#include <vector>
 #include <tuple>
-
-#include <boost/function.hpp>
-#include <boost/algorithm/string.hpp>
-#include <boost/filesystem.hpp>
+#include <cstdint>
 
 #include <rclcpp/rclcpp.hpp>
-
-/* #include <iostream> */
-/* #include <fstream> */
-/* #include <thread> */
-
-#include <mrs_msgs/msg/uav_status.hpp>
-#include <mrs_msgs/msg/uav_status_short.hpp>
-#include <mrs_msgs/msg/uav_state.hpp>
-#include <mrs_msgs/msg/control_manager_diagnostics.hpp>
-#include <mrs_msgs/msg/gain_manager_diagnostics.hpp>
-#include <mrs_msgs/msg/constraint_manager_diagnostics.hpp>
-
-#include <mrs_msgs/srv/reference_stamped_srv.hpp>
-#include <mrs_msgs/msg/reference.hpp>
-#include <mrs_msgs/srv/trajectory_reference_srv.hpp>
-#include <mrs_msgs/srv/string.hpp>
-#include <mrs_msgs/msg/custom_topic.hpp>
-
-#include <std_msgs/msg/string.hpp>
-
-#include <sensor_msgs/msg/nav_sat_fix.hpp>
-
 #include <std_srvs/srv/trigger.hpp>
 
-#include <geometry_msgs/msg/pose.hpp>
-#include <geometry_msgs/msg/pose_stamped.hpp>
-#include <geometry_msgs/msg/vector3.hpp>
-
-#include <sensor_msgs/msg/battery_state.hpp>
-
-#include <mrs_lib/mutex.h>
-#include <mrs_lib/param_loader.h>
-#include <mrs_lib/attitude_converter.h>
 #include <mrs_lib/service_client_handler.h>
 
-#include <tf2_msgs/msg/tf_message.hpp>
-
-inline constexpr int kKeyEnt    = 10;
-inline constexpr int kKeyEsc    = 27;
-/* inline constexpr int kKeyBackspace = 263; */
-inline constexpr int kKeyDelete = 330;
-
-inline constexpr int kColorPairNormal    = 100;
-inline constexpr int kColorPairField     = 101;
-inline constexpr int kColorPairGreen     = 102;
-inline constexpr int kColorPairRed       = 103;
-inline constexpr int kColorPairYellow    = 104;
-inline constexpr int kColorPairBlue      = 105;
-inline constexpr int kColorPairAlwaysRed = 106;
-
-inline constexpr int kBackgroundDefault   = -1;
-inline constexpr int kBackgroundTrueBlack = 16;
-
-inline constexpr int kColorNiceRed   = 196;
-inline constexpr int kColorDarkRed   = 88;
-inline constexpr int kColorNiceGreen = 82;
-inline constexpr int kColorDarkGreen = 2;
-inline constexpr int kColorNiceBlue  = 33;
-inline constexpr int kColorDarkBlue  = 19;
-inline constexpr int kColorNiceYellow = 220;
-inline constexpr int kColorDarkYellow = 172;
-
-inline constexpr int kBufferLenSecs = 4;
+namespace mrs_uav_status
+{
 
 class TopicInfo {
-
 public:
   TopicInfo();
   TopicInfo(rclcpp::Node::SharedPtr node, double window_rate_in, int buffer_len, double desired_rate_in);
@@ -136,7 +71,7 @@ struct TopicStatus
     } else {
       last_time = rclcpp::Time(0, 0, RCL_ROS_TIME);
     }
-    counter        = 0;
+    counter = 0;
   }
 };
 
@@ -173,3 +108,5 @@ struct NodeInfo
     last_stime     = 0;
   }
 };
+
+} // namespace mrs_uav_status
