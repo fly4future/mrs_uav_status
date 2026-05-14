@@ -124,7 +124,8 @@ struct TopicStatus
   size_t                  rates_iterator = 0;
   rclcpp::Node::SharedPtr node;
 
-  TopicStatus(double window_rate_in, int buffer_len) {
+  TopicStatus(double window_rate_in, int buffer_len, rclcpp::Node::SharedPtr node_in = nullptr) {
+    node        = node_in;
     window_rate = window_rate_in;
     rates.resize(buffer_len * int(window_rate));
     rates.assign(rates.size(), 0.0);
