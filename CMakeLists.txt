@@ -52,15 +52,16 @@ add_executable(MrsUavStatus_Status)
 
 target_sources(MrsUavStatus_Status
   PRIVATE
+    "src/ros/topic_info.cpp"
+    "src/status.cpp"
     "src/tui/control_bar.cpp"
     "src/tui/status_window.cpp"
-    "src/status.cpp"
-    "src/ros/topic_info.cpp"
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
   FILES
     "include/mrs_uav_status/ros/service.hpp"
     "include/mrs_uav_status/ros/topic_info.hpp"
     "include/mrs_uav_status/ros/topic_status.hpp"
+    "include/mrs_uav_status/status.hpp"
     "include/mrs_uav_status/tui/control_bar.hpp"
     "include/mrs_uav_status/tui/status_window.hpp"
     "include/mrs_uav_status/tui/tui_constants.hpp"

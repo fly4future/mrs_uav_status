@@ -1,38 +1,7 @@
-/* includes //{ */
+#include <mrs_uav_status/status.hpp>
 
-#include <fstream>
-#include <iostream>
-#include <filesystem>
-#include <functional>
-#include <stdexcept>
-
-#include <mrs_uav_status/ros/service.hpp>
-#include <mrs_uav_status/ros/topic_info.hpp>
-#include <mrs_uav_status/ros/topic_status.hpp>
-#include <mrs_uav_status/tui/control_bar.hpp>
-#include <mrs_uav_status/tui/status_window.hpp>
-#include <mrs_uav_status/tui/tui_constants.hpp>
-#include <mrs_uav_status/utils/node_info.hpp>
-#include <mrs_uav_status/utils/split.hpp>
-#include <mrs_uav_status/utils/string_info.hpp>
-
-#include <mrs_msgs/msg/node_cpu_load.hpp>
-#include <mrs_msgs/msg/reference.hpp>
-#include <mrs_msgs/msg/gimbal_state.hpp>
-#include <mrs_msgs/msg/float64_stamped.hpp>
-#include <mrs_msgs/msg/uav_status.hpp>
-#include <mrs_msgs/msg/uav_status_short.hpp>
-
-#include <mrs_msgs/srv/string.hpp>
-#include <mrs_msgs/srv/reference_stamped_srv.hpp>
-#include <mrs_msgs/srv/trajectory_reference_srv.hpp>
-
-#include <mrs_lib/node.h>
-#include <mrs_lib/geometry/cyclic.h>
-#include <mrs_lib/profiler.h>
-#include <mrs_lib/subscriber_handler.h>
-#include <mrs_lib/transformer.h>
-#include <mrs_lib/param_loader.h>
+namespace mrs_uav_status
+{
 
 using std::getline;
 using std::ifstream;
@@ -44,275 +13,6 @@ using std::to_string;
 using std::vector;
 
 using radians = mrs_lib::geometry::radians;
-
-//}
-
-/* typedefs //{ */
-
-typedef enum
-{
-  STANDARD,
-  REMOTE,
-  GIMBAL,
-  MAIN_MENU,
-  GOTO_MENU,
-  DISPLAY_MENU,
-} StatusState;
-
-//}
-
-/* defines //{ */
-
-#if USE_ROS_TIMER == 1
-using TimerType = mrs_lib::ROSTimer;
-#else
-using TimerType = mrs_lib::ThreadTimer;
-#endif
-
-//}
-
-namespace mrs_uav_status
-{
-
-/* class Status //{ */
-
-class Status : public mrs_lib::Node {
-
-public:
-  Status();
-
-private:
-  rclcpp::Node::SharedPtr  node_;
-  rclcpp::Clock::SharedPtr clock_;
-
-  rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
-  rclcpp::CallbackGroup::SharedPtr cbkgrp_timers_;
-  rclcpp::CallbackGroup::SharedPtr cbkgrp_sc_;
-
-  void initialize();
-
-  struct MenuRow
-  {
-    std::string           label;
-    std::function<void()> on_open;
-  };
-
-  std::vector<MenuRow> main_menu_rows_;
-  std::vector<MenuRow> sub_menu_rows_;
-
-public:
-  std::string _colorscheme_;
-  std::string _pwd_;
-  std::string _display_config_filename_;
-
-  bool _light_ = false;
-
-  std::mutex mutex_status_msg_;
-
-  mrs_msgs::msg::UavStatus uav_status_;
-
-  // | ------------------------- Timers ------------------------- |
-
-  std::shared_ptr<TimerType> timer_status_fast_;
-  std::shared_ptr<TimerType> timer_status_slow_;
-  std::shared_ptr<TimerType> timer_resize_;
-
-  void timerStatusFast();
-  void timerStatusSlow();
-  void timerResize();
-
-  // | --------------------- print routines --------------------- |
-
-  void printLimitedInt(WINDOW *win, int y, int x, string str_in, int num, int limit);
-  void printLimitedDouble(WINDOW *win, int y, int x, string str_in, double num, double limit);
-  void printLimitedString(WINDOW *win, int y, int x, string str_in, unsigned long limit);
-  void printCompressedLimitedString(WINDOW *win, int y, int x, string str_in, unsigned long limit);
-  void printServiceResult(bool success, string msg);
-  void printError(string msg);
-  void printDebug(string msg);
-  void printHelp();
-  void printTmuxDump();
-  void printBox(WINDOW *win);
-
-  void printNoData(WINDOW *win, int y, int x);
-  void printNoData(WINDOW *win, int y, int x, string text);
-
-  // | ------------------------- Windows ------------------------ |
-
-  void setupWindows();
-
-  void uavStateHandler(WINDOW *win);
-  void controlManagerHandler(WINDOW *win);
-  void hwApiStateHandler(WINDOW *win);
-  void genericTopicHandler(WINDOW *win);
-  void nodeStatsHandler(WINDOW *win);
-  void generalInfoHandler(WINDOW *win);
-  void stringHandler(WINDOW *);
-
-  double general_info_window_rate_  = 1;
-  double generic_topic_window_rate_ = 1;
-
-  bool increment_counter_         = false;
-  int  estimator_display_counter_ = 0;
-
-  int    _service_num_calls_ = 20;
-  double _service_delay_     = 0.1;
-
-  void printCpuLoad(WINDOW *win);
-  void printCpuTemp(WINDOW *win);
-  void printCpuFreq(WINDOW *win);
-  void printMemLoad(WINDOW *win);
-  void printDiskSpace(WINDOW *win);
-
-  long last_idle_  = 0;
-  long last_total_ = 0;
-  long last_gigas_ = 0;
-
-  // | ------------------------- Subscribers ------------------------ |
-
-  mrs_lib::SubscriberHandler<mrs_msgs::msg::UavStatus>      sh_uav_status_;
-  mrs_lib::SubscriberHandler<mrs_msgs::msg::UavStatusShort> sh_uav_status_short_;
-
-  // | ------------------------- Publishers ------------------------ |
-
-  mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState> ph_gimbal_state_;
-
-  // | ------------------------- Callbacks ------------------------- |
-
-  void callbackUavStatus(const mrs_msgs::msg::UavStatus::ConstSharedPtr msg);
-  void callbackUavStatusShort(const mrs_msgs::msg::UavStatusShort::ConstSharedPtr msg);
-
-  // Custom windows
-  WINDOW *uav_state_window_;
-  WINDOW *control_manager_window_;
-  WINDOW *hw_api_state_window_;
-
-  vector<TopicInfo> string_topic_;
-
-  // Vanilla windows
-  WINDOW *top_bar_window_;
-  WINDOW *bottom_window_;
-  WINDOW *generic_topic_window_;
-  WINDOW *node_stats_window_;
-  WINDOW *general_info_window_;
-  WINDOW *debug_window_;
-  WINDOW *sub_tmux_window_1_;
-  WINDOW *sub_tmux_window_2_;
-  WINDOW *string_window_;
-
-  rclcpp::Time bottom_window_clear_time_;
-  rclcpp::Time last_time_got_data_;
-  rclcpp::Time last_time_got_short_data_;
-
-  unsigned long line_in_upper_menu_;
-
-  bool help_active_ = false;
-
-  // | ---------------------- Misc routines --------------------- |
-
-  bool        updateTermSize();
-  void        prefillUavStatus();
-  void        topLineHandler(WINDOW *win);
-  void        remoteHandler(int key, WINDOW *win);
-  void        gimbalHandler(int key, WINDOW *win);
-  void        remoteModeFly(const mrs_msgs::msg::Reference &ref_in);
-  void        setupColors(bool active);
-  std::string callTerminal(const char *cmd);
-
-  mrs_lib::Profiler profiler_;
-  bool              _colorblind_mode_  = false;
-  bool              _profiler_enabled_ = false;
-
-
-  // | ---------------------- Menu routines --------------------- |
-
-  static bool isValidMenuIndex(int index, size_t container_size);
-
-  void setupMainMenu();
-  bool mainMenuHandler(int key_in);
-
-  void setupGotoMenu();
-  bool gotoMenuHandler(int key_in);
-
-  void setupDisplayMenu();
-  void setupDisplayText();
-
-  bool displayMenuHandler(int key_in);
-
-  void createSubMenu(std::vector<std::string> &submenu_entries);
-  void createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<mrs_msgs::srv::String> &service_client);
-  void createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger> &service_client);
-
-  // | --------------------- Service Clients -------------------- |
-
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>    sc_goto_reference_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::TrajectoryReferenceSrv> sc_trajectory_reference_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 sc_set_constraints_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 sc_set_gains_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 sc_set_controller_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 sc_set_tracker_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 sc_set_estimator_;
-  mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>                sc_hover_;
-
-  // | -------------------- UAV configuration ------------------- |
-
-  string _uav_type_;
-  string _turbo_remote_constraints_;
-
-  // | ------------------ Data storage, inputs ------------------ |
-
-  vector<mrs_uav_status::tui::StatusWindow> menu_vec_;
-  vector<mrs_uav_status::tui::StatusWindow> submenu_vec_;
-
-  vector<Service> service_vec_;
-  vector<string>  service_input_vec_;
-  vector<string>  main_menu_text_;
-  vector<string>  display_menu_text_;
-  vector<string>  constraints_text_;
-  vector<string>  gains_text_;
-  vector<string>  controllers_text_;
-  vector<string>  trackers_text_;
-  vector<string>  odometry_lat_sources_text_;
-  vector<string>  odometry_alt_sources_text_;
-  vector<string>  odometry_hdg_sources_text_;
-
-  vector<double>   goto_double_vec_;
-  vector<string>   goto_menu_text_;
-  vector<mrs_uav_status::tui::ControlBar> goto_menu_inputs_;
-
-  string old_constraints_;
-
-  mrs_msgs::msg::GimbalState gimbal_command_;
-  const uint16_t             gimbal_max = 2000;
-  const uint16_t             gimbal_min = 1000;
-
-  std::unique_ptr<mrs_lib::Transformer> transformer_;
-
-  // | -------------------- Switches, states -------------------- |
-
-  bool remote_hover_    = false;
-  bool turbo_remote_    = false;
-  bool remote_global_   = false;
-  bool have_data_       = false;
-  bool have_short_data_ = false;
-
-  bool avoiding_collision_          = false;
-  bool automatic_start_can_takeoff_ = false;
-  bool null_tracker_                = false;
-  bool is_flying_                   = false;
-
-  StatusState state_ = STANDARD;
-  int          cols_, lines_;
-
-  std::atomic<bool> initialized_ = false;
-
-  bool             mini_ = false;
-  std::vector<int> selected_tmux_window_;
-  std::string      session_name_;
-  const int        MAX_SELECTED_TMUX_WINDOWS = 2;
-};
-
-//}
 
 /* Status() //{ */
 
@@ -660,7 +360,7 @@ void Status::timerStatusFast() {
 
     /* STANDARD //{ */
 
-  case STANDARD: {
+  case StatusState::STANDARD: {
 
     switch (key_in) {
 
@@ -675,7 +375,7 @@ void Status::timerStatusFast() {
 
       if (is_flying_normally_) {
         remote_hover_ = false;
-        state_ = REMOTE;
+        state_        = StatusState::REMOTE;
       }
 
       break;
@@ -691,17 +391,17 @@ void Status::timerStatusFast() {
       gimbal_command_.is_on       = true;
       gimbal_command_.gimbal_pan  = 1500;
       gimbal_command_.gimbal_tilt = 1500;
-      state_ = GIMBAL;
+      state_                      = StatusState::GIMBAL;
       break;
 
     case 'm':
       setupMainMenu();
-      state_ = MAIN_MENU;
+      state_ = StatusState::MAIN_MENU;
       break;
 
     case 'g':
       setupGotoMenu();
-      state_ = GOTO_MENU;
+      state_ = StatusState::GOTO_MENU;
       break;
 
     case 'h':
@@ -717,7 +417,7 @@ void Status::timerStatusFast() {
 
     case 'D':
       setupDisplayMenu();
-      state_ = DISPLAY_MENU;
+      state_ = StatusState::DISPLAY_MENU;
       break;
 
     default:
@@ -735,7 +435,7 @@ void Status::timerStatusFast() {
 
     /* REMOTE //{ */
 
-  case REMOTE: {
+  case StatusState::REMOTE: {
 
     flushinp();
     remoteHandler(key_in, top_bar_window_);
@@ -759,7 +459,7 @@ void Status::timerStatusFast() {
         }
       }
 
-      state_ = STANDARD;
+      state_ = StatusState::STANDARD;
     }
 
     break;
@@ -769,14 +469,14 @@ void Status::timerStatusFast() {
 
     /* GIMBAL //{ */
 
-  case GIMBAL: {
+  case StatusState::GIMBAL: {
 
     flushinp();
 
     gimbalHandler(key_in, top_bar_window_);
 
     if (key_in == 'G' || key_in == static_cast<int>(mrs_uav_status::tui::Key::Escape)) {
-      state_ = STANDARD;
+      state_ = StatusState::STANDARD;
     }
 
     break;
@@ -786,7 +486,7 @@ void Status::timerStatusFast() {
 
     /* MAIN_MENU //{ */
 
-  case MAIN_MENU: {
+  case StatusState::MAIN_MENU: {
 
     flushinp();
 
@@ -798,7 +498,7 @@ void Status::timerStatusFast() {
       wnoutrefresh(debug_window_);
       wnoutrefresh(bottom_window_);
 
-      state_ = STANDARD;
+      state_ = StatusState::STANDARD;
     }
 
     break;
@@ -808,14 +508,14 @@ void Status::timerStatusFast() {
 
     /* GOTO_MENU //{ */
 
-  case GOTO_MENU: {
+  case StatusState::GOTO_MENU: {
 
     flushinp();
 
     if (gotoMenuHandler(key_in)) {
       menu_vec_.clear();
       submenu_vec_.clear();
-      state_ = STANDARD;
+      state_ = StatusState::STANDARD;
     }
 
     break;
@@ -825,14 +525,14 @@ void Status::timerStatusFast() {
 
     /* DISPLAY_MENU //{ */
 
-  case DISPLAY_MENU: {
+  case StatusState::DISPLAY_MENU: {
 
     flushinp();
 
     if (displayMenuHandler(key_in)) {
       menu_vec_.clear();
       submenu_vec_.clear();
-      state_ = STANDARD;
+      state_ = StatusState::STANDARD;
     }
 
     break;
@@ -841,15 +541,15 @@ void Status::timerStatusFast() {
     //}
   }
 
-  /* if (state == STANDARD) { */
+  /* if (state == StatusState::STANDARD) { */
   /*   printDebug("standard"); */
-  /* } else if (state == REMOTE) { */
+  /* } else if (state == StatusState::REMOTE) { */
   /*   printDebug("remote"); */
   /* } else { */
   /*   printDebug("something else"); */
   /* } */
 
-  if (state_ != MAIN_MENU && state_ != GOTO_MENU && state_ != DISPLAY_MENU) {
+  if (state_ != StatusState::MAIN_MENU && state_ != StatusState::GOTO_MENU && state_ != StatusState::DISPLAY_MENU) {
     wnoutrefresh(bottom_window_);
     /* wrefresh(bottom_window_); */
   }
@@ -3251,7 +2951,7 @@ void Status::printDiskSpace(WINDOW *win) {
 
 /* printServiceResult() //{ */
 
-void Status::printServiceResult(bool success, string msg) {
+void Status::printServiceResult(bool success, const std::string &msg) {
   if (_light_) {
     wattron(bottom_window_, A_STANDOUT);
   }
@@ -3285,78 +2985,87 @@ void Status::printServiceResult(bool success, string msg) {
 
 /* printLimitedInt() //{ */
 
-void Status::printLimitedInt(WINDOW *win, int y, int x, string str_in, int num, int limit) {
-  if (abs(num) > limit) {
+void Status::printLimitedInt(WINDOW *win, int y, int x, const std::string &str_in, int num, int limit) {
 
-    // if the number is larger than limit, replace it with scientific notation - 1e+01 to fit the screen
-    for (unsigned long i = 0; i < str_in.length() - 2; i++) {
-      if (str_in[i] == '.' && str_in[i + 2] == 'i') {
-        str_in[i + 1] = '0';
-        str_in[i + 2] = 'e';
+  std::string str_out = str_in;
+
+  if (std::abs(num) > limit) {
+    // If the number is larger than limit, replace it with scientific notation
+    for (unsigned long i = 0; i < str_out.length() - 2; i++) {
+      if (str_out[i] == '.' && str_out[i + 2] == 'i') {
+        str_out[i + 1] = '0';
+        str_out[i + 2] = 'e';
         break;
       }
     }
   }
 
-  const char *format = str_in.c_str();
-
-  mvwprintw(win, y, x, format, num);
+  mvwprintw(win, y, x, str_out.c_str(), num);
 }
 
 //}
 
 /* printLimitedDouble() //{ */
 
-void Status::printLimitedDouble(WINDOW *win, int y, int x, string str_in, double num, double limit) {
-  if (fabs(num) > limit) {
+void Status::printLimitedDouble(WINDOW *win, int y, int x, const std::string &str_in, double num, double limit) {
 
-    // if the number is larger than limit, replace it with scientific notation - 1e+01 to fit the screen
-    for (unsigned long i = 0; i < str_in.length() - 2; i++) {
-      if (str_in[i] == '.' && str_in[i + 2] == 'f') {
-        str_in[i + 1] = '0';
-        str_in[i + 2] = 'e';
+  std::string format_str = str_in;
+
+  if (std::abs(num) > limit) {
+    // If the number is larger than limit, replace it with scientific notation
+    // We look for the '.Xf' pattern and change it to '.0e'
+    for (unsigned long i = 0; i < format_str.length() - 2; i++) {
+      if (format_str[i] == '.' && format_str[i + 2] == 'f') {
+        format_str[i + 1] = '0';
+        format_str[i + 2] = 'e';
         break;
       }
     }
   }
 
-  const char *format = str_in.c_str();
-
-  mvwprintw(win, y, x, format, num);
+  mvwprintw(win, y, x, format_str.c_str(), num);
 }
 
 //}
 
 /* printLimitedString() //{ */
 
-void Status::printLimitedString(WINDOW *win, int y, int x, string str_in, unsigned long limit) {
+void Status::printLimitedString(WINDOW *win, int y, int x, const std::string &str_in, unsigned long limit) {
+
+  // If the string is within limits, we print it directly.
+  // If not, we create a temporary truncated version.
   if (str_in.length() > limit) {
-    str_in.resize(limit);
+    std::string truncated_str = str_in.substr(0, limit);
+    mvwprintw(win, y, x, "%s", truncated_str.c_str());
+  } else {
+    mvwprintw(win, y, x, "%s", str_in.c_str());
   }
-
-  const char *format = str_in.c_str();
-
-  mvwprintw(win, y, x, format);
 }
 
 //}
 
 /* printCompressedLimitedString() //{ */
 
-void Status::printCompressedLimitedString(WINDOW *win, int y, int x, string str_in, unsigned long limit) {
-  std::string chars("aeiouAEIOU :");
+void Status::printCompressedLimitedString(WINDOW *win, int y, int x, const std::string &str_in, unsigned long limit) {
 
-  for (size_t i = 0; i < chars.length(); i++) {
-    str_in.erase(std::remove(str_in.begin() + 1, str_in.end(), chars.at(i)), str_in.end());
+  if (str_in.empty()) {
+    return;
   }
 
-  if (str_in.length() > limit) {
-    str_in.resize(limit);
+  std::string compressed = str_in;
+  std::string chars_to_remove("aeiouAEIOU :");
+
+  for (char c : chars_to_remove) {
+    if (compressed.length() > 1) {
+      compressed.erase(std::remove(compressed.begin() + 1, compressed.end(), c), compressed.end());
+    }
   }
 
-  const char *format = str_in.c_str();
+  if (compressed.length() > limit) {
+    compressed.resize(limit);
+  }
 
-  mvwprintw(win, y, x, format);
+  mvwprintw(win, y, x, "%s", compressed.c_str());
 }
 
 //}
@@ -3375,7 +3084,7 @@ void Status::printNoData(WINDOW *win, int y, int x) {
   wattroff(win, A_BLINK);
 }
 
-void Status::printNoData(WINDOW *win, int y, int x, string text) {
+void Status::printNoData(WINDOW *win, int y, int x, const std::string &text) {
   wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
   mvwprintw(win, y, x, text.c_str());
   printNoData(win, y, x + text.length());
@@ -3385,7 +3094,7 @@ void Status::printNoData(WINDOW *win, int y, int x, string text) {
 
 /* printError() //{ */
 
-void Status::printError(string msg) {
+void Status::printError(const std::string &msg) {
   wattron(debug_window_, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
   printLimitedString(debug_window_, 0, 0, msg, 120);
   wattroff(debug_window_, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
@@ -3397,7 +3106,7 @@ void Status::printError(string msg) {
 
 /* printDebug() //{ */
 
-void Status::printDebug(string msg) {
+void Status::printDebug(const std::string &msg) {
   printLimitedString(debug_window_, 0, 0, msg, 120);
 
   wnoutrefresh(debug_window_);
@@ -3513,19 +3222,24 @@ void Status::printBox(WINDOW *win) {
 /* setupColors() //{ */
 
 void Status::setupColors(bool active) {
-  init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::AlwaysRed), static_cast<int>(mrs_uav_status::tui::Color::NiceRed), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+  init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::AlwaysRed), static_cast<int>(mrs_uav_status::tui::Color::NiceRed),
+            static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
 
   if (active) {
 
     init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal), COLOR_WHITE, static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
     init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Field), COLOR_WHITE, 235);
-    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Red), static_cast<int>(mrs_uav_status::tui::Color::NiceRed), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow), static_cast<int>(mrs_uav_status::tui::Color::NiceYellow), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Red), static_cast<int>(mrs_uav_status::tui::Color::NiceRed),
+              static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow), static_cast<int>(mrs_uav_status::tui::Color::NiceYellow),
+              static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
 
     if (_colorblind_mode_) {
-      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::NiceBlue), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::NiceBlue),
+                static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
     } else {
-      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::NiceGreen), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::NiceGreen),
+                static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
     }
     _light_ = false;
 
@@ -3533,21 +3247,28 @@ void Status::setupColors(bool active) {
     if (_colorscheme_.find("COLORSCHEME_LIGHT") != std::string::npos) {
       init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal), COLOR_BLACK, static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
       init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Field), COLOR_WHITE, 237);
-      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow), static_cast<int>(mrs_uav_status::tui::Color::DarkYellow), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow), static_cast<int>(mrs_uav_status::tui::Color::DarkYellow),
+                static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
       if (_colorblind_mode_) {
-        init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::DarkBlue), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+        init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::DarkBlue),
+                  static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
       } else {
-        init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::DarkGreen), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+        init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::DarkGreen),
+                  static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
       }
       _light_ = true;
     }
 
   } else {
-    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal), static_cast<int>(mrs_uav_status::tui::Color::DarkRed), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal), static_cast<int>(mrs_uav_status::tui::Color::DarkRed),
+              static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
     init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Field), static_cast<int>(mrs_uav_status::tui::Color::DarkRed), 235);
-    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Red), static_cast<int>(mrs_uav_status::tui::Color::DarkRed), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow), static_cast<int>(mrs_uav_status::tui::Color::DarkRed), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::DarkRed), static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Red), static_cast<int>(mrs_uav_status::tui::Color::DarkRed),
+              static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow), static_cast<int>(mrs_uav_status::tui::Color::DarkRed),
+              static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
+    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::DarkRed),
+              static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
     _light_ = false;
 
 
@@ -3565,8 +3286,8 @@ void Status::setupColors(bool active) {
 /* callTerminal() //{ */
 
 std::string Status::callTerminal(const char *cmd) {
-  std::array<char, 128>                    buffer;
-  std::string                              result;
+  std::array<char, 128>                  buffer;
+  std::string                            result;
   std::unique_ptr<FILE, int (*)(FILE *)> pipe(popen(cmd, "r"), static_cast<int (*)(FILE *)>(pclose));
 
   if (!pipe) {
