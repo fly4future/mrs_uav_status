@@ -1690,7 +1690,7 @@ void Acquisition::callbackTfStatic(const tf2_msgs::msg::TFMessage::ConstSharedPt
     return;
   }
 
-  bool got_new_tf_static = false;
+  /* bool got_new_tf_static = false; */
 
   for (size_t i = 0; i < msg->transforms.size(); i++) {
 
@@ -1710,14 +1710,14 @@ void Acquisition::callbackTfStatic(const tf2_msgs::msg::TFMessage::ConstSharedPt
           generic_topic_input_vec_.push_back(tf_static_list_add_[j]);
         }
 
-        got_new_tf_static = true;
+        /* got_new_tf_static = true; */
       }
     }
   }
 
-  // if (got_new_tf_static) {
-  //   setupGenericCallbacks();
-  // }
+  /* if (got_new_tf_static) { */
+  /*   setupGenericCallbacks(); */
+  /* } */
 }
 //}
 
