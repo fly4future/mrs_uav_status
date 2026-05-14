@@ -937,7 +937,7 @@ bool Status::mainMenuHandler(int key_in) {
     return true;
   }
 
-  if (result.pressed_key == kKeyEnt && static_cast<size_t>(result.selected_line) < main_menu_rows_.size()) {
+  if (result.pressed_key == kKeyEnt && result.selected_line >= 0 && static_cast<size_t>(result.selected_line) < main_menu_rows_.size()) {
     main_menu_rows_[result.selected_line].on_open();
   }
 
@@ -990,7 +990,7 @@ bool Status::gotoMenuHandler(int key_in) {
 
     return true;
 
-  } else if (static_cast<size_t>(result.selected_line) < goto_menu_inputs_.size()) {
+  } else if (result.selected_line >= 0 && static_cast<size_t>(result.selected_line) < goto_menu_inputs_.size()) {
 
     goto_menu_inputs_[result.selected_line].process(result.pressed_key);
   }
