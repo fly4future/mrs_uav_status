@@ -14,10 +14,10 @@ class TopicInfo {
 public:
   TopicInfo();
   
-  TopicInfo(rclcpp::Node::SharedPtr node, double window_rate_in, int buffer_len, double desired_rate_in);
+  TopicInfo(rclcpp::Node::SharedPtr node, double window_rate, int buffer_length, double desired_rate);
   
-  TopicInfo(rclcpp::Node::SharedPtr node, double window_rate_in, int buffer_len, double desired_rate_in, 
-            const std::string& topic_name_in, const std::string& topic_display_name_in);
+  TopicInfo(rclcpp::Node::SharedPtr node, double window_rate, int buffer_length, double desired_rate, 
+            const std::string& topic_name, const std::string& topic_display_name);
 
   std::string                 getTopicName() const;
   std::string                 getTopicDisplayName() const;
