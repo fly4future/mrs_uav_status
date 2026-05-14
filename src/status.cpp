@@ -216,7 +216,9 @@ public:
 
   bool displayMenuHandler(int key_in);
 
-  bool processSubMenu(std::vector<std::string> &submenu_entries, int key_in, mrs_lib::ServiceClientHandler<mrs_msgs::srv::String> &service_client);
+  void createSubMenu(std::vector<std::string> &submenu_entries);
+  void createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<mrs_msgs::srv::String> &service_client);
+  void createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger> &service_client);
 
   // | --------------------- Service Clients -------------------- |
 
@@ -898,65 +900,19 @@ bool Status::mainMenuHandler(int key_in) {
     // SUBMENU IS OPEN
 
     menu_vec_[0].iterate(main_menu_text_, -1, true);
-    Menu::Result result;
 
-    switch (submenu_vec_[0].getId()) {
+    auto result = submenu_vec_[0].iterate(key_in, true);
 
-    case 0:
+    if (result.action == Menu::Result::Action::Exit) {
+      submenu_vec_.clear();
+      return false;
+    }
 
-      // TRIGGER CONFIRMATION
-      result = submenu_vec_[0].iterate(key_in, true);
-
-      if (result.action == Menu::Result::Action::Exit) {
-        submenu_vec_.clear();
-        return false;
-      }
-
-      if (result.pressed_key == KEY_ENT) {
-        if (result.selected_line == 1) {
-          auto request  = std::make_shared<std_srvs::srv::Trigger::Request>();
-          auto response = service_vec_[line_in_upper_menu_].service_client.callSync(request);
-
-          if (response) {
-            printServiceResult(response.value()->success, response.value()->message);
-          } else {
-            printServiceResult(false, "service could not be called");
-          }
-
-          submenu_vec_.clear();
-
-          return true;
-        } else {
-          submenu_vec_.clear();
-          return false;
-        }
-      }
-      break;
-
-    case 1:
-      // CONSTRAINTS
-      return processSubMenu(constraints_text_, key_in, service_set_constraints_);
-      break;
-
-    case 2:
-      // GAINS
-      return processSubMenu(gains_text_, key_in, service_set_gains_);
-      break;
-
-    case 3:
-      // CONTROLLERS
-      return processSubMenu(controllers_text_, key_in, service_set_controller_);
-      break;
-
-    case 4:
-      // TRACKERS
-      return processSubMenu(trackers_text_, key_in, service_set_tracker_);
-      break;
-
-    case 5:
-      // Odometry source
-      return processSubMenu(odometry_lat_sources_text_, key_in, service_set_estimator_);
-      break;
+    if (key_in == KEY_ENT) {
+      sub_menu_rows_[result.selected_line].on_open();
+      submenu_vec_.clear();
+      sub_menu_rows_.clear();
+      return true;
     }
     return false;
     //}
@@ -973,28 +929,10 @@ bool Status::mainMenuHandler(int key_in) {
     return true;
   }
 
-  if (result.pressed_key == KEY_ENT) {
-    if (result.selected_line < service_vec_.size()) {
-
-      int                  x;
-      int                  y;
-      [[maybe_unused]] int rows;
-      int                  cols;
-
-      line_in_upper_menu_ = result.selected_line;
-
-      getyx(menu_vec_[0].getWin(), x, y);
-      getmaxyx(menu_vec_[0].getWin(), rows, cols);
-
-      std::vector<std::string> confirm_text;
-      confirm_text.push_back("CANCEL");
-      confirm_text.push_back(main_menu_text_[result.selected_line]);
-      Menu menu(x, 31 + cols, confirm_text, 0);
-      submenu_vec_.push_back(menu);
-    }
-
+  if (result.pressed_key == KEY_ENT && result.selected_line < main_menu_rows_.size()) {
     main_menu_rows_[result.selected_line].on_open();
   }
+
   return false;
   //}
 }
@@ -1101,37 +1039,63 @@ bool Status::displayMenuHandler(int key_in) {
 
 //}
 
-bool Status::processSubMenu(std::vector<std::string> &submenu_entries, int key_in, mrs_lib::ServiceClientHandler<mrs_msgs::srv::String> &service_client) {
-  auto result = submenu_vec_[0].iterate(submenu_entries, key_in, true);
+void Status::createSubMenu(std::vector<std::string> &submenu_entries) {
+  submenu_vec_.clear();
+  if (!submenu_entries.empty()) {
 
-  if (result.action == Menu::Result::Action::Exit) {
-    submenu_vec_.clear();
-    return false;
+    int                  x;
+    int                  y;
+    [[maybe_unused]] int rows;
+    int                  cols;
+
+    getyx(menu_vec_[0].getWin(), x, y);
+    getmaxyx(menu_vec_[0].getWin(), rows, cols);
+
+    Menu menu(x, 31 + cols, submenu_entries);
+    submenu_vec_.push_back(menu);
   }
+}
 
-  if (key_in == KEY_ENT) {
-    auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
-    request->value = submenu_entries[result.selected_line];
+void Status::createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<mrs_msgs::srv::String> &service_client) {
+  sub_menu_rows_.clear();
+  for (const auto &entry : submenu_entries) {
+    sub_menu_rows_.push_back({entry, [this, entry, &service_client]() {
+                                auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
+                                request->value = entry;
+                                auto response  = service_client.callSync(request);
+                                if (!response) {
+                                  printServiceResult(false, "service could not be called");
+                                } else {
+                                  printServiceResult(response.value()->success, response.value()->message);
+                                }
+                              }});
+  }
+}
 
-    auto response = service_client.callSync(request);
-
-    if (!response) {
-      printServiceResult(false, "service could not be called");
-      submenu_vec_.clear();
-      return false;
+void Status::createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger> &service_client) {
+  sub_menu_rows_.clear();
+  for (const auto &entry : submenu_entries) {
+    if (entry == "CANCEL") {
+      // Empty action for cancel, service call for the actual action
+      sub_menu_rows_.push_back({"CANCEL", []() {}});
+      continue;
     }
-
-    printServiceResult(response.value()->success, response.value()->message);
-    submenu_vec_.clear();
-    return true;
+    // Add service call action for other entries
+    sub_menu_rows_.push_back({entry, [this, entry, &service_client]() {
+                                auto request  = std::make_shared<std_srvs::srv::Trigger::Request>();
+                                auto response = service_client.callSync(request);
+                                if (!response) {
+                                  printServiceResult(false, "service could not be called");
+                                } else {
+                                  printServiceResult(response.value()->success, response.value()->message);
+                                }
+                              }});
   }
-  return false;
 }
 
 /* remoteHandler() //{ */
 
 void Status::remoteHandler(int key, WINDOW *win) {
-
   if (_light_) {
     wattron(win, A_STANDOUT);
   }
@@ -1364,7 +1328,6 @@ void Status::remoteHandler(int key, WINDOW *win) {
 /* gimbalHandler() //{ */
 
 void Status::gimbalHandler(int key, WINDOW *win) {
-
   if (_light_) {
     wattron(win, A_STANDOUT);
   }
@@ -1552,7 +1515,6 @@ void Status::gimbalHandler(int key, WINDOW *win) {
 /* remoteModeFly() //{ */
 
 void Status::remoteModeFly(const mrs_msgs::msg::Reference &ref_in) {
-
   auto request = std::make_shared<mrs_msgs::srv::ReferenceStampedSrv::Request>();
 
   if (remote_global_) {
@@ -1636,7 +1598,6 @@ void Status::remoteModeFly(const mrs_msgs::msg::Reference &ref_in) {
 /* stringHandler() //{ */
 
 void Status::stringHandler(WINDOW *win) {
-
   std::vector<std::string> string_vector;
 
   {
@@ -1807,7 +1768,6 @@ void Status::stringHandler(WINDOW *win) {
 /* genericTopicHandler() //{ */
 
 void Status::genericTopicHandler(WINDOW *win) {
-
   std::vector<mrs_msgs::msg::CustomTopic> custom_topic_vec;
 
   {
@@ -1854,7 +1814,6 @@ void Status::genericTopicHandler(WINDOW *win) {
 /* nodeStatsHandler() //{ */
 
 void Status::nodeStatsHandler(WINDOW *win) {
-
   mrs_msgs::msg::NodeCpuLoad node_cpu_load_vec;
 
   double cpu_load_total;
@@ -1917,7 +1876,6 @@ void Status::nodeStatsHandler(WINDOW *win) {
 /* uavStateHandler() //{ */
 
 void Status::uavStateHandler(WINDOW *win) {
-
   double avg_rate;
   double color;
   double heading;
@@ -2122,7 +2080,6 @@ void Status::uavStateHandler(WINDOW *win) {
 /* controlManagerHandler() //{ */
 
 void Status::controlManagerHandler(WINDOW *win) {
-
   int16_t color;
   bool    null_tracker;
   double  rate;
@@ -2301,7 +2258,6 @@ void Status::controlManagerHandler(WINDOW *win) {
 /* hwApiStateHander() //{ */
 
 void Status::hwApiStateHander(WINDOW *win) {
-
   int16_t     color;
   double      hw_api_rate;
   double      state_rate;
@@ -2637,7 +2593,6 @@ void Status::hwApiStateHander(WINDOW *win) {
 /* topLineHandler() //{ */
 
 void Status::topLineHandler(WINDOW *win) {
-
   werase(win);
   int secs_flown;
 
@@ -2776,7 +2731,6 @@ void Status::topLineHandler(WINDOW *win) {
 /* generalInfoHandeler() //{ */
 
 void Status::generalInfoHandeler(WINDOW *win) {
-
   werase(win);
   wattron(win, A_BOLD);
   wattron(win, COLOR_PAIR(NORMAL));
@@ -2806,7 +2760,6 @@ void Status::generalInfoHandeler(WINDOW *win) {
 /* callbackUavStatus() //{ */
 
 void Status::callbackUavStatus(const mrs_msgs::msg::UavStatus::ConstSharedPtr msg) {
-
   if (!initialized_) {
     return;
   }
@@ -2824,7 +2777,6 @@ void Status::callbackUavStatus(const mrs_msgs::msg::UavStatus::ConstSharedPtr ms
 /* callbackUavStatusShort() //{ */
 
 void Status::callbackUavStatusShort(const mrs_msgs::msg::UavStatusShort::ConstSharedPtr msg) {
-
   if (!initialized_) {
     return;
   }
@@ -2853,7 +2805,6 @@ void Status::callbackUavStatusShort(const mrs_msgs::msg::UavStatusShort::ConstSh
 /* prefillUavStatus() //{ */
 
 void Status::prefillUavStatus() {
-
   std::scoped_lock lock(mutex_status_msg_);
 
   uav_status_.uav_name                = "N/A";
@@ -2908,7 +2859,6 @@ void Status::prefillUavStatus() {
 /* setupMainMenu() //{ */
 
 void Status::setupMainMenu() {
-
   service_vec_.clear();
 
   bool null_tracker;
@@ -2920,6 +2870,7 @@ void Status::setupMainMenu() {
 
   for (unsigned long i = 0; i < service_input_vec_.size(); i++) {
 
+    // TODO, fix this with proper flying state instead of null tracker
     if (null_tracker && (i == 0 || i == 1)) {
       continue; // disable land and land home if we are not flying
     }
@@ -2964,133 +2915,75 @@ void Status::setupMainMenu() {
   main_menu_rows_.clear();
   main_menu_text_.clear();
 
-  for (unsigned long i = 0; i < service_vec_.size(); i++) {
-    const size_t idx = i;
-    main_menu_rows_.push_back({service_vec_[i].service_display_name, [this, idx]() {
-                                 int                  x;
-                                 int                  y;
-                                 [[maybe_unused]] int rows;
-                                 int                  cols;
-                                 getyx(menu_vec_[0].getWin(), x, y);
-                                 getmaxyx(menu_vec_[0].getWin(), rows, cols);
-                                 std::vector<std::string> confirm_text{"CANCEL", main_menu_text_[idx]};
-                                 Menu                     menu(x, 31 + rows, confirm_text, 0);
-                                 submenu_vec_.push_back(menu);
+  for (auto &service : service_vec_) {
+    main_menu_rows_.push_back({service.service_display_name, [this, &service]() {
+                                 std::vector<std::string> menu_text{"CANCEL", service.service_display_name};
+                                 // Create the submenu with the service action
+                                 createSubMenu(menu_text);
+                                 // Add action for the service
+                                 createSubMenuActions(menu_text, service.service_client);
                                }});
   }
 
   main_menu_rows_.push_back({"Set Constraints", [this]() {
+                               std::vector<std::string> constraints_text;
                                {
                                  std::scoped_lock lock(mutex_status_msg_);
-                                 constraints_text_ = uav_status_.constraints;
+                                 constraints_text = uav_status_.constraints;
                                }
-
-                               if (!constraints_text_.empty()) {
-
-                                 int                  x;
-                                 int                  y;
-                                 [[maybe_unused]] int rows;
-                                 int                  cols;
-
-                                 getyx(menu_vec_[0].getWin(), x, y);
-                                 getmaxyx(menu_vec_[0].getWin(), rows, cols);
-
-                                 Menu menu(x, 31 + cols, constraints_text_, 1);
-                                 submenu_vec_.push_back(menu);
-                               }
+                               sub_menu_rows_.clear();
+                               // Create the submenu with the constraints
+                               createSubMenu(constraints_text);
+                               // Add actions for each constraint
+                               createSubMenuActions(constraints_text, service_set_constraints_);
                              }});
 
   main_menu_rows_.push_back({"Set Gains", [this]() {
+                               std::vector<std::string> gains_text;
                                {
                                  std::scoped_lock lock(mutex_status_msg_);
-                                 gains_text_ = uav_status_.gains;
+                                 gains_text = uav_status_.gains;
                                }
-
-                               if (!gains_text_.empty()) {
-
-                                 int                  x;
-                                 int                  y;
-                                 [[maybe_unused]] int rows;
-                                 int                  cols;
-
-                                 getyx(menu_vec_[0].getWin(), x, y);
-                                 getmaxyx(menu_vec_[0].getWin(), rows, cols);
-
-                                 Menu menu(x, 31 + cols, gains_text_, 2);
-                                 submenu_vec_.push_back(menu);
-                               }
+                               // Create the submenu with the gains
+                               createSubMenu(gains_text);
+                               // Add actions for each gain
+                               createSubMenuActions(gains_text, service_set_gains_);
                              }});
 
   main_menu_rows_.push_back({"Set Controller", [this]() {
+                               std::vector<std::string> controllers_text;
                                {
                                  std::scoped_lock lock(mutex_status_msg_);
-                                 controllers_text_.clear();
-                                 for (size_t i = 0; i < uav_status_.controllers.size(); i++) {
-                                   controllers_text_.push_back(uav_status_.controllers[i]);
-                                 }
+                                 controllers_text = uav_status_.controllers;
                                }
-
-                               if (!controllers_text_.empty()) {
-
-                                 int                  x;
-                                 int                  y;
-                                 [[maybe_unused]] int rows;
-                                 int                  cols;
-
-                                 getyx(menu_vec_[0].getWin(), x, y);
-                                 getmaxyx(menu_vec_[0].getWin(), rows, cols);
-
-                                 Menu menu(x, 31 + cols, controllers_text_, 3);
-                                 submenu_vec_.push_back(menu);
-                               }
+                               // Create the submenu with the controllers
+                               createSubMenu(controllers_text);
+                               // Add actions for each controller
+                               createSubMenuActions(controllers_text, service_set_controller_);
                              }});
 
   main_menu_rows_.push_back({"Set Tracker", [this]() {
+                               std::vector<std::string> trackers_text;
                                {
                                  std::scoped_lock lock(mutex_status_msg_);
-                                 trackers_text_.clear();
-                                 for (size_t i = 0; i < uav_status_.trackers.size(); i++) {
-                                   trackers_text_.push_back(uav_status_.trackers[i]);
-                                 }
+                                 trackers_text = uav_status_.trackers;
                                }
-
-                               if (!trackers_text_.empty()) {
-
-                                 int                  x;
-                                 int                  y;
-                                 [[maybe_unused]] int rows;
-                                 int                  cols;
-
-                                 getyx(menu_vec_[0].getWin(), x, y);
-                                 getmaxyx(menu_vec_[0].getWin(), rows, cols);
-
-                                 Menu menu(x, 31 + cols, trackers_text_, 4);
-                                 submenu_vec_.push_back(menu);
-                               }
+                               // Create the submenu with the trackers
+                               createSubMenu(trackers_text);
+                               // Add actions for each tracker
+                               createSubMenuActions(trackers_text, service_set_tracker_);
                              }});
 
   main_menu_rows_.push_back({"Set Estimator", [this]() {
+                               std::vector<std::string> odometry_lat_sources_text;
                                {
                                  std::scoped_lock lock(mutex_status_msg_);
-                                 odometry_lat_sources_text_.clear();
-                                 for (size_t i = 0; i < uav_status_.odom_estimators.size(); i++) {
-                                   odometry_lat_sources_text_.push_back(uav_status_.odom_estimators[i]);
-                                 }
+                                 odometry_lat_sources_text = uav_status_.odom_estimators;
                                }
-
-                               if (!odometry_lat_sources_text_.empty()) {
-
-                                 int                  x;
-                                 int                  y;
-                                 [[maybe_unused]] int rows;
-                                 int                  cols;
-
-                                 getyx(menu_vec_[0].getWin(), x, y);
-                                 getmaxyx(menu_vec_[0].getWin(), rows, cols);
-
-                                 Menu menu(x, 31 + cols, odometry_lat_sources_text_, 5);
-                                 submenu_vec_.push_back(menu);
-                               }
+                               // Create the submenu with the odometry sources
+                               createSubMenu(odometry_lat_sources_text);
+                               // Add actions for each odometry source
+                               createSubMenuActions(odometry_lat_sources_text, service_set_estimator_);
                              }});
 
   for (const auto &rows : main_menu_rows_) {
@@ -3106,7 +2999,6 @@ void Status::setupMainMenu() {
 /* setupGotoMenu() //{ */
 
 void Status::setupGotoMenu() {
-
   std::string odom_frame;
 
   {
@@ -3136,7 +3028,6 @@ void Status::setupGotoMenu() {
 /* setupDisplayMenu() //{ */
 
 void Status::setupDisplayMenu() {
-
   setupDisplayText();
 
   Menu menu(1, 32, display_menu_text_);
@@ -3148,7 +3039,6 @@ void Status::setupDisplayMenu() {
 /* setupDisplayText() //{ */
 
 void Status::setupDisplayText() {
-
   display_menu_text_.clear();
 
   char                     command[50] = "tmux list-windows | cut -d' ' -f-2";
@@ -3174,7 +3064,6 @@ void Status::setupDisplayText() {
 /* printMemLoad() //{ */
 
 void Status::printMemLoad(WINDOW *win) {
-
   double total_ram;
   double free_ram;
 
@@ -3209,7 +3098,6 @@ void Status::printMemLoad(WINDOW *win) {
 /* printCpuLoad() //{ */
 
 void Status::printCpuLoad(WINDOW *win) {
-
   double cpu_load;
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -3235,7 +3123,6 @@ void Status::printCpuLoad(WINDOW *win) {
 /* printCpuTemp() //{ */
 
 void Status::printCpuTemp(WINDOW *win) {
-
   double cpu_temp;
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -3262,7 +3149,6 @@ void Status::printCpuTemp(WINDOW *win) {
 /* printCpuFreq() //{ */
 
 void Status::printCpuFreq(WINDOW *win) {
-
   double avg_cpu_ghz;
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -3278,7 +3164,6 @@ void Status::printCpuFreq(WINDOW *win) {
 /* printDiskSpace() //{ */
 
 void Status::printDiskSpace(WINDOW *win) {
-
   int gigas;
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -3335,7 +3220,6 @@ void Status::printDiskSpace(WINDOW *win) {
 /* printServiceResult() //{ */
 
 void Status::printServiceResult(bool success, string msg) {
-
   if (_light_) {
     wattron(bottom_window_, A_STANDOUT);
   }
@@ -3370,7 +3254,6 @@ void Status::printServiceResult(bool success, string msg) {
 /* printLimitedInt() //{ */
 
 void Status::printLimitedInt(WINDOW *win, int y, int x, string str_in, int num, int limit) {
-
   if (abs(num) > limit) {
 
     // if the number is larger than limit, replace it with scientific notation - 1e+01 to fit the screen
@@ -3393,7 +3276,6 @@ void Status::printLimitedInt(WINDOW *win, int y, int x, string str_in, int num, 
 /* printLimitedDouble() //{ */
 
 void Status::printLimitedDouble(WINDOW *win, int y, int x, string str_in, double num, double limit) {
-
   if (fabs(num) > limit) {
 
     // if the number is larger than limit, replace it with scientific notation - 1e+01 to fit the screen
@@ -3416,7 +3298,6 @@ void Status::printLimitedDouble(WINDOW *win, int y, int x, string str_in, double
 /* printLimitedString() //{ */
 
 void Status::printLimitedString(WINDOW *win, int y, int x, string str_in, unsigned long limit) {
-
   if (str_in.length() > limit) {
     str_in.resize(limit);
   }
@@ -3431,7 +3312,6 @@ void Status::printLimitedString(WINDOW *win, int y, int x, string str_in, unsign
 /* printCompressedLimitedString() //{ */
 
 void Status::printCompressedLimitedString(WINDOW *win, int y, int x, string str_in, unsigned long limit) {
-
   std::string chars("aeiouAEIOU :");
 
   for (size_t i = 0; i < chars.length(); i++) {
@@ -3452,7 +3332,6 @@ void Status::printCompressedLimitedString(WINDOW *win, int y, int x, string str_
 /* printNoData() //{ */
 
 void Status::printNoData(WINDOW *win, int y, int x) {
-
   wattron(win, A_BLINK);
   wattron(win, COLOR_PAIR(RED));
   if (mini_) {
@@ -3465,7 +3344,6 @@ void Status::printNoData(WINDOW *win, int y, int x) {
 }
 
 void Status::printNoData(WINDOW *win, int y, int x, string text) {
-
   wattron(win, COLOR_PAIR(RED));
   mvwprintw(win, y, x, text.c_str());
   printNoData(win, y, x + text.length());
@@ -3476,7 +3354,6 @@ void Status::printNoData(WINDOW *win, int y, int x, string text) {
 /* printError() //{ */
 
 void Status::printError(string msg) {
-
   wattron(debug_window_, COLOR_PAIR(RED));
   printLimitedString(debug_window_, 0, 0, msg, 120);
   wattroff(debug_window_, COLOR_PAIR(RED));
@@ -3489,7 +3366,6 @@ void Status::printError(string msg) {
 /* printDebug() //{ */
 
 void Status::printDebug(string msg) {
-
   printLimitedString(debug_window_, 0, 0, msg, 120);
 
   wnoutrefresh(debug_window_);
@@ -3500,7 +3376,6 @@ void Status::printDebug(string msg) {
 /* printHelp() //{ */
 
 void Status::printHelp() {
-
   werase(debug_window_);
 
   if (help_active_) {
@@ -3533,7 +3408,6 @@ void Status::printHelp() {
 /* printTmuxDump() //{ */
 
 void Status::printTmuxDump() {
-
   werase(debug_window_);
   printBox(debug_window_);
 
@@ -3582,7 +3456,6 @@ void Status::printTmuxDump() {
 /* printBox() //{ */
 
 void Status::printBox(WINDOW *win) {
-
   if (avoiding_collision_) {
 
     wattron(win, COLOR_PAIR(RED));
@@ -3608,7 +3481,6 @@ void Status::printBox(WINDOW *win) {
 /* setupColors() //{ */
 
 void Status::setupColors(bool active) {
-
   init_pair(ALWAYS_RED, COLOR_NICE_RED, BACKGROUND_DEFAULT);
 
   if (active) {
@@ -3661,7 +3533,6 @@ void Status::setupColors(bool active) {
 /* callTerminal() //{ */
 
 std::string Status::callTerminal(const char *cmd) {
-
   std::array<char, 128>                    buffer;
   std::string                              result;
   std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
@@ -3683,7 +3554,6 @@ std::string Status::callTerminal(const char *cmd) {
 } // namespace mrs_uav_status
 
 int main(int argc, char **argv) {
-
   rclcpp::init(argc, argv);
 
   auto node = std::make_shared<mrs_uav_status::Status>();
