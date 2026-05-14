@@ -53,10 +53,10 @@ add_executable(MrsUavStatus_Status)
 
 target_sources(MrsUavStatus_Status
   PRIVATE
-    "src/input_box.cpp"
-    "src/menu.cpp"
+    "src/tui/control_bar.cpp"
+    "src/tui/status_window.cpp"
     "src/status.cpp"
-    "src/topic_info.cpp"
+    "src/ros/topic_info.cpp"
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
   FILES
     "include/mrs_uav_status/ros/service.hpp"
@@ -92,12 +92,17 @@ add_library(MrsUavStatus_Acquisition SHARED)
 target_sources(MrsUavStatus_Acquisition
   PRIVATE
     "src/data_acquisition.cpp"
-    "src/topic_info.cpp"
+    "src/ros/topic_info.cpp"
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
   FILES
-    "include/commons.hpp"
-    "include/input_box.hpp"
-    "include/menu.hpp"
+    "include/mrs_uav_status/ros/service.hpp"
+    "include/mrs_uav_status/ros/topic_info.hpp"
+    "include/mrs_uav_status/ros/topic_status.hpp"
+    "include/mrs_uav_status/tui/control_bar.hpp"
+    "include/mrs_uav_status/tui/status_window.hpp"
+    "include/mrs_uav_status/tui/tui_constants.hpp"
+    "include/mrs_uav_status/utils/node_info.hpp"
+    "include/mrs_uav_status/utils/string_info.hpp"
 )
 
 target_link_libraries(MrsUavStatus_Acquisition
