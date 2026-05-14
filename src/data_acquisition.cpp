@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <stdexcept>
 #include <string>
 
 #include <boost/filesystem.hpp>
@@ -450,7 +451,7 @@ void Acquisition::initialize() {
     try {
       secs_flown_ = stoi(line);
     }
-    catch (const invalid_argument &e) {
+    catch (const std::invalid_argument &e) {
       secs_flown_ = 0;
     }
     file.close();
@@ -467,7 +468,7 @@ void Acquisition::initialize() {
     try {
       wh_drained_ = stod(line);
     }
-    catch (const invalid_argument &e) {
+    catch (const std::invalid_argument &e) {
       wh_drained_ = 0.0;
     }
     file.close();
@@ -760,7 +761,7 @@ void Acquisition::nodeCpuLoadHandler() {
       utime = stol(results[13]);
       stime = stol(results[14]);
     }
-    catch (const invalid_argument &e) {
+    catch (const std::invalid_argument &e) {
       stime = 0;
       utime = 0;
     }
@@ -931,7 +932,7 @@ void Acquisition::setupGenericCallbacks() {
       TopicInfo tmp_topic(node_, generic_topic_window_rate_, BUFFER_LEN_SECS, stoi(results[results.size() - 1]), results[0], tmp_string);
       generic_topic_vec_.push_back(tmp_topic);
     }
-    catch (const invalid_argument &e) {
+    catch (const std::invalid_argument &e) {
     }
 
     int    id = i; // id to identify which topic called the generic callback
@@ -1038,7 +1039,7 @@ void Acquisition::getMemLoad() {
       try {
         total_ram = double(stol(results[i])) / 1048576;
       }
-      catch (const invalid_argument &e) {
+      catch (const std::invalid_argument &e) {
         total_ram = 0.0;
       }
       break;
@@ -1053,7 +1054,7 @@ void Acquisition::getMemLoad() {
       try {
         free_ram = double(stol(results[i])) / 1048576;
       }
-      catch (const invalid_argument &e) {
+      catch (const std::invalid_argument &e) {
         free_ram = 0.0;
       }
       break;
@@ -1069,7 +1070,7 @@ void Acquisition::getMemLoad() {
       try {
         buffers = double(stol(results[i])) / 1048576;
       }
-      catch (const invalid_argument &e) {
+      catch (const std::invalid_argument &e) {
         buffers = 0.0;
       }
 
@@ -1109,7 +1110,7 @@ void Acquisition::getCpuTemperature() {
       try {
         temp = stol(line);
       }
-      catch (const invalid_argument &e) {
+      catch (const std::invalid_argument &e) {
         temp = 0;
       }
       if (temp > max_temp) {
@@ -1153,7 +1154,7 @@ void Acquisition::getCpuLoad() {
     non_idle = stol(results[2]) + stol(results[3]) + stol(results[4]) + stol(results[7]) + stol(results[8]) + stol(results[9]);
     total    = idle + non_idle;
   }
-  catch (const invalid_argument &e) {
+  catch (const std::invalid_argument &e) {
     idle     = 0;
     non_idle = 0;
     total    = 0;
@@ -1192,7 +1193,7 @@ void Acquisition::getCpuFreq() {
   try {
     cpu_cores_ = stoi(results[1]) + 1;
   }
-  catch (const invalid_argument &e) {
+  catch (const std::invalid_argument &e) {
     cpu_cores_ = 1;
   }
 
@@ -1206,7 +1207,7 @@ void Acquisition::getCpuFreq() {
     try {
       cpu_freq += stol(line);
     }
-    catch (const invalid_argument &e) {
+    catch (const std::invalid_argument &e) {
       cpu_freq = 0;
     }
   }
