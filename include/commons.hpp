@@ -75,7 +75,7 @@ inline constexpr int kColorDarkBlue  = 19;
 inline constexpr int kColorNiceYellow = 220;
 inline constexpr int kColorDarkYellow = 172;
 
-inline constexpr int kBufferSecsLen = 4;
+inline constexpr int kBufferLenSecs = 4;
 
 class TopicInfo {
 
