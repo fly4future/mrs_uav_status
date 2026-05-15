@@ -2342,6 +2342,7 @@ void Status::generalInfoHandler(WINDOW *win) {
     tui::printCpuFreq(win, cpu_ghz);
   }
   tui::printDiskSpace(win, free_hdd, last_gigas_, mini_);
+  last_gigas_ = free_hdd;
 
   wnoutrefresh(win);
 }
