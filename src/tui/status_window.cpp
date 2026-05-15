@@ -1,5 +1,5 @@
 #include <mrs_uav_status/tui/status_window.hpp>
-#include <mrs_uav_status/tui/tui_constants.hpp>
+#include <mrs_uav_status/tui/constants.hpp>
 
 namespace mrs_uav_status
 {

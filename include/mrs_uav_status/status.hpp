@@ -17,7 +17,7 @@
 #include <mrs_uav_status/tui/control_bar.hpp>
 #include <mrs_uav_status/tui/print_helpers.hpp>
 #include <mrs_uav_status/tui/status_window.hpp>
-#include <mrs_uav_status/tui/tui_constants.hpp>
+#include <mrs_uav_status/tui/constants.hpp>
 #include <mrs_uav_status/utils/split.hpp>
 #include <mrs_uav_status/utils/terminal.hpp>
 

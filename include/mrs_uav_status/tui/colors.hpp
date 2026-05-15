@@ -3,7 +3,7 @@
 #include <ncurses.h>
 #include <string>
 
-#include <mrs_uav_status/tui/tui_constants.hpp>
+#include <mrs_uav_status/tui/constants.hpp>
 
 namespace mrs_uav_status
 {
