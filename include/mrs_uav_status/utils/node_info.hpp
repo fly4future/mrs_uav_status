@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace mrs_uav_status
+namespace mrs_uav_status::utils
 {
 
 struct NodeInfo

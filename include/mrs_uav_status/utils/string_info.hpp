@@ -4,7 +4,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 
-namespace mrs_uav_status
+namespace mrs_uav_status::utils
 {
 
 struct StringInfo

@@ -249,9 +249,9 @@ private:
   vector<TopicInfo>                                   generic_topic_vec_;
   vector<string>                                      generic_topic_input_vec_;
   std::vector<rclcpp::GenericSubscription::SharedPtr> generic_subscriber_vec_;
-  vector<StringInfo>                                string_info_vec_;
+  vector<utils::StringInfo>                                string_info_vec_;
 
-  vector<NodeInfo> node_info_vec_;
+  vector<utils::NodeInfo> node_info_vec_;
 
   vector<string> tf_static_list_compare_;
   vector<string> tf_static_list_add_;
@@ -779,7 +779,7 @@ void Acquisition::nodeCpuLoadHandler() {
     node_info_vec_[i].node_cpu_usage = cpu_cores_ * (user_util + sys_util);
   }
 
-  sort(node_info_vec_.begin(), node_info_vec_.end(), [](const NodeInfo &a, const NodeInfo &b) -> bool { return a.node_cpu_usage > b.node_cpu_usage; });
+  sort(node_info_vec_.begin(), node_info_vec_.end(), [](const utils::NodeInfo &a, const utils::NodeInfo &b) -> bool { return a.node_cpu_usage > b.node_cpu_usage; });
 
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -1801,7 +1801,7 @@ void Acquisition::callbackString(const std_msgs::msg::String::ConstSharedPtr msg
   }
 
   if (!contains) {
-    StringInfo tmp(clock_->now(), pub_name, msg_str, id, persistent);
+    utils::StringInfo tmp(clock_->now(), pub_name, msg_str, id, persistent);
     string_info_vec_.push_back(tmp);
   }
 }
