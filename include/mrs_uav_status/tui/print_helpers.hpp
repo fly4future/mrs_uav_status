@@ -172,9 +172,9 @@ inline void printTmuxDump(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2,
 
   for (size_t i = 0; i < selected.size(); i++) {
     std::string command_str = "tmux resize-window -t " + session_name + ":" + std::to_string(selected[i]) + " -A";
-    mrs_uav_status::callTerminal(command_str.c_str());
+    mrs_uav_status::utils::callTerminal(command_str.c_str());
     command_str = "tmux capture-pane -pt " + session_name + ":" + std::to_string(selected[i]) + " -S 0 | tail -n " + std::to_string(tmp_rows + 1);
-    std::string response = mrs_uav_status::callTerminal(command_str.c_str());
+    std::string response = mrs_uav_status::utils::callTerminal(command_str.c_str());
     switch (i) {
     case 0: mvwaddstr(sub1, 0, 0, response.c_str()); break;
     case 1: mvwaddstr(sub2, 0, 0, response.c_str()); break;
