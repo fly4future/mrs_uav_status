@@ -35,7 +35,6 @@
 #include <mrs_msgs/msg/uav_status_short.hpp>
 #include <mrs_msgs/srv/string.hpp>
 #include <mrs_msgs/srv/reference_stamped_srv.hpp>
-#include <mrs_msgs/srv/trajectory_reference_srv.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
 // --- MRS Library Includes ---
@@ -72,8 +71,6 @@ private:
   std::string _pwd_;
   std::string _display_config_filename_;
   std::string _turbo_remote_constraints_;
-  int         _service_num_calls_ = 20;
-  double      _service_delay_     = 0.1;
   bool        _colorblind_mode_   = false;
   bool        _profiler_enabled_  = false;
   bool        _light_             = false;
@@ -111,7 +108,6 @@ private:
   mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>     ph_gimbal_state_;
 
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>    sc_goto_reference_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::TrajectoryReferenceSrv> sc_trajectory_reference_;
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 sc_set_constraints_;
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 sc_set_gains_;
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                 sc_set_controller_;
@@ -165,13 +161,6 @@ private:
   std::vector<std::string> service_input_vec_;
   std::vector<std::string> main_menu_text_;
   std::vector<std::string> display_menu_text_;
-  std::vector<std::string> constraints_text_;
-  std::vector<std::string> gains_text_;
-  std::vector<std::string> controllers_text_;
-  std::vector<std::string> trackers_text_;
-  std::vector<std::string> odometry_lat_sources_text_;
-  std::vector<std::string> odometry_alt_sources_text_;
-  std::vector<std::string> odometry_hdg_sources_text_;
   std::vector<std::string> goto_menu_text_;
   std::vector<double>      goto_double_vec_;
 
@@ -189,7 +178,6 @@ private:
   bool              increment_counter_         = false;
   int               estimator_display_counter_ = 0;
   int               cols_ = 0, lines_ = 0;
-  unsigned long     line_in_upper_menu_ = 0;
 
   long last_idle_  = 0;
   long last_total_ = 0;
@@ -197,9 +185,6 @@ private:
 
   const uint16_t gimbal_max                 = 2000;
   const uint16_t gimbal_min                 = 1000;
-  double         general_info_window_rate_  = 1.0;
-  double         generic_topic_window_rate_ = 1.0;
-
   rclcpp::Time bottom_window_clear_time_;
   rclcpp::Time last_time_got_data_;
   rclcpp::Time last_time_got_short_data_;
