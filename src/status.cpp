@@ -252,7 +252,7 @@ void Status::setupWindows() {
   }
 
   clear();
-  setupColors(have_data_);
+  _light_ = tui::setupColors(have_data_, _colorscheme_, _colorblind_mode_);
 }
 
 //}
@@ -2371,12 +2371,12 @@ void Status::topLineHandler(WINDOW *win) {
 
   if (tmp_time > 3.0 && have_data_) {
     have_data_ = false;
-    setupColors(have_data_);
+    _light_ = tui::setupColors(have_data_, _colorscheme_, _colorblind_mode_);
   }
 
   if (tmp_time < 3.0 && !have_data_) {
     have_data_ = true;
-    setupColors(have_data_);
+    _light_ = tui::setupColors(have_data_, _colorscheme_, _colorblind_mode_);
   }
 
   if (tmp_time >= 99.9) {
@@ -2951,67 +2951,6 @@ void Status::printDiskSpace(WINDOW *win) {
 
 
 
-/* setupColors() //{ */
-
-void Status::setupColors(bool active) {
-  init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::AlwaysRed), static_cast<int>(mrs_uav_status::tui::Color::NiceRed),
-            static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-
-  if (active) {
-
-    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal), COLOR_WHITE, static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Field), COLOR_WHITE, 235);
-    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Red), static_cast<int>(mrs_uav_status::tui::Color::NiceRed),
-              static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow), static_cast<int>(mrs_uav_status::tui::Color::NiceYellow),
-              static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-
-    if (_colorblind_mode_) {
-      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::NiceBlue),
-                static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-    } else {
-      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::NiceGreen),
-                static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-    }
-    _light_ = false;
-
-
-    if (_colorscheme_.find("COLORSCHEME_LIGHT") != std::string::npos) {
-      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal), COLOR_BLACK, static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Field), COLOR_WHITE, 237);
-      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow), static_cast<int>(mrs_uav_status::tui::Color::DarkYellow),
-                static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-      if (_colorblind_mode_) {
-        init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::DarkBlue),
-                  static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-      } else {
-        init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::DarkGreen),
-                  static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-      }
-      _light_ = true;
-    }
-
-  } else {
-    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal), static_cast<int>(mrs_uav_status::tui::Color::DarkRed),
-              static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Field), static_cast<int>(mrs_uav_status::tui::Color::DarkRed), 235);
-    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Red), static_cast<int>(mrs_uav_status::tui::Color::DarkRed),
-              static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow), static_cast<int>(mrs_uav_status::tui::Color::DarkRed),
-              static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-    init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Green), static_cast<int>(mrs_uav_status::tui::Color::DarkRed),
-              static_cast<int>(mrs_uav_status::tui::BackgroundColor::Default));
-    _light_ = false;
-
-
-    if (_colorscheme_.find("COLORSCHEME_LIGHT") != std::string::npos) {
-      init_pair(static_cast<int>(mrs_uav_status::tui::ColorPair::Field), static_cast<int>(mrs_uav_status::tui::Color::DarkRed), 237);
-      _light_ = true;
-    }
-  }
-}
-
-//}
 
 //}
 

@@ -15,6 +15,7 @@
 #include <mrs_uav_status/ros/service.hpp>
 #include <mrs_uav_status/ros/topic_info.hpp>
 #include <mrs_uav_status/ros/topic_status.hpp>
+#include <mrs_uav_status/tui/colors.hpp>
 #include <mrs_uav_status/tui/control_bar.hpp>
 #include <mrs_uav_status/tui/print_helpers.hpp>
 #include <mrs_uav_status/tui/status_window.hpp>
@@ -243,7 +244,6 @@ private:
   bool        updateTermSize();
   void        prefillUavStatus();
   void        topLineHandler(WINDOW *win);
-  void        setupColors(bool active);
 
   mrs_lib::Profiler                     profiler_;
   std::unique_ptr<mrs_lib::Transformer> transformer_;
