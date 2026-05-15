@@ -3,15 +3,6 @@
 namespace mrs_uav_status
 {
 
-using std::getline;
-using std::ifstream;
-using std::ofstream;
-using std::stoi;
-using std::string;
-using std::stringstream;
-using std::to_string;
-using std::vector;
-
 using radians = mrs_lib::geometry::radians;
 
 /* Status() //{ */
@@ -184,10 +175,10 @@ void Status::initialize() {
 
     for (int i = 0; i < MAX_SELECTED_TMUX_WINDOWS; i++) {
 
-      getline(file, line);
+      std::getline(file, line);
 
       try {
-        selected_tmux_window_.push_back(stoi(line));
+        selected_tmux_window_.push_back(std::stoi(line));
       }
       catch (const std::invalid_argument &e) {
       }
@@ -301,8 +292,8 @@ bool Status::updateTermSize() {
   int cols, lines;
 
   try {
-    cols  = stoi(results[0]);
-    lines = stoi(results[1]);
+    cols  = std::stoi(results[0]);
+    lines = std::stoi(results[1]);
   }
 
   catch (const std::invalid_argument &e) {
@@ -1409,7 +1400,7 @@ void Status::stringHandler(WINDOW *win) {
       stream << std::fixed << std::setprecision(2) << gnss_pos_acc;
       gnss_acc_string = stream.str();
     }
-    std::string acc_string = "Num sats: " + to_string(gnss_num_sats) + " Acc: " + gnss_acc_string + " m";
+    std::string acc_string = "Num sats: " + std::to_string(gnss_num_sats) + " Acc: " + gnss_acc_string + " m";
 
     string_vector.push_back(fix_string);
     string_vector.push_back(acc_string);
@@ -1436,7 +1427,7 @@ void Status::stringHandler(WINDOW *win) {
 
     int    tmp_color          = static_cast<int>(mrs_uav_status::tui::ColorPair::Normal);
     bool   blink              = false;
-    string tmp_display_string = string_vector[i];
+    std::string tmp_display_string = string_vector[i];
 
     if (tmp_display_string.at(0) == '-') {
 
@@ -1813,10 +1804,10 @@ void Status::controlManagerHandler(WINDOW *win) {
   int16_t color;
   bool    null_tracker;
   double  rate;
-  string  curr_controller;
-  string  curr_tracker;
-  string  curr_gains;
-  string  curr_constraints;
+  std::string  curr_controller;
+  std::string  curr_tracker;
+  std::string  curr_gains;
+  std::string  curr_constraints;
   bool    callbacks_enabled;
   bool    rc_mode;
   bool    have_goal;
@@ -2617,7 +2608,7 @@ void Status::setupMainMenu() {
       results[1] = results[1] + " " + results[j];
     }
 
-    string service_name;
+    std::string service_name;
 
     if (results[0].at(0) == '/') {
       service_name = results[0];
