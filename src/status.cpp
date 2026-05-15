@@ -325,9 +325,12 @@ void Status::timerStatusFast() {
 
   if (!mini_) {
     if (!selected_tmux_window_.empty()) {
-      printTmuxDump();
+      tui::printTmuxDump(debug_window_, sub_tmux_window_1_, sub_tmux_window_2_,
+                    selected_tmux_window_, session_name_, display_menu_text_,
+                    MAX_SELECTED_TMUX_WINDOWS,
+                    avoiding_collision_, automatic_start_can_takeoff_, null_tracker_);
     } else {
-      printHelp();
+      tui::printHelp(debug_window_, help_active_);
     }
   }
 
@@ -444,10 +447,11 @@ void Status::timerStatusFast() {
         auto response = sc_set_constraints_.callSync(request);
 
         if (response) {
-          printServiceResult(response.value()->success, response.value()->message);
+          tui::printServiceResult(bottom_window_, _light_, response.value()->success, response.value()->message);
         } else {
-          printServiceResult(false, "service could not be called");
+          tui::printServiceResult(bottom_window_, _light_, false, "service could not be called");
         }
+        bottom_window_clear_time_ = clock_->now();
       }
 
       state_ = StatusState::STANDARD;
@@ -694,10 +698,11 @@ bool Status::gotoMenuHandler(int key_in) {
     auto response = sc_goto_reference_.callSync(request);
 
     if (response) {
-      printServiceResult(response.value()->success, response.value()->message);
+      tui::printServiceResult(bottom_window_, _light_, response.value()->success, response.value()->message);
     } else {
-      printServiceResult(false, "service could not be called");
+      tui::printServiceResult(bottom_window_, _light_, false, "service could not be called");
     }
+    bottom_window_clear_time_ = clock_->now();
 
     menu_vec_.clear();
 
@@ -785,10 +790,11 @@ void Status::createSubMenuActions(std::vector<std::string> &submenu_entries, mrs
                                 request->value = entry;
                                 auto response  = service_client.callSync(request);
                                 if (!response) {
-                                  printServiceResult(false, "service could not be called");
+                                  tui::printServiceResult(bottom_window_, _light_, false, "service could not be called");
                                 } else {
-                                  printServiceResult(response.value()->success, response.value()->message);
+                                  tui::printServiceResult(bottom_window_, _light_, response.value()->success, response.value()->message);
                                 }
+                                bottom_window_clear_time_ = clock_->now();
                               }});
   }
 }
@@ -806,10 +812,11 @@ void Status::createSubMenuActions(std::vector<std::string> &submenu_entries, mrs
                                 auto request  = std::make_shared<std_srvs::srv::Trigger::Request>();
                                 auto response = service_client.callSync(request);
                                 if (!response) {
-                                  printServiceResult(false, "service could not be called");
+                                  tui::printServiceResult(bottom_window_, _light_, false, "service could not be called");
                                 } else {
-                                  printServiceResult(response.value()->success, response.value()->message);
+                                  tui::printServiceResult(bottom_window_, _light_, response.value()->success, response.value()->message);
                                 }
+                                bottom_window_clear_time_ = clock_->now();
                               }});
   }
 }
@@ -982,10 +989,11 @@ void Status::remoteHandler(int key, WINDOW *win) {
         auto response = sc_set_constraints_.callSync(request);
 
         if (response) {
-          printServiceResult(response.value()->success, response.value()->message);
+          tui::printServiceResult(bottom_window_, _light_, response.value()->success, response.value()->message);
         } else {
-          printServiceResult(false, "service could not be called");
+          tui::printServiceResult(bottom_window_, _light_, false, "service could not be called");
         }
+        bottom_window_clear_time_ = clock_->now();
 
       } else {
 
@@ -1003,10 +1011,11 @@ void Status::remoteHandler(int key, WINDOW *win) {
         auto response = sc_set_constraints_.callSync(request);
 
         if (response) {
-          printServiceResult(response.value()->success, response.value()->message);
+          tui::printServiceResult(bottom_window_, _light_, response.value()->success, response.value()->message);
         } else {
-          printServiceResult(false, "service could not be called");
+          tui::printServiceResult(bottom_window_, _light_, false, "service could not be called");
         }
+        bottom_window_clear_time_ = clock_->now();
       }
     }
 
@@ -1416,7 +1425,7 @@ void Status::stringHandler(WINDOW *win) {
   werase(win);
   wattron(win, A_BOLD);
   wattroff(win, A_STANDOUT);
-  printBox(win);
+  tui::printBox(win, avoiding_collision_, automatic_start_can_takeoff_, null_tracker_);
 
   if (_light_) {
     wattron(win, A_STANDOUT);
@@ -1464,16 +1473,16 @@ void Status::stringHandler(WINDOW *win) {
     wattron(win, COLOR_PAIR(tmp_color));
 
     if (mini_) {
-      printCompressedLimitedString(win, (i) + 1, 1, tmp_display_string, 15);
+      tui::printCompressedLimitedString(win, (i) + 1, 1, tmp_display_string, 15);
     } else {
-      printLimitedString(win, (i) + 1, 1, tmp_display_string, 30);
+      tui::printLimitedString(win, (i) + 1, 1, tmp_display_string, 30);
     }
 
     /* if (tmp_display_string.length() > 30) { */
-    /*   printLimitedString(win, 1 + (3 * i) + 1, 1, tmp_display_string.substr(30), 30); */
+    /*   tui::printLimitedString(win, 1 + (3 * i) + 1, 1, tmp_display_string.substr(30), 30); */
     /* } */
     /* if (i < 2) { */
-    /*   printLimitedString(win, (2 * i) + 2, 1, ("------------------------------"), 30); */
+    /*   tui::printLimitedString(win, (2 * i) + 2, 1, ("------------------------------"), 30); */
     /* } */
 
     wattroff(win, COLOR_PAIR(tmp_color));
@@ -1499,7 +1508,7 @@ void Status::genericTopicHandler(WINDOW *win) {
   werase(win);
   wattron(win, A_BOLD);
   wattroff(win, A_STANDOUT);
-  printBox(win);
+  tui::printBox(win, avoiding_collision_, automatic_start_can_takeoff_, null_tracker_);
 
   if (_light_) {
     wattron(win, A_STANDOUT);
@@ -1511,12 +1520,12 @@ void Status::genericTopicHandler(WINDOW *win) {
 
       wattron(win, COLOR_PAIR(custom_topic_vec[i].topic_color));
       if (mini_) {
-        printCompressedLimitedString(win, 1 + i, 1, custom_topic_vec[i].topic_name, 4);
-        printLimitedDouble(win, 1 + i, 5, "%3.0f", custom_topic_vec[i].topic_hz, 1000);
+        tui::printCompressedLimitedString(win, 1 + i, 1, custom_topic_vec[i].topic_name, 4);
+        tui::printLimitedDouble(win, 1 + i, 5, "%3.0f", custom_topic_vec[i].topic_hz, 1000);
 
       } else {
-        printLimitedString(win, 1 + i, 1, custom_topic_vec[i].topic_name, 15);
-        printLimitedDouble(win, 1 + i, 16, "%5.1f Hz", custom_topic_vec[i].topic_hz, 1000);
+        tui::printLimitedString(win, 1 + i, 1, custom_topic_vec[i].topic_name, 15);
+        tui::printLimitedDouble(win, 1 + i, 16, "%5.1f Hz", custom_topic_vec[i].topic_hz, 1000);
       }
       wattroff(win, COLOR_PAIR(custom_topic_vec[i].topic_color));
     }
@@ -1548,7 +1557,7 @@ void Status::nodeStatsHandler(WINDOW *win) {
   werase(win);
   wattron(win, A_BOLD);
   wattroff(win, A_STANDOUT);
-  printBox(win);
+  tui::printBox(win, avoiding_collision_, automatic_start_can_takeoff_, null_tracker_);
 
   if (_light_) {
     wattron(win, A_STANDOUT);
@@ -1561,14 +1570,14 @@ void Status::nodeStatsHandler(WINDOW *win) {
     }
 
     wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
-    printLimitedString(win, 0, 1, "ROS Node CPU usage", 40);
+    tui::printLimitedString(win, 0, 1, "ROS Node CPU usage", 40);
     wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
-    printLimitedDouble(win, 0, 37, "%5.1f", cpu_load_total, 9999);
-    printLimitedString(win, 0, 43, "CPU %%", 6);
+    tui::printLimitedDouble(win, 0, 37, "%5.1f", cpu_load_total, 9999);
+    tui::printLimitedString(win, 0, 43, "CPU %%", 6);
     for (size_t i = 0; i < tmp_num_lines; i++) {
 
-      printLimitedString(win, 1 + i, 1, node_cpu_load_vec.node_names[i], 42);
+      tui::printLimitedString(win, 1 + i, 1, node_cpu_load_vec.node_names[i], 42);
 
       short tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
       if (node_cpu_load_vec.cpu_loads[i] > 99.9) {
@@ -1578,7 +1587,7 @@ void Status::nodeStatsHandler(WINDOW *win) {
       }
 
       wattron(win, COLOR_PAIR(tmp_color));
-      printLimitedDouble(win, 1 + i, 43, "%5.1f", node_cpu_load_vec.cpu_loads[i], 9999);
+      tui::printLimitedDouble(win, 1 + i, 43, "%5.1f", node_cpu_load_vec.cpu_loads[i], 9999);
       wattroff(win, COLOR_PAIR(tmp_color));
     }
 
@@ -1654,7 +1663,7 @@ void Status::uavStateHandler(WINDOW *win) {
   werase(win);
   wattron(win, A_BOLD);
   wattroff(win, A_STANDOUT);
-  printBox(win);
+  tui::printBox(win, avoiding_collision_, automatic_start_can_takeoff_, null_tracker_);
 
   if (_light_) {
     wattron(win, A_STANDOUT);
@@ -1666,20 +1675,20 @@ void Status::uavStateHandler(WINDOW *win) {
   /* mini //{ */
 
   if (mini_) {
-    printLimitedDouble(win, 0, 1, "Odm %3.0f", avg_rate, 1000);
+    tui::printLimitedDouble(win, 0, 1, "Odm %3.0f", avg_rate, 1000);
 
     if (avg_rate == 0) {
 
-      printNoData(win, 0, 1);
+      tui::printNoData(win, 0, 1, mini_);
 
     } else {
 
-      printLimitedDouble(win, 1, 1, "%4.0f", state_x, 1000);
-      printLimitedDouble(win, 2, 1, "%4.0f", state_y, 1000);
-      printLimitedDouble(win, 3, 1, "%4.0f", state_z, 1000);
-      printLimitedDouble(win, 4, 1, "%4.1f", heading, 1000);
+      tui::printLimitedDouble(win, 1, 1, "%4.0f", state_x, 1000);
+      tui::printLimitedDouble(win, 2, 1, "%4.0f", state_y, 1000);
+      tui::printLimitedDouble(win, 3, 1, "%4.0f", state_z, 1000);
+      tui::printLimitedDouble(win, 4, 1, "%4.1f", heading, 1000);
 
-      printLimitedString(win, 1, 6, main_estimator, 2);
+      tui::printLimitedString(win, 1, 6, main_estimator, 2);
     }
   }
 
@@ -1689,18 +1698,18 @@ void Status::uavStateHandler(WINDOW *win) {
 
   else {
 
-    printLimitedDouble(win, 0, 12, "Odom %5.1f Hz", avg_rate, 1000);
+    tui::printLimitedDouble(win, 0, 12, "Odom %5.1f Hz", avg_rate, 1000);
 
     if (avg_rate == 0) {
 
-      printNoData(win, 0, 1);
+      tui::printNoData(win, 0, 1, mini_);
 
     } else {
 
-      printLimitedDouble(win, 1, 1, "X %7.2f", state_x, 1000);
-      printLimitedDouble(win, 2, 1, "Y %7.2f", state_y, 1000);
-      printLimitedDouble(win, 3, 1, "Z %7.2f", state_z, 1000);
-      printLimitedDouble(win, 4, 1, "hdg %5.2f", heading, 1000);
+      tui::printLimitedDouble(win, 1, 1, "X %7.2f", state_x, 1000);
+      tui::printLimitedDouble(win, 2, 1, "Y %7.2f", state_y, 1000);
+      tui::printLimitedDouble(win, 3, 1, "Z %7.2f", state_z, 1000);
+      tui::printLimitedDouble(win, 4, 1, "hdg %5.2f", heading, 1000);
 
       if (!null_tracker) {
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
@@ -1713,7 +1722,7 @@ void Status::uavStateHandler(WINDOW *win) {
         } else {
           wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         }
-        printLimitedDouble(win, 5, 5, "X%1.1f", cerr_x, 10);
+        tui::printLimitedDouble(win, 5, 5, "X%1.1f", cerr_x, 10);
 
 
         if (cerr_y < 0.5) {
@@ -1723,7 +1732,7 @@ void Status::uavStateHandler(WINDOW *win) {
         } else {
           wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         }
-        printLimitedDouble(win, 5, 10, "Y%1.1f", cerr_y, 10);
+        tui::printLimitedDouble(win, 5, 10, "Y%1.1f", cerr_y, 10);
 
         if (cerr_z < 0.5) {
           wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
@@ -1732,7 +1741,7 @@ void Status::uavStateHandler(WINDOW *win) {
         } else {
           wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         }
-        printLimitedDouble(win, 5, 15, "Z%1.1f", cerr_z, 10);
+        tui::printLimitedDouble(win, 5, 15, "Z%1.1f", cerr_z, 10);
 
         if (cerr_hdg < 0.2) {
           wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
@@ -1741,7 +1750,7 @@ void Status::uavStateHandler(WINDOW *win) {
         } else {
           wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         }
-        printLimitedDouble(win, 5, 20, "H%1.1f", cerr_hdg, 10);
+        tui::printLimitedDouble(win, 5, 20, "H%1.1f", cerr_hdg, 10);
 
         wattron(win, COLOR_PAIR(color));
       }
@@ -1750,25 +1759,25 @@ void Status::uavStateHandler(WINDOW *win) {
       /* vertical_estimator = uav_status_.vertical_estimator; */
       /* heading_estimator = uav_status_.heading_estimator; */
       /* agl_estimator = uav_status_.agl_estimator; */
-      printLimitedString(win, 1, 11, main_estimator, 14);
+      tui::printLimitedString(win, 1, 11, main_estimator, 14);
 
       switch (estimator_display_counter_) {
       case 0: {
-        printLimitedString(win, 2, 11, "hor: " + horizontal_estimator, 14);
+        tui::printLimitedString(win, 2, 11, "hor: " + horizontal_estimator, 14);
         break;
       }
       case 1: {
-        printLimitedString(win, 2, 11, "ver: " + vertical_estimator, 14);
+        tui::printLimitedString(win, 2, 11, "ver: " + vertical_estimator, 14);
         break;
       }
       case 2: {
-        printLimitedString(win, 2, 11, "hdg: " + heading_estimator, 14);
+        tui::printLimitedString(win, 2, 11, "hdg: " + heading_estimator, 14);
         break;
       }
       }
 
 
-      printLimitedString(win, 4, 11, "ag: " + agl_estimator, 14);
+      tui::printLimitedString(win, 4, 11, "ag: " + agl_estimator, 14);
 
       double dist_to_max_z = max_flight_z - state_z;
       if (dist_to_max_z < 0.0) {
@@ -1782,7 +1791,7 @@ void Status::uavStateHandler(WINDOW *win) {
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
       }
 
-      printLimitedDouble(win, 3, 11, "Max: %5.1f", max_flight_z, 1000);
+      tui::printLimitedDouble(win, 3, 11, "Max: %5.1f", max_flight_z, 1000);
       wattron(win, COLOR_PAIR(color));
       wattroff(win, A_BLINK);
     }
@@ -1833,7 +1842,7 @@ void Status::controlManagerHandler(WINDOW *win) {
   werase(win);
   wattron(win, A_BOLD);
   wattroff(win, A_STANDOUT);
-  printBox(win);
+  tui::printBox(win, avoiding_collision_, automatic_start_can_takeoff_, null_tracker_);
 
   if (_light_) {
     wattron(win, A_STANDOUT);
@@ -1844,11 +1853,11 @@ void Status::controlManagerHandler(WINDOW *win) {
   /* mini //{ */
 
   if (mini_) {
-    printLimitedDouble(win, 0, 1, "Ctr %3.0f", rate, 1000);
+    tui::printLimitedDouble(win, 0, 1, "Ctr %3.0f", rate, 1000);
 
     if (rate == 0.0) {
 
-      printNoData(win, 0, 1);
+      tui::printNoData(win, 0, 1, mini_);
       wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       mvwprintw(win, 1, 1, "ERR");
       mvwprintw(win, 2, 1, "ERR");
@@ -1858,9 +1867,9 @@ void Status::controlManagerHandler(WINDOW *win) {
 
       if (curr_controller != "Se3Controller" && curr_controller != "MpcController") {
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-        printLimitedString(win, 1, 1, curr_controller, 3);
+        tui::printLimitedString(win, 1, 1, curr_controller, 3);
       } else {
-        printLimitedString(win, 1, 1, curr_controller, 3);
+        tui::printLimitedString(win, 1, 1, curr_controller, 3);
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
         mvwprintw(win, 1, 4, "%s", "/");
       }
@@ -1878,17 +1887,17 @@ void Status::controlManagerHandler(WINDOW *win) {
           wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         }
 
-        printLimitedString(win, 2, 1, curr_tracker, 3);
+        tui::printLimitedString(win, 2, 1, curr_tracker, 3);
 
       } else {
-        printLimitedString(win, 2, 1, curr_tracker, 3);
+        tui::printLimitedString(win, 2, 1, curr_tracker, 3);
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
         mvwprintw(win, 2, 4, "%s", "/");
         wattron(win, COLOR_PAIR(color));
       }
 
-      printLimitedString(win, 1, 5, curr_gains, 3);
-      printLimitedString(win, 2, 5, curr_constraints, 3);
+      tui::printLimitedString(win, 1, 5, curr_gains, 3);
+      tui::printLimitedString(win, 2, 5, curr_constraints, 3);
     }
   }
 
@@ -1898,12 +1907,12 @@ void Status::controlManagerHandler(WINDOW *win) {
 
   else {
 
-    /* printLimitedString(win, 0, 10, "Control Manager", 15); */
-    printLimitedDouble(win, 0, 1, "Control Manager %5.1f Hz", rate, 1000);
+    /* tui::printLimitedString(win, 0, 10, "Control Manager", 15); */
+    tui::printLimitedDouble(win, 0, 1, "Control Manager %5.1f Hz", rate, 1000);
 
     if (rate == 0.0) {
 
-      printNoData(win, 0, 1);
+      tui::printNoData(win, 0, 1, mini_);
 
       wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       mvwprintw(win, 1, 1, "NO_CONTROLLER");
@@ -1914,9 +1923,9 @@ void Status::controlManagerHandler(WINDOW *win) {
       if (curr_controller != "Se3Controller" && curr_controller != "MpcController") {
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       }
-      printLimitedString(win, 1, 1, curr_controller, 13);
+      tui::printLimitedString(win, 1, 1, curr_controller, 13);
       wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
-      printLimitedString(win, 1, 1 + std::min(int(curr_controller.length()), 13), "/" + curr_gains, 10);
+      tui::printLimitedString(win, 1, 1 + std::min(int(curr_controller.length()), 13), "/" + curr_gains, 10);
       wattron(win, COLOR_PAIR(color));
 
       if (null_tracker) {
@@ -1931,9 +1940,9 @@ void Status::controlManagerHandler(WINDOW *win) {
         }
       }
 
-      printLimitedString(win, 2, 1, curr_tracker, 13);
+      tui::printLimitedString(win, 2, 1, curr_tracker, 13);
       wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
-      printLimitedString(win, 2, 1 + std::min(int(curr_tracker.length()), 13), "/" + curr_constraints, 8);
+      tui::printLimitedString(win, 2, 1 + std::min(int(curr_tracker.length()), 13), "/" + curr_constraints, 8);
       wattron(win, COLOR_PAIR(color));
     }
 
@@ -2023,7 +2032,7 @@ void Status::hwApiStateHandler(WINDOW *win) {
   werase(win);
   wattron(win, A_BOLD);
   wattroff(win, A_STANDOUT);
-  printBox(win);
+  tui::printBox(win, avoiding_collision_, automatic_start_can_takeoff_, null_tracker_);
 
   if (_light_) {
     wattron(win, A_STANDOUT);
@@ -2035,18 +2044,18 @@ void Status::hwApiStateHandler(WINDOW *win) {
   /* mini //{ */
 
   if (mini_) {
-    printLimitedDouble(win, 0, 1, "Mav %3.0f", hw_api_rate, 1000);
+    tui::printLimitedDouble(win, 0, 1, "Mav %3.0f", hw_api_rate, 1000);
     wattroff(win, COLOR_PAIR(color));
 
     if (hw_api_rate == 0) {
-      printNoData(win, 0, 1);
+      tui::printNoData(win, 0, 1, mini_);
     }
 
     if (state_rate == 0) {
 
       wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-      printLimitedString(win, 1, 1, "ERR", 3);
-      printLimitedString(win, 2, 1, "ERR", 3);
+      tui::printLimitedString(win, 1, 1, "ERR", 3);
+      tui::printLimitedString(win, 2, 1, "ERR", 3);
       wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
 
     } else {
@@ -2059,20 +2068,20 @@ void Status::hwApiStateHandler(WINDOW *win) {
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       }
 
-      printLimitedString(win, 1, 1, tmp_string, 15);
+      tui::printLimitedString(win, 1, 1, tmp_string, 15);
       wattron(win, COLOR_PAIR(color));
 
       if (mode != "OFFBOARD") {
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       }
 
-      printLimitedString(win, 2, 1, mode, 3);
+      tui::printLimitedString(win, 2, 1, mode, 3);
       wattron(win, COLOR_PAIR(color));
     }
 
     if (battery_rate == 0) {
 
-      printLimitedString(win, 3, 1, "ERR", 3);
+      tui::printLimitedString(win, 3, 1, "ERR", 3);
 
     } else {
 
@@ -2085,13 +2094,13 @@ void Status::hwApiStateHandler(WINDOW *win) {
       } else if (battery_volt < 3.7 && color != static_cast<int>(mrs_uav_status::tui::ColorPair::Red)) {
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
       }
-      printLimitedString(win, 3, 1, "Bat", 3);
+      tui::printLimitedString(win, 3, 1, "Bat", 3);
     }
 
 
     if (cmd_rate == 0) {
 
-      printLimitedString(win, 3, 5, "ERR", 3);
+      tui::printLimitedString(win, 3, 5, "ERR", 3);
 
     } else {
 
@@ -2100,7 +2109,7 @@ void Status::hwApiStateHandler(WINDOW *win) {
       } else if (thrust > 0.65 && color != static_cast<int>(mrs_uav_status::tui::ColorPair::Red)) {
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
       }
-      printLimitedDouble(win, 3, 5, ".%2.0f", thrust * 100, 100);
+      tui::printLimitedDouble(win, 3, 5, ".%2.0f", thrust * 100, 100);
       wattron(win, COLOR_PAIR(color));
 
       color            = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
@@ -2115,19 +2124,19 @@ void Status::hwApiStateHandler(WINDOW *win) {
         color = static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow);
       }
 
-      printLimitedDouble(win, 4, 1, "%4.1f kg", mass_estimate, 99.99);
+      tui::printLimitedDouble(win, 4, 1, "%4.1f kg", mass_estimate, 99.99);
     }
 
     if (!gnss_ok) {
 
       wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-      printLimitedString(win, 1, 5, "GPS", 6);
+      tui::printLimitedString(win, 1, 5, "GPS", 6);
       wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
 
     } else {
 
       wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
-      printLimitedString(win, 1, 5, "GPS", 6);
+      tui::printLimitedString(win, 1, 5, "GPS", 6);
       wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
       color = static_cast<int>(mrs_uav_status::tui::ColorPair::Red);
@@ -2141,9 +2150,9 @@ void Status::hwApiStateHandler(WINDOW *win) {
       wattron(win, COLOR_PAIR(color));
 
       if (gnss_qual < 10.0) {
-        printLimitedDouble(win, 2, 5, "%3.1f", gnss_qual, 9.9);
+        tui::printLimitedDouble(win, 2, 5, "%3.1f", gnss_qual, 9.9);
       } else {
-        printLimitedString(win, 2, 5, ">10", 3);
+        tui::printLimitedString(win, 2, 5, ">10", 3);
       }
       wattroff(win, COLOR_PAIR(color));
     }
@@ -2156,21 +2165,21 @@ void Status::hwApiStateHandler(WINDOW *win) {
 
   else {
 
-    printLimitedDouble(win, 0, 9, "HW Api %5.1f Hz", hw_api_rate, 1000);
+    tui::printLimitedDouble(win, 0, 9, "HW Api %5.1f Hz", hw_api_rate, 1000);
     wattroff(win, COLOR_PAIR(color));
 
     if (hw_api_rate == 0) {
 
-      printNoData(win, 0, 1);
+      tui::printNoData(win, 0, 1, mini_);
     }
 
     if (state_rate == 0) {
 
       wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-      printLimitedString(win, 1, 1, "State: ", 15);
-      printNoData(win, 1, 9);
-      printLimitedString(win, 2, 1, "Mode: ", 15);
-      printNoData(win, 1, 9);
+      tui::printLimitedString(win, 1, 1, "State: ", 15);
+      tui::printNoData(win, 1, 9, mini_);
+      tui::printLimitedString(win, 2, 1, "Mode: ", 15);
+      tui::printNoData(win, 1, 9, mini_);
       wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
 
     } else {
@@ -2183,20 +2192,20 @@ void Status::hwApiStateHandler(WINDOW *win) {
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       }
 
-      printLimitedString(win, 1, 1, "State: " + tmp_string, 15);
+      tui::printLimitedString(win, 1, 1, "State: " + tmp_string, 15);
       wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
       if (mode != "OFFBOARD") {
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       }
 
-      printLimitedString(win, 2, 1, "Mode:  " + mode, 15);
+      tui::printLimitedString(win, 2, 1, "Mode:  " + mode, 15);
       wattron(win, COLOR_PAIR(color));
     }
 
     if (battery_rate == 0) {
 
-      printNoData(win, 4, 1, "Batt:  ");
+      tui::printNoData(win, 4, 1, "Batt:  ", mini_);
 
     } else {
 
@@ -2209,14 +2218,14 @@ void Status::hwApiStateHandler(WINDOW *win) {
       } else if (battery_volt < 3.7 && color != static_cast<int>(mrs_uav_status::tui::ColorPair::Red)) {
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
       }
-      printLimitedDouble(win, 4, 1, "%4.2fV ", battery_volt, 10);
-      printLimitedDouble(win, 4, 8, "%5.2fA", battery_curr, 100);
-      printLimitedDouble(win, 4, 15, " %4.1f Wh", battery_wh_drained, 100);
+      tui::printLimitedDouble(win, 4, 1, "%4.2fV ", battery_volt, 10);
+      tui::printLimitedDouble(win, 4, 8, "%5.2fA", battery_curr, 100);
+      tui::printLimitedDouble(win, 4, 15, " %4.1f Wh", battery_wh_drained, 100);
     }
 
     if (mag_norm_rate == 0) {
 
-      printNoData(win, 3, 1, "Mag:  ");
+      tui::printNoData(win, 3, 1, "Mag:  ", mini_);
 
     } else {
 
@@ -2227,12 +2236,12 @@ void Status::hwApiStateHandler(WINDOW *win) {
       } else if (mag_norm > 0.65) {
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
       }
-      printLimitedDouble(win, 3, 1, "Mag: %4.2f", mag_norm, 9.99);
+      tui::printLimitedDouble(win, 3, 1, "Mag: %4.2f", mag_norm, 9.99);
     }
 
     if (cmd_rate == 0) {
 
-      printNoData(win, 5, 1, "Thrst: ");
+      tui::printNoData(win, 5, 1, "Thrst: ", mini_);
 
     } else {
 
@@ -2243,7 +2252,7 @@ void Status::hwApiStateHandler(WINDOW *win) {
       } else if (thrust > 0.65 && color != static_cast<int>(mrs_uav_status::tui::ColorPair::Red)) {
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
       }
-      printLimitedDouble(win, 5, 1, "Thrst: %4.2f", thrust, 1.01);
+      tui::printLimitedDouble(win, 5, 1, "Thrst: %4.2f", thrust, 1.01);
       wattron(win, COLOR_PAIR(color));
 
       color            = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
@@ -2261,31 +2270,31 @@ void Status::hwApiStateHandler(WINDOW *win) {
       if (mass_set > 10.0 || mass_estimate > 10.0) {
 
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
-        printLimitedDouble(win, 5, 13, "%.1f/", mass_set, 99.99);
+        tui::printLimitedDouble(win, 5, 13, "%.1f/", mass_set, 99.99);
         wattron(win, COLOR_PAIR(color));
-        printLimitedDouble(win, 5, 18, "%.1f", mass_estimate, 99.99);
-        printLimitedString(win, 5, 22, "kg", 2);
+        tui::printLimitedDouble(win, 5, 18, "%.1f", mass_estimate, 99.99);
+        tui::printLimitedString(win, 5, 22, "kg", 2);
 
       } else {
 
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
-        printLimitedDouble(win, 5, 15, "%.1f/", mass_set, 99.99);
+        tui::printLimitedDouble(win, 5, 15, "%.1f/", mass_set, 99.99);
         wattron(win, COLOR_PAIR(color));
-        printLimitedDouble(win, 5, 19, "%.1f", mass_estimate, 99.99);
-        printLimitedString(win, 5, 22, "kg", 2);
+        tui::printLimitedDouble(win, 5, 19, "%.1f", mass_estimate, 99.99);
+        tui::printLimitedString(win, 5, 22, "kg", 2);
       }
     }
 
     if (!gnss_ok) {
 
       wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-      printLimitedString(win, 1, 18, "NO_GPS", 6);
+      tui::printLimitedString(win, 1, 18, "NO_GPS", 6);
       wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
 
     } else {
 
       wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
-      printLimitedString(win, 1, 18, "GPS_OK", 6);
+      tui::printLimitedString(win, 1, 18, "GPS_OK", 6);
       wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
 
       color = static_cast<int>(mrs_uav_status::tui::ColorPair::Red);
@@ -2297,7 +2306,7 @@ void Status::hwApiStateHandler(WINDOW *win) {
       }
 
       wattron(win, COLOR_PAIR(color));
-      printLimitedDouble(win, 2, 17, "Q: %4.1f", gnss_qual, 99.9);
+      tui::printLimitedDouble(win, 2, 17, "Q: %4.1f", gnss_qual, 99.9);
       wattroff(win, COLOR_PAIR(color));
     }
   }
@@ -2327,7 +2336,7 @@ void Status::topLineHandler(WINDOW *win) {
   }
 
   wattron(win, A_BOLD);
-  printLimitedInt(win, 0, 0, "ToF: %i", secs_flown, 1000);
+  tui::printLimitedInt(win, 0, 0, "ToF: %i", secs_flown, 1000);
 
   std::string uav_name;
   std::string uav_type;
@@ -2377,8 +2386,8 @@ void Status::topLineHandler(WINDOW *win) {
   mvwprintw(win, 0, 10, " %s %s ", uav_name.c_str(), uav_type.c_str());
 
   if (!mini_) {
-    /* printLimitedDouble(win, 0, 94, "%3.1f", tmp_time, 100); */
-    /* printLimitedDouble(win, 0, 90, "%3.1f", tmp_short_time, 100); */
+    /* tui::printLimitedDouble(win, 0, 94, "%3.1f", tmp_time, 100); */
+    /* tui::printLimitedDouble(win, 0, 90, "%3.1f", tmp_short_time, 100); */
 
     if (collision_avoidance_enabled) {
       if (avoiding_collision_) {
@@ -2394,7 +2403,7 @@ void Status::topLineHandler(WINDOW *win) {
           wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         }
         mvwprintw(win, 0, 45, "UAVs: ");
-        printLimitedInt(win, 0, 51, "%i", num_other_uavs, 100);
+        tui::printLimitedInt(win, 0, 51, "%i", num_other_uavs, 100);
         wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
         wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       }
@@ -2419,7 +2428,7 @@ void Status::topLineHandler(WINDOW *win) {
         if (num_other_uavs == 0) {
           wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
         }
-        printLimitedInt(win, 0, 31, "%i", num_other_uavs, 100);
+        tui::printLimitedInt(win, 0, 31, "%i", num_other_uavs, 100);
         wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
         wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
       }
@@ -2457,7 +2466,7 @@ void Status::generalInfoHandler(WINDOW *win) {
   wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
   wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
   wattroff(win, A_STANDOUT);
-  printBox(win);
+  tui::printBox(win, avoiding_collision_, automatic_start_can_takeoff_, null_tracker_);
 
   if (_light_) {
     wattron(win, A_STANDOUT);
@@ -2809,9 +2818,9 @@ void Status::printMemLoad(WINDOW *win) {
 
   wattron(win, COLOR_PAIR(tmp_color));
   if (mini_) {
-    printLimitedString(win, 2, 1, "RAM", 3);
+    tui::printLimitedString(win, 2, 1, "RAM", 3);
   } else {
-    printLimitedDouble(win, 2, 1, "RAM: %4.1f G", free_ram, 100);
+    tui::printLimitedDouble(win, 2, 1, "RAM: %4.1f G", free_ram, 100);
   }
   wattroff(win, A_BLINK);
 }
@@ -2836,9 +2845,9 @@ void Status::printCpuLoad(WINDOW *win) {
 
   wattron(win, COLOR_PAIR(tmp_color));
   if (mini_) {
-    printLimitedString(win, 1, 1, "CPU", 3);
+    tui::printLimitedString(win, 1, 1, "CPU", 3);
   } else {
-    printLimitedDouble(win, 1, 1, "CPU: %4.1f %%", cpu_load, 99.9);
+    tui::printLimitedDouble(win, 1, 1, "CPU: %4.1f %%", cpu_load, 99.9);
   }
 }
 //}
@@ -2861,9 +2870,9 @@ void Status::printCpuTemp(WINDOW *win) {
 
   wattron(win, COLOR_PAIR(tmp_color));
   if (mini_) {
-    printLimitedDouble(win, 0, 1, "%3.0f °C", cpu_temp, 999.9);
+    tui::printLimitedDouble(win, 0, 1, "%3.0f °C", cpu_temp, 999.9);
   } else {
-    printLimitedDouble(win, 0, 1, "%5.1f °C", cpu_temp, 999.9);
+    tui::printLimitedDouble(win, 0, 1, "%5.1f °C", cpu_temp, 999.9);
   }
 }
 
@@ -2879,7 +2888,7 @@ void Status::printCpuFreq(WINDOW *win) {
   }
 
   wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
-  printLimitedDouble(win, 1, 16, "%4.2f GHz", avg_cpu_ghz, 10);
+  tui::printLimitedDouble(win, 1, 16, "%4.2f GHz", avg_cpu_ghz, 10);
 }
 
 //}
@@ -2904,311 +2913,43 @@ void Status::printDiskSpace(WINDOW *win) {
   if (gigas < 10) {
     wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
     if (mini_) {
-      printLimitedString(win, 1, 5, "HDD", 3);
-      printLimitedDouble(win, 2, 5, "%3.1f", double(gigas), 10);
+      tui::printLimitedString(win, 1, 5, "HDD", 3);
+      tui::printLimitedDouble(win, 2, 5, "%3.1f", double(gigas), 10);
     } else {
-      printLimitedDouble(win, 2, 14, "HDD: %3.1f G", double(gigas), 10);
+      tui::printLimitedDouble(win, 2, 14, "HDD: %3.1f G", double(gigas), 10);
     }
   }
 
   if (gigas < 100) {
     if (mini_) {
-      printLimitedString(win, 1, 5, "HDD", 3);
-      printLimitedInt(win, 2, 6, "%i", gigas, 1000);
+      tui::printLimitedString(win, 1, 5, "HDD", 3);
+      tui::printLimitedInt(win, 2, 6, "%i", gigas, 1000);
     } else {
-      printLimitedInt(win, 2, 14, "HDD:  %i G", gigas, 1000);
+      tui::printLimitedInt(win, 2, 14, "HDD:  %i G", gigas, 1000);
     }
   }
 
   // Under 1 TiB
   if (gigas < 1024) {
     if (mini_) {
-      printLimitedString(win, 1, 5, "HDD", 3);
-      printLimitedInt(win, 2, 5, "%i", gigas, 1000);
+      tui::printLimitedString(win, 1, 5, "HDD", 3);
+      tui::printLimitedInt(win, 2, 5, "%i", gigas, 1000);
     } else {
-      printLimitedInt(win, 2, 14, "HDD: %i G", gigas, 1000);
+      tui::printLimitedInt(win, 2, 14, "HDD: %i G", gigas, 1000);
     }
   } else {
     if (mini_) {
-      printLimitedString(win, 1, 5, "HDD", 3);
-      printLimitedInt(win, 2, 5, "%i T", gigas / 1024, 10);
+      tui::printLimitedString(win, 1, 5, "HDD", 3);
+      tui::printLimitedInt(win, 2, 5, "%i T", gigas / 1024, 10);
     } else {
-      printLimitedDouble(win, 2, 14, "HDD: %3.1f T", gigas / 1024.0, 1000);
+      tui::printLimitedDouble(win, 2, 14, "HDD: %3.1f T", gigas / 1024.0, 1000);
     }
   }
 }
 
 //}
 
-/* printServiceResult() //{ */
 
-void Status::printServiceResult(bool success, const std::string &msg) {
-  if (_light_) {
-    wattron(bottom_window_, A_STANDOUT);
-  }
-
-  werase(bottom_window_);
-
-  wattron(bottom_window_, A_BOLD);
-  wattron(bottom_window_, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
-
-
-  if (success) {
-
-    printLimitedString(bottom_window_, 0, 0, "Service call success: " + msg, 120);
-
-  } else {
-
-    wattron(bottom_window_, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-
-    printLimitedString(bottom_window_, 0, 0, "Service call failed: " + msg, 120);
-
-    wattroff(bottom_window_, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-  }
-
-  bottom_window_clear_time_ = clock_->now();
-
-  wattroff(bottom_window_, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
-  wattroff(bottom_window_, A_BOLD);
-}
-
-//}
-
-/* printLimitedInt() //{ */
-
-void Status::printLimitedInt(WINDOW *win, int y, int x, const std::string &str_in, int num, int limit) {
-
-  std::string str_out = str_in;
-
-  if (std::abs(num) > limit) {
-    // If the number is larger than limit, replace it with scientific notation
-    for (unsigned long i = 0; i < str_out.length() - 2; i++) {
-      if (str_out[i] == '.' && str_out[i + 2] == 'i') {
-        str_out[i + 1] = '0';
-        str_out[i + 2] = 'e';
-        break;
-      }
-    }
-  }
-
-  mvwprintw(win, y, x, str_out.c_str(), num);
-}
-
-//}
-
-/* printLimitedDouble() //{ */
-
-void Status::printLimitedDouble(WINDOW *win, int y, int x, const std::string &str_in, double num, double limit) {
-
-  std::string format_str = str_in;
-
-  if (std::abs(num) > limit) {
-    // If the number is larger than limit, replace it with scientific notation
-    // We look for the '.Xf' pattern and change it to '.0e'
-    for (unsigned long i = 0; i < format_str.length() - 2; i++) {
-      if (format_str[i] == '.' && format_str[i + 2] == 'f') {
-        format_str[i + 1] = '0';
-        format_str[i + 2] = 'e';
-        break;
-      }
-    }
-  }
-
-  mvwprintw(win, y, x, format_str.c_str(), num);
-}
-
-//}
-
-/* printLimitedString() //{ */
-
-void Status::printLimitedString(WINDOW *win, int y, int x, const std::string &str_in, unsigned long limit) {
-
-  // If the string is within limits, we print it directly.
-  // If not, we create a temporary truncated version.
-  if (str_in.length() > limit) {
-    std::string truncated_str = str_in.substr(0, limit);
-    mvwprintw(win, y, x, "%s", truncated_str.c_str());
-  } else {
-    mvwprintw(win, y, x, "%s", str_in.c_str());
-  }
-}
-
-//}
-
-/* printCompressedLimitedString() //{ */
-
-void Status::printCompressedLimitedString(WINDOW *win, int y, int x, const std::string &str_in, unsigned long limit) {
-
-  if (str_in.empty()) {
-    return;
-  }
-
-  std::string compressed = str_in;
-  std::string chars_to_remove("aeiouAEIOU :");
-
-  for (char c : chars_to_remove) {
-    if (compressed.length() > 1) {
-      compressed.erase(std::remove(compressed.begin() + 1, compressed.end(), c), compressed.end());
-    }
-  }
-
-  if (compressed.length() > limit) {
-    compressed.resize(limit);
-  }
-
-  mvwprintw(win, y, x, "%s", compressed.c_str());
-}
-
-//}
-
-/* printNoData() //{ */
-
-void Status::printNoData(WINDOW *win, int y, int x) {
-  wattron(win, A_BLINK);
-  wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-  if (mini_) {
-    mvwprintw(win, y, x, "NO DATA");
-  } else {
-    mvwprintw(win, y, x, "!NO DATA!");
-  }
-  wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-  wattroff(win, A_BLINK);
-}
-
-void Status::printNoData(WINDOW *win, int y, int x, const std::string &text) {
-  wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-  mvwprintw(win, y, x, text.c_str());
-  printNoData(win, y, x + text.length());
-}
-
-//}
-
-/* printError() //{ */
-
-void Status::printError(const std::string &msg) {
-  wattron(debug_window_, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-  printLimitedString(debug_window_, 0, 0, msg, 120);
-  wattroff(debug_window_, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-
-  wnoutrefresh(debug_window_);
-}
-
-//}
-
-/* printDebug() //{ */
-
-void Status::printDebug(const std::string &msg) {
-  printLimitedString(debug_window_, 0, 0, msg, 120);
-
-  wnoutrefresh(debug_window_);
-}
-
-//}
-
-/* printHelp() //{ */
-
-void Status::printHelp() {
-  werase(debug_window_);
-
-  if (help_active_) {
-
-    printLimitedString(debug_window_, 1, 0, "How to use mrs_status:", 120);
-    printLimitedString(debug_window_, 2, 0, "Press the 'm' key to enter a services menu", 120);
-    printLimitedString(debug_window_, 3, 0, "Press the 'g' key to set a goto reference", 120);
-    printLimitedString(debug_window_, 4, 0, "Press the 'M' key to switch into minimalistic mode, which takes less screen space", 120);
-    printLimitedString(debug_window_, 5, 0, "Press the 'R' key to enter 'remote' mode to take direct control of the uav with your keyboad", 120);
-    printLimitedString(debug_window_, 6, 0, "   In remote mode, use these keys to control the drone:", 120);
-    printLimitedString(debug_window_, 7, 0, "      'w','s','a','d' to control pitch and roll ('h','j','k','l' works too)", 120);
-    printLimitedString(debug_window_, 8, 0, "      'q','e'         to control heading", 120);
-    printLimitedString(debug_window_, 9, 0, "      'r','f'         to control altitude", 120);
-    printLimitedString(debug_window_, 10, 0, "      'G'             to switch controlling in the FCU frame (local) or the world frame (global)", 120);
-    printLimitedString(debug_window_, 12, 0, "You can also display any info from your node in the mrs_status:", 120);
-    printLimitedString(debug_window_, 14, 0, "   topic: mrs_status/display_string (std_msgs::String)", 120);
-    printLimitedString(debug_window_, 15, 0, "   - Publish any string to this topic and it will show up in mrs_status", 120);
-    printLimitedString(debug_window_, 17, 0, "Press 'D' to display info from other panes of this tmux session, up to 2 panes can be viewed", 120);
-    printLimitedString(debug_window_, 19, 0, "Press 'h' to hide help", 120);
-
-  } else {
-    printLimitedString(debug_window_, 1, 0, "Press 'h' key for help", 120);
-  }
-
-  wnoutrefresh(debug_window_);
-}
-
-//}
-
-/* printTmuxDump() //{ */
-
-void Status::printTmuxDump() {
-  werase(debug_window_);
-  printBox(debug_window_);
-
-  if (int(selected_tmux_window_.size()) > MAX_SELECTED_TMUX_WINDOWS) {
-    return;
-  }
-
-  int tmp_cols, tmp_rows;
-  getmaxyx(sub_tmux_window_1_, tmp_rows, tmp_cols);
-
-  for (size_t i = 0; i < selected_tmux_window_.size(); i++) {
-    std::string command_str = "tmux resize-window -t " + session_name_ + ":" + std::to_string(selected_tmux_window_[i]) + " -A";
-    callTerminal(command_str.c_str());
-    command_str = "tmux capture-pane -pt " + session_name_ + ":" + std::to_string(selected_tmux_window_[i]) + " -S 0 | tail -n " + std::to_string(tmp_rows + 1);
-    std::string response = callTerminal(command_str.c_str());
-    switch (i) {
-    case 0: {
-      mvwaddstr(sub_tmux_window_1_, 0, 0, response.c_str());
-      break;
-    }
-    case 1: {
-      mvwaddstr(sub_tmux_window_2_, 0, 0, response.c_str());
-      break;
-    }
-    }
-  }
-
-  mvwhline(debug_window_, tmp_rows + 1, 1, 0, tmp_cols - 1);
-
-  if (selected_tmux_window_.size() > 1) {
-    printLimitedString(debug_window_, tmp_rows + 1, 3, display_menu_text_[selected_tmux_window_[1]], 50);
-  }
-  if (selected_tmux_window_.size() > 0) {
-    printLimitedString(debug_window_, 0, 3, display_menu_text_[selected_tmux_window_[0]], 50);
-  }
-
-  wnoutrefresh(debug_window_);
-  touchwin(debug_window_);
-
-  wnoutrefresh(sub_tmux_window_1_);
-  wnoutrefresh(sub_tmux_window_2_);
-}
-
-//}
-
-/* printBox() //{ */
-
-void Status::printBox(WINDOW *win) {
-  if (avoiding_collision_) {
-
-    wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-    wattron(win, A_BLINK);
-    wattron(win, A_STANDOUT);
-  }
-
-  if (!automatic_start_can_takeoff_ && null_tracker_) {
-
-    wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
-    wattron(win, A_STANDOUT);
-  }
-
-
-  box(win, 0, 0);
-  wattroff(win, A_BLINK);
-  wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-  wattroff(win, A_STANDOUT);
-}
-
-//}
 
 /* setupColors() //{ */
 

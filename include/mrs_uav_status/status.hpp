@@ -16,6 +16,7 @@
 #include <mrs_uav_status/ros/topic_info.hpp>
 #include <mrs_uav_status/ros/topic_status.hpp>
 #include <mrs_uav_status/tui/control_bar.hpp>
+#include <mrs_uav_status/tui/print_helpers.hpp>
 #include <mrs_uav_status/tui/status_window.hpp>
 #include <mrs_uav_status/tui/tui_constants.hpp>
 #include <mrs_uav_status/utils/node_info.hpp>
@@ -126,19 +127,6 @@ private:
   void callbackUavStatus(const mrs_msgs::msg::UavStatus::ConstSharedPtr msg);
   void callbackUavStatusShort(const mrs_msgs::msg::UavStatusShort::ConstSharedPtr msg);
 
-  // | -------------------- Printing Routines -------------------- |
-  void printLimitedInt(WINDOW *win, int y, int x, const std::string &str_in, int num, int limit);
-  void printLimitedDouble(WINDOW *win, int y, int x, const std::string &str_in, double num, double limit);
-  void printLimitedString(WINDOW *win, int y, int x, const std::string &str_in, unsigned long limit);
-  void printCompressedLimitedString(WINDOW *win, int y, int x, const std::string &str_in, unsigned long limit);
-  void printServiceResult(bool success, const std::string &msg);
-  void printError(const std::string &msg);
-  void printDebug(const std::string &msg);
-  void printHelp();
-  void printTmuxDump();
-  void printBox(WINDOW *win);
-  void printNoData(WINDOW *win, int y, int x);
-  void printNoData(WINDOW *win, int y, int x, const std::string &text);
 
   void printCpuLoad(WINDOW *win);
   void printCpuTemp(WINDOW *win);
