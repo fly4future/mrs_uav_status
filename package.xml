@@ -19,7 +19,6 @@
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
   <depend>mrs_lib</depend>
-  <depend>libboost-dev</depend>
   <depend>libncurses</depend>
   <depend>libncurses-dev</depend>
   <depend>backward_ros</depend>
