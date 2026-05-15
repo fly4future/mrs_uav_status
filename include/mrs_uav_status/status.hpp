@@ -22,6 +22,7 @@
 #include <mrs_uav_status/utils/node_info.hpp>
 #include <mrs_uav_status/utils/split.hpp>
 #include <mrs_uav_status/utils/string_info.hpp>
+#include <mrs_uav_status/utils/terminal.hpp>
 
 // --- ROS Msg & Srv Includes ---
 #include <mrs_msgs/msg/node_cpu_load.hpp>
@@ -243,7 +244,6 @@ private:
   void        prefillUavStatus();
   void        topLineHandler(WINDOW *win);
   void        setupColors(bool active);
-  std::string callTerminal(const char *cmd);
 
   mrs_lib::Profiler                     profiler_;
   std::unique_ptr<mrs_lib::Transformer> transformer_;

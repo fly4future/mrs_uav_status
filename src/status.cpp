@@ -201,11 +201,11 @@ void Status::initialize() {
 void Status::setupWindows() {
 
   std::string command = "tmux display-message -p '#S'";
-  session_name_       = callTerminal(command.c_str());
+  session_name_       = utils::callTerminal(command.c_str());
   session_name_.erase(std::remove(session_name_.begin(), session_name_.end(), '\n'), session_name_.end());
 
   command                           = "tmux list-panes -F '#{pane_width}x#{pane_height}'";
-  std::string              response = callTerminal(command.c_str());
+  std::string              response = utils::callTerminal(command.c_str());
   std::vector<std::string> results;
   results = mrs_uav_status::utils::splitByChar(response, 'x');
 
@@ -283,7 +283,7 @@ bool Status::updateTermSize() {
   bool changed = false;
 
   std::string command  = "tmux list-panes -F '#{pane_width}x#{pane_height}'";
-  std::string response = callTerminal(command.c_str());
+  std::string response = utils::callTerminal(command.c_str());
 
   std::vector<std::string> results;
 
@@ -2772,7 +2772,7 @@ void Status::setupDisplayText() {
   display_menu_text_.clear();
 
   char                     command[50] = "tmux list-windows | cut -d' ' -f-2";
-  std::string              response    = callTerminal(command);
+  std::string              response    = utils::callTerminal(command);
   std::vector<std::string> results;
   results = mrs_uav_status::utils::splitByChar(response, '\n');
 
@@ -3015,26 +3015,6 @@ void Status::setupColors(bool active) {
 
 //}
 
-/* callTerminal() //{ */
-
-std::string Status::callTerminal(const char *cmd) {
-  std::array<char, 128>                  buffer;
-  std::string                            result;
-  std::unique_ptr<FILE, int (*)(FILE *)> pipe(popen(cmd, "r"), static_cast<int (*)(FILE *)>(pclose));
-
-  if (!pipe) {
-    RCLCPP_ERROR(node_->get_logger(), "Exception in callTerminal");
-    throw std::runtime_error("popen() failed!");
-  }
-
-  while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-    result += buffer.data();
-  }
-
-  return result;
-}
-
-//}
 
 } // namespace mrs_uav_status
 
