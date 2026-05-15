@@ -1,11 +1,9 @@
 #pragma once
 
 // --- Standard Includes ---
-#include <iostream>
 #include <fstream>
 #include <filesystem>
 #include <functional>
-#include <stdexcept>
 #include <vector>
 #include <string>
 #include <mutex>
@@ -14,23 +12,19 @@
 // --- Internal Package Includes ---
 #include <mrs_uav_status/ros/service.hpp>
 #include <mrs_uav_status/ros/topic_info.hpp>
-#include <mrs_uav_status/ros/topic_status.hpp>
 #include <mrs_uav_status/tui/colors.hpp>
 #include <mrs_uav_status/tui/system_info.hpp>
 #include <mrs_uav_status/tui/control_bar.hpp>
 #include <mrs_uav_status/tui/print_helpers.hpp>
 #include <mrs_uav_status/tui/status_window.hpp>
 #include <mrs_uav_status/tui/tui_constants.hpp>
-#include <mrs_uav_status/utils/node_info.hpp>
 #include <mrs_uav_status/utils/split.hpp>
-#include <mrs_uav_status/utils/string_info.hpp>
 #include <mrs_uav_status/utils/terminal.hpp>
 
 // --- ROS Msg & Srv Includes ---
 #include <mrs_msgs/msg/node_cpu_load.hpp>
 #include <mrs_msgs/msg/reference.hpp>
 #include <mrs_msgs/msg/gimbal_state.hpp>
-#include <mrs_msgs/msg/float64_stamped.hpp>
 #include <mrs_msgs/msg/uav_status.hpp>
 #include <mrs_msgs/msg/uav_status_short.hpp>
 #include <mrs_msgs/srv/string.hpp>
