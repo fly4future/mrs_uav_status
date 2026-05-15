@@ -209,18 +209,6 @@ void Status::setupWindows() {
   std::vector<std::string> results;
   results = mrs_uav_status::utils::splitByChar(response, 'x');
 
-  /* int cols, lines; */
-
-  /* try { */
-  /*   cols  = stoi(results[0]); */
-  /*   lines = stoi(results[1]); */
-  /* } */
-
-  /* catch (const invalid_argument& e) { */
-  /*   cols  = 0; */
-  /*   lines = 0; */
-  /* } */
-
   if (mini_) {
 
     control_manager_window_ = newwin(4, 9, 1, 1);
@@ -325,10 +313,8 @@ void Status::timerStatusFast() {
 
   if (!mini_) {
     if (!selected_tmux_window_.empty()) {
-      tui::printTmuxDump(debug_window_, sub_tmux_window_1_, sub_tmux_window_2_,
-                    selected_tmux_window_, session_name_, display_menu_text_,
-                    MAX_SELECTED_TMUX_WINDOWS,
-                    avoiding_collision_, automatic_start_can_takeoff_, null_tracker_);
+      tui::printTmuxDump(debug_window_, sub_tmux_window_1_, sub_tmux_window_2_, selected_tmux_window_, session_name_, display_menu_text_,
+                         MAX_SELECTED_TMUX_WINDOWS, avoiding_collision_, automatic_start_can_takeoff_, null_tracker_);
     } else {
       tui::printHelp(debug_window_, help_active_);
     }
@@ -536,27 +522,12 @@ void Status::timerStatusFast() {
     //}
   }
 
-  /* if (state == StatusState::STANDARD) { */
-  /*   printDebug("standard"); */
-  /* } else if (state == StatusState::REMOTE) { */
-  /*   printDebug("remote"); */
-  /* } else { */
-  /*   printDebug("something else"); */
-  /* } */
-
   if (state_ != StatusState::MAIN_MENU && state_ != StatusState::GOTO_MENU && state_ != StatusState::DISPLAY_MENU) {
     wnoutrefresh(bottom_window_);
-    /* wrefresh(bottom_window_); */
   }
 
   wnoutrefresh(top_bar_window_);
-  /* wrefresh(top_bar_window_); */
-
-  /* refresh(); */
-
   doupdate();
-
-  /* fflush(stdout); */
 }
 
 //}
@@ -1118,107 +1089,6 @@ void Status::gimbalHandler(int key, WINDOW *win) {
     gimbal_command_.gimbal_tilt = 1500;
     gimbal_command_.gimbal_pan  = 1500;
     break;
-
-    /* case 'r': */
-    /*   reference.position.z = 1.0; */
-
-    /*   if (turbo_remote_) { */
-    /*     reference.position.z = 2.0; */
-    /*   } */
-
-    /*   remoteModeFly(reference); */
-    /*   remote_hover_ = true; */
-    /*   break; */
-
-    /* case 'f': */
-    /*   reference.position.z = -1.0; */
-
-    /*   if (turbo_remote_) { */
-    /*     reference.position.z = -2.0; */
-    /*   } */
-
-    /*   remoteModeFly(reference); */
-    /*   remote_hover_ = true; */
-    /*   break; */
-
-    /* case 'q': */
-    /*   reference.heading = 0.5; */
-
-    /*   if (turbo_remote_) { */
-    /*     reference.heading = 1.0; */
-    /*   } */
-
-    /*   remoteModeFly(reference); */
-    /*   remote_hover_ = true; */
-    /*   break; */
-
-    /* case 'e': */
-    /*   reference.heading = -0.5; */
-
-    /*   if (turbo_remote_) { */
-    /*     reference.heading = -1.0; */
-    /*   } */
-
-    /*   remoteModeFly(reference); */
-    /*   remote_hover_ = true; */
-    /*   break; */
-
-    /* case 'T': */
-
-    /*   bool is_flying_normally_; */
-
-    /*   { */
-    /*     std::scoped_lock lock(mutex_status_msg_); */
-    /*     is_flying_normally_ = uav_status_.flying_normally; */
-    /*   } */
-
-    /*   if (is_flying_normally_) { */
-
-    /*     if (turbo_remote_) { */
-
-    /*       turbo_remote_                = false; */
-    /*       string_service.request.value = old_constraints_; */
-    /*       sc_set_constraints_.call(string_service, _service_num_calls_, _service_delay_); */
-    /*       printServiceResult(string_service.response.success, string_service.response.message); */
-
-    /*     } else { */
-
-    /*       turbo_remote_ = true; */
-
-    /*       { */
-    /*         std::scoped_lock lock(mutex_status_msg_); */
-    /*         old_constraints_ = uav_status_.constraints[0]; */
-    /*       } */
-
-    /*       string_service.request.value = _turbo_remote_constraints_; */
-    /*       sc_set_constraints_.call(string_service, _service_num_calls_, _service_delay_); */
-    /*       printServiceResult(string_service.response.success, string_service.response.message); */
-    /*     } */
-    /*   } */
-
-    /*   break; */
-
-    /* case 'G': */
-
-
-    /* { */
-    /*   std::scoped_lock lock(mutex_status_msg_); */
-    /*   is_flying_normally_ = uav_status_.flying_normally; */
-    /* } */
-    /*   if (is_flying_normally_) { */
-    /*     remote_global_ = !remote_global_; */
-    /*   } */
-
-    /*   break; */
-
-
-    /* default: */
-    /*   if (remote_hover_) { */
-
-    /*     sc_hover_.call(trig, _service_num_calls_, _service_delay_); */
-    /*     remote_hover_ = false; */
-    /*   } */
-    /*   break; */
   }
 
   if (gimbal_command_.gimbal_pan > gimbal_max) {
@@ -1434,8 +1304,8 @@ void Status::stringHandler(WINDOW *win) {
 
   for (unsigned long i = 0; i < string_vector.size(); i++) {
 
-    int    tmp_color          = static_cast<int>(mrs_uav_status::tui::ColorPair::Normal);
-    bool   blink              = false;
+    int         tmp_color          = static_cast<int>(mrs_uav_status::tui::ColorPair::Normal);
+    bool        blink              = false;
     std::string tmp_display_string = string_vector[i];
 
     if (tmp_display_string.at(0) == '-') {
@@ -1477,13 +1347,6 @@ void Status::stringHandler(WINDOW *win) {
     } else {
       tui::printLimitedString(win, (i) + 1, 1, tmp_display_string, 30);
     }
-
-    /* if (tmp_display_string.length() > 30) { */
-    /*   tui::printLimitedString(win, 1 + (3 * i) + 1, 1, tmp_display_string.substr(30), 30); */
-    /* } */
-    /* if (i < 2) { */
-    /*   tui::printLimitedString(win, (2 * i) + 2, 1, ("------------------------------"), 30); */
-    /* } */
 
     wattroff(win, COLOR_PAIR(tmp_color));
     wattroff(win, A_BLINK);
@@ -1755,10 +1618,6 @@ void Status::uavStateHandler(WINDOW *win) {
         wattron(win, COLOR_PAIR(color));
       }
 
-      /* horizontal_estimator = uav_status_.horizontal_estimator; */
-      /* vertical_estimator = uav_status_.vertical_estimator; */
-      /* heading_estimator = uav_status_.heading_estimator; */
-      /* agl_estimator = uav_status_.agl_estimator; */
       tui::printLimitedString(win, 1, 11, main_estimator, 14);
 
       switch (estimator_display_counter_) {
@@ -1810,17 +1669,17 @@ void Status::uavStateHandler(WINDOW *win) {
 /* controlManagerHandler() //{ */
 
 void Status::controlManagerHandler(WINDOW *win) {
-  int16_t color;
-  bool    null_tracker;
-  double  rate;
-  std::string  curr_controller;
-  std::string  curr_tracker;
-  std::string  curr_gains;
-  std::string  curr_constraints;
-  bool    callbacks_enabled;
-  bool    rc_mode;
-  bool    have_goal;
-  bool    tracking_trajectory;
+  int16_t     color;
+  bool        null_tracker;
+  double      rate;
+  std::string curr_controller;
+  std::string curr_tracker;
+  std::string curr_gains;
+  std::string curr_constraints;
+  bool        callbacks_enabled;
+  bool        rc_mode;
+  bool        have_goal;
+  bool        tracking_trajectory;
 
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -1907,7 +1766,6 @@ void Status::controlManagerHandler(WINDOW *win) {
 
   else {
 
-    /* tui::printLimitedString(win, 0, 10, "Control Manager", 15); */
     tui::printLimitedDouble(win, 0, 1, "Control Manager %5.1f Hz", rate, 1000);
 
     if (rate == 0.0) {
@@ -2371,12 +2229,12 @@ void Status::topLineHandler(WINDOW *win) {
 
   if (tmp_time > 3.0 && have_data_) {
     have_data_ = false;
-    _light_ = tui::setupColors(have_data_, _colorscheme_, _colorblind_mode_);
+    _light_    = tui::setupColors(have_data_, _colorscheme_, _colorblind_mode_);
   }
 
   if (tmp_time < 3.0 && !have_data_) {
     have_data_ = true;
-    _light_ = tui::setupColors(have_data_, _colorscheme_, _colorblind_mode_);
+    _light_    = tui::setupColors(have_data_, _colorscheme_, _colorblind_mode_);
   }
 
   if (tmp_time >= 99.9) {
@@ -2386,9 +2244,6 @@ void Status::topLineHandler(WINDOW *win) {
   mvwprintw(win, 0, 10, " %s %s ", uav_name.c_str(), uav_type.c_str());
 
   if (!mini_) {
-    /* tui::printLimitedDouble(win, 0, 94, "%3.1f", tmp_time, 100); */
-    /* tui::printLimitedDouble(win, 0, 90, "%3.1f", tmp_short_time, 100); */
-
     if (collision_avoidance_enabled) {
       if (avoiding_collision_) {
         wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
@@ -2483,7 +2338,6 @@ void Status::generalInfoHandler(WINDOW *win) {
     free_hdd  = uav_status_.free_hdd;
   }
   tui::printCpuLoad(win, cpu_load, mini_);
-  /* tui::printCpuTemp(win, cpu_temp, mini_); */
   tui::printMemLoad(win, free_ram, total_ram, mini_);
   if (!mini_) {
     tui::printCpuFreq(win, cpu_ghz);
@@ -2800,15 +2654,6 @@ void Status::setupDisplayText() {
 //}
 
 //}
-
-/* PRINT FUNCTIONS //{ */
-
-
-
-
-
-//}
-
 
 } // namespace mrs_uav_status
 
