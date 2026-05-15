@@ -16,6 +16,7 @@
 #include <mrs_uav_status/ros/topic_info.hpp>
 #include <mrs_uav_status/ros/topic_status.hpp>
 #include <mrs_uav_status/tui/colors.hpp>
+#include <mrs_uav_status/tui/system_info.hpp>
 #include <mrs_uav_status/tui/control_bar.hpp>
 #include <mrs_uav_status/tui/print_helpers.hpp>
 #include <mrs_uav_status/tui/status_window.hpp>
@@ -129,12 +130,6 @@ private:
   void callbackUavStatus(const mrs_msgs::msg::UavStatus::ConstSharedPtr msg);
   void callbackUavStatusShort(const mrs_msgs::msg::UavStatusShort::ConstSharedPtr msg);
 
-
-  void printCpuLoad(WINDOW *win);
-  void printCpuTemp(WINDOW *win);
-  void printCpuFreq(WINDOW *win);
-  void printMemLoad(WINDOW *win);
-  void printDiskSpace(WINDOW *win);
 
   // | --------------------- Window Handlers -------------------- |
   void setupWindows();

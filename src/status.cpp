@@ -2472,13 +2472,23 @@ void Status::generalInfoHandler(WINDOW *win) {
     wattron(win, A_STANDOUT);
   }
 
-  printCpuLoad(win);
-  /* printCpuTemp(win); */
-  printMemLoad(win);
-  if (!mini_) {
-    printCpuFreq(win);
+  double cpu_load, cpu_ghz, free_ram, total_ram;
+  int    free_hdd;
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    cpu_load  = uav_status_.cpu_load;
+    cpu_ghz   = uav_status_.cpu_ghz;
+    free_ram  = uav_status_.free_ram;
+    total_ram = uav_status_.total_ram;
+    free_hdd  = uav_status_.free_hdd;
   }
-  printDiskSpace(win);
+  tui::printCpuLoad(win, cpu_load, mini_);
+  /* tui::printCpuTemp(win, cpu_temp, mini_); */
+  tui::printMemLoad(win, free_ram, total_ram, mini_);
+  if (!mini_) {
+    tui::printCpuFreq(win, cpu_ghz);
+  }
+  tui::printDiskSpace(win, free_hdd, last_gigas_, mini_);
 
   wnoutrefresh(win);
 }
@@ -2793,161 +2803,6 @@ void Status::setupDisplayText() {
 
 /* PRINT FUNCTIONS //{ */
 
-/* printMemLoad() //{ */
-
-void Status::printMemLoad(WINDOW *win) {
-  double total_ram;
-  double free_ram;
-
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    free_ram  = uav_status_.free_ram;
-    total_ram = uav_status_.total_ram;
-  }
-
-  double used_ram = total_ram - free_ram;
-
-  int    tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
-  double ram_ratio = used_ram / total_ram;
-  if (ram_ratio > 0.7) {
-    tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Red);
-    wattron(win, A_BLINK);
-  } else if (ram_ratio > 0.5) {
-    tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow);
-  }
-
-  wattron(win, COLOR_PAIR(tmp_color));
-  if (mini_) {
-    tui::printLimitedString(win, 2, 1, "RAM", 3);
-  } else {
-    tui::printLimitedDouble(win, 2, 1, "RAM: %4.1f G", free_ram, 100);
-  }
-  wattroff(win, A_BLINK);
-}
-
-//}
-
-/* printCpuLoad() //{ */
-
-void Status::printCpuLoad(WINDOW *win) {
-  double cpu_load;
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    cpu_load = uav_status_.cpu_load;
-  }
-
-  int tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
-  if (cpu_load > 80.0) {
-    tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Red);
-  } else if (cpu_load > 60.0) {
-    tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow);
-  }
-
-  wattron(win, COLOR_PAIR(tmp_color));
-  if (mini_) {
-    tui::printLimitedString(win, 1, 1, "CPU", 3);
-  } else {
-    tui::printLimitedDouble(win, 1, 1, "CPU: %4.1f %%", cpu_load, 99.9);
-  }
-}
-//}
-
-/* printCpuTemp() //{ */
-
-void Status::printCpuTemp(WINDOW *win) {
-  double cpu_temp;
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    cpu_temp = uav_status_.cpu_temperature;
-  }
-
-  int tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Green);
-  if (cpu_temp > 90.0) {
-    tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Red);
-  } else if (cpu_temp > 75.0) {
-    tmp_color = static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow);
-  }
-
-  wattron(win, COLOR_PAIR(tmp_color));
-  if (mini_) {
-    tui::printLimitedDouble(win, 0, 1, "%3.0f °C", cpu_temp, 999.9);
-  } else {
-    tui::printLimitedDouble(win, 0, 1, "%5.1f °C", cpu_temp, 999.9);
-  }
-}
-
-//}
-
-/* printCpuFreq() //{ */
-
-void Status::printCpuFreq(WINDOW *win) {
-  double avg_cpu_ghz;
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    avg_cpu_ghz = uav_status_.cpu_ghz;
-  }
-
-  wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
-  tui::printLimitedDouble(win, 1, 16, "%4.2f GHz", avg_cpu_ghz, 10);
-}
-
-//}
-
-/* printDiskSpace() //{ */
-
-void Status::printDiskSpace(WINDOW *win) {
-  int gigas;
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    gigas = uav_status_.free_hdd;
-  }
-
-  // Default color is green, change to yellow if less than 20%
-  // or if value changed since last time, change to red if less than 10%
-  wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Green)));
-
-  if (gigas < 20 || gigas != last_gigas_) {
-    wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Yellow)));
-  }
-
-  if (gigas < 10) {
-    wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-    if (mini_) {
-      tui::printLimitedString(win, 1, 5, "HDD", 3);
-      tui::printLimitedDouble(win, 2, 5, "%3.1f", double(gigas), 10);
-    } else {
-      tui::printLimitedDouble(win, 2, 14, "HDD: %3.1f G", double(gigas), 10);
-    }
-  }
-
-  if (gigas < 100) {
-    if (mini_) {
-      tui::printLimitedString(win, 1, 5, "HDD", 3);
-      tui::printLimitedInt(win, 2, 6, "%i", gigas, 1000);
-    } else {
-      tui::printLimitedInt(win, 2, 14, "HDD:  %i G", gigas, 1000);
-    }
-  }
-
-  // Under 1 TiB
-  if (gigas < 1024) {
-    if (mini_) {
-      tui::printLimitedString(win, 1, 5, "HDD", 3);
-      tui::printLimitedInt(win, 2, 5, "%i", gigas, 1000);
-    } else {
-      tui::printLimitedInt(win, 2, 14, "HDD: %i G", gigas, 1000);
-    }
-  } else {
-    if (mini_) {
-      tui::printLimitedString(win, 1, 5, "HDD", 3);
-      tui::printLimitedInt(win, 2, 5, "%i T", gigas / 1024, 10);
-    } else {
-      tui::printLimitedDouble(win, 2, 14, "HDD: %3.1f T", gigas / 1024.0, 1000);
-    }
-  }
-}
-
-//}
 
 
 
