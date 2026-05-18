@@ -3,14 +3,46 @@
 namespace mrs_uav_status::tui
 {
 
-TUI::TUI(const std::string &colorscheme, bool colorblind_mode, bool minimized_mode)
-    : _colorscheme_(colorscheme), _colorblind_mode_(colorblind_mode), _minimized_mode_(minimized_mode) {
-  // initscr();
-  // cbreak();
-  // noecho();
-  // curs_set(0);
-  // nodelay(stdscr, TRUE);
-  // keypad(stdscr, TRUE);
+TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const std::string &colorscheme, bool colorblind_mode, bool minimized_mode,
+         const std::string &display_config_filename, const std::string &turbo_remote_constraints)
+    : _colorscheme_(colorscheme),
+      _display_config_filename_(display_config_filename),
+      _turbo_remote_constraints_(turbo_remote_constraints),
+      _colorblind_mode_(colorblind_mode),
+      _minimized_mode_(minimized_mode),
+      node_(node),
+      clock_(node->get_clock()) {
+
+  ph_gimbal_state_    = mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>(node_, "~/gimbal_command_out");
+  sc_goto_reference_  = mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>(node_, "~/reference_out", cbkgrp_sc);
+  sc_set_constraints_ = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_constraints_out", cbkgrp_sc);
+  sc_set_gains_       = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_gains_out", cbkgrp_sc);
+  sc_set_controller_  = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_controller_out", cbkgrp_sc);
+  sc_set_tracker_     = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_tracker_out", cbkgrp_sc);
+  sc_set_estimator_   = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_estimator_out", cbkgrp_sc);
+  sc_hover_           = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, "~/hover_out", cbkgrp_sc);
+
+  transformer_ = std::make_unique<mrs_lib::Transformer>(node_);
+  transformer_->retryLookupNewest(true);
+}
+
+void TUI::onUavStatus(const mrs_msgs::msg::UavStatus &msg) {
+  std::scoped_lock lock(mutex_status_msg_);
+  uav_status_ = msg;
+}
+
+void TUI::onUavStatusShort(const mrs_msgs::msg::UavStatusShort &msg) {
+  std::scoped_lock lock(mutex_status_msg_);
+  uav_status_.odom_x     = msg.odom_x;
+  uav_status_.odom_y     = msg.odom_y;
+  uav_status_.odom_z     = msg.odom_z;
+  uav_status_.odom_hdg   = msg.odom_hdg;
+  uav_status_.odom_color = msg.odom_color;
+  uav_status_.odom_hz    = msg.odom_hz;
+  uav_status_.cmd_x      = msg.cmd_x;
+  uav_status_.cmd_y      = msg.cmd_y;
+  uav_status_.cmd_z      = msg.cmd_z;
+  uav_status_.cmd_hdg    = msg.cmd_hdg;
 }
 
 bool TUI::updateTermSize() {
@@ -37,9 +69,9 @@ bool TUI::updateTermSize() {
   }
 
   if (terminal_cols_ != cols || terminal_lines_ != lines) {
-    terminal_lines_  = lines;
-    terminal_cols_   = cols;
-    changed = true;
+    terminal_lines_ = lines;
+    terminal_cols_  = cols;
+    changed         = true;
   }
 
   return (changed);

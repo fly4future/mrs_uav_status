@@ -54,6 +54,7 @@ target_sources(MrsUavStatus_Status
   PRIVATE
     "src/ros/topic_info.cpp"
     "src/status.cpp"
+    "src/tui.cpp"
     "src/tui/control_bar.cpp"
     "src/tui/status_window.cpp"
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
@@ -68,6 +69,7 @@ target_sources(MrsUavStatus_Status
     "include/mrs_uav_status/tui/system_info.hpp"
     "include/mrs_uav_status/tui/print_helpers.hpp"
     "include/mrs_uav_status/tui/constants.hpp"
+    "include/mrs_uav_status/tui/tui.hpp"
     "include/mrs_uav_status/utils/node_info.hpp"
     "include/mrs_uav_status/utils/split.hpp"
     "include/mrs_uav_status/utils/string_info.hpp"
