@@ -41,22 +41,33 @@ public:
   void onUavStatus(const mrs_msgs::msg::UavStatus &msg);
   void onUavStatusShort(const mrs_msgs::msg::UavStatusShort &msg);
 
+  // | --------------------- Window lifecycle ------------------- |
+  void setupWindows();
+  void resize();
+  bool updateTermSize();
+  void toggleMini();
+  void toggleHelp();
+  bool isMini() const {
+    return mini_;
+  }
+  bool isFlyingNormally();
+  void refreshTopBar();
+
   // | --------------------- Window Handlers -------------------- |
-  void setupWindows(bool have_data);
-  void stringHandler(WINDOW *win, bool mini);
-  void uavStateHandler(WINDOW *win, bool mini);
-  void nodeStatsHandler(WINDOW *win);
-  void hwApiStateHandler(WINDOW *win, bool mini);
-  void generalInfoHandler(WINDOW *win, bool mini);
-  void genericTopicHandler(WINDOW *win, bool mini);
-  void controlManagerHandler(WINDOW *win, bool mini);
-  void topLineHandler(WINDOW *win, bool mini);
+  void stringHandler();
+  void uavStateHandler();
+  void nodeStatsHandler();
+  void hwApiStateHandler();
+  void generalInfoHandler();
+  void genericTopicHandler();
+  void controlManagerHandler();
+  void topLineHandler();
 
   void tickSlowCounter();
 
   // | --------------------- Bottom-window helpers --------------- |
-  void bindBottomWindow(WINDOW *win);
   void maybeBlankBottomWindow();
+  void refreshBottomWindow();
   void renderServiceResult(bool success, const std::string &msg);
 
   // | ------------------- Menu (public entry) ------------------- |
@@ -68,11 +79,12 @@ public:
   bool displayMenuHandler(int key_in);
   void clearMenus();
   void loadDisplayConfig();
-  void renderTmuxOrHelp(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2, bool mini, bool help_active);
+  void renderTmuxOrHelp();
+  void refreshAfterMenu();
 
   // | -------------------- Remote & Gimbal --------------------- |
-  void remoteHandler(int key, WINDOW *win, bool mini);
-  void gimbalHandler(int key, WINDOW *win, bool mini);
+  void remoteHandler(int key);
+  void gimbalHandler(int key);
   void resetGimbalCommand();
   void enterRemoteMode();
 
@@ -81,14 +93,15 @@ private:
   std::string _display_config_filename_;
   std::string _turbo_remote_constraints_;
   bool        _colorblind_mode_;
-  bool        _minimized_mode_;
-  bool        _light_ = false;
+  bool        _light_      = false;
+  bool        mini_        = false;
+  bool        help_active_ = false;
 
   // | ------------------------- ROS Core ----------------------- |
   rclcpp::Node::SharedPtr  node_;
   rclcpp::Clock::SharedPtr clock_;
 
-  mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>            ph_gimbal_state_;
+  mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>             ph_gimbal_state_;
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv> sc_goto_reference_;
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>              sc_set_constraints_;
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>              sc_set_gains_;
@@ -115,10 +128,10 @@ private:
   // | -------------------- Remote (private helpers) ------------ |
   void remoteModeFly(const mrs_msgs::msg::Reference &ref_in);
 
-  bool remote_hover_  = false;
-  bool turbo_remote_  = false;
-  bool remote_global_ = false;
-  std::string old_constraints_;
+  bool                       remote_hover_  = false;
+  bool                       turbo_remote_  = false;
+  bool                       remote_global_ = false;
+  std::string                old_constraints_;
   mrs_msgs::msg::GimbalState gimbal_command_;
 
   // | ------------------- Menu (private helpers) --------------- |
@@ -134,15 +147,14 @@ private:
   int              terminal_cols_ = 0, terminal_lines_ = 0;
 
 
-  bool updateTermSize();
   void prefillUavStatus();
   void setupDisplayText();
 
-  long last_gigas_                 = 0;
-  bool have_data_                  = false;
-  bool have_short_data_            = false;
-  int  estimator_display_counter_  = 0;
-  bool increment_counter_          = false;
+  long         last_gigas_                = 0;
+  bool         have_data_                 = false;
+  bool         have_short_data_           = false;
+  int          estimator_display_counter_ = 0;
+  bool         increment_counter_         = false;
   rclcpp::Time last_time_got_data_;
   rclcpp::Time last_time_got_short_data_;
   rclcpp::Time bottom_window_clear_time_;
