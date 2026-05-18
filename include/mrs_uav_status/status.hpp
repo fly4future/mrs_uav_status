@@ -65,10 +65,8 @@ private:
   std::string _colorscheme_;
   std::string _pwd_;
   std::string _display_config_filename_;
-  std::string _turbo_remote_constraints_;
   bool        _colorblind_mode_  = false;
   bool        _profiler_enabled_ = false;
-  bool        _light_            = false;
 
   // | -------------------- State Management -------------------- |
   enum class StatusState
@@ -92,11 +90,6 @@ private:
 
   mrs_lib::SubscriberHandler<mrs_msgs::msg::UavStatus>      sh_uav_status_;
   mrs_lib::SubscriberHandler<mrs_msgs::msg::UavStatusShort> sh_uav_status_short_;
-  mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>     ph_gimbal_state_;
-
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv> sc_goto_reference_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>              sc_set_constraints_;
-  mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>             sc_hover_;
 
   // | --------------------- Timers & Callbacks ------------------ |
   std::shared_ptr<TimerType> timer_status_fast_;
@@ -127,39 +120,20 @@ private:
   WINDOW *sub_tmux_window_2_      = nullptr;
   WINDOW *string_window_          = nullptr;
 
-  std::mutex                 mutex_status_msg_;
-  mrs_msgs::msg::UavStatus   uav_status_;
-  mrs_msgs::msg::GimbalState gimbal_command_;
-  std::string                old_constraints_;
+  std::mutex               mutex_status_msg_;
+  mrs_msgs::msg::UavStatus uav_status_;
 
   // | -------------------- Stats & Counters -------------------- |
-  std::atomic<bool> initialized_  = false;
-  bool              mini_         = false;
-  bool              help_active_  = false;
-  // TOREMOVE
-  int  cols_ = 0, lines_ = 0;
-  long last_idle_  = 0;
-  long last_total_ = 0;
-
-  const uint16_t gimbal_max = 2000;
-  const uint16_t gimbal_min = 1000;
-
-  // | -------------------- Remote & Flight --------------------- |
-  void remoteHandler(int key, WINDOW *win);
-  void gimbalHandler(int key, WINDOW *win);
-  void remoteModeFly(const mrs_msgs::msg::Reference &ref_in);
-
-  bool remote_hover_  = false;
-  bool turbo_remote_  = false;
-  bool remote_global_ = false;
-  bool is_flying_     = false;
+  std::atomic<bool> initialized_ = false;
+  bool              mini_        = false;
+  bool              help_active_ = false;
+  int               cols_ = 0, lines_ = 0;
 
   // | ---------------------- Misc ------------------------------ |
   bool updateTermSize();
   void prefillUavStatus();
-  
-  mrs_lib::Profiler                     profiler_;
-  std::unique_ptr<mrs_lib::Transformer> transformer_;
+
+  mrs_lib::Profiler profiler_;
 
   std::unique_ptr<tui::TUI> tui_;
 };

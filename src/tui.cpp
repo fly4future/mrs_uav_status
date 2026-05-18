@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include <mrs_lib/geometry/cyclic.h>
+#include <mrs_msgs/msg/reference_stamped.hpp>
 
 namespace mrs_uav_status::tui
 {
@@ -1595,6 +1596,328 @@ void TUI::loadDisplayConfig() {
 }
 
 // | --------------------- Tmux/help rendering --------------- |
+
+// | -------------------- Remote / Gimbal --------------------- |
+
+void TUI::enterRemoteMode() {
+  remote_hover_ = false;
+}
+
+void TUI::resetGimbalCommand() {
+  gimbal_command_.fpv_mode    = true;
+  gimbal_command_.is_on       = true;
+  gimbal_command_.gimbal_pan  = 1500;
+  gimbal_command_.gimbal_tilt = 1500;
+}
+
+void TUI::remoteHandler(int key, WINDOW *win, bool mini) {
+  if (_light_) {
+    wattron(win, A_STANDOUT);
+  }
+
+  wattron(win, A_BOLD);
+  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+  if (mini) {
+    mvwprintw(win, 0, 33, "REM");
+  } else {
+    mvwprintw(win, 0, 55, "REMOTE MODE");
+  }
+
+  if (remote_global_) {
+    if (mini) {
+      mvwprintw(win, 0, 37, "G");
+    } else {
+      mvwprintw(win, 0, 75, "GLOBAL MODE");
+    }
+  } else {
+    if (mini) {
+      mvwprintw(win, 0, 37, "L");
+    } else {
+      mvwprintw(win, 0, 75, "LOCAL MODE");
+    }
+  }
+
+  if (turbo_remote_) {
+    wattron(win, A_BLINK);
+    if (mini) {
+      mvwprintw(win, 0, 39, "!T!");
+    } else {
+      mvwprintw(win, 0, 67, "!TURBO!");
+    }
+    wattroff(win, A_BLINK);
+  }
+
+  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+
+  mrs_msgs::msg::Reference reference;
+
+  reference.position.x = 0.0;
+  reference.position.y = 0.0;
+  reference.position.z = 0.0;
+  reference.heading    = 0.0;
+
+  switch (key) {
+
+  case 'w':
+  case 'k':
+  case KEY_UP:
+    reference.position.x = turbo_remote_ ? 5.0 : 2.0;
+    remoteModeFly(reference);
+    remote_hover_ = true;
+    break;
+
+  case 's':
+  case 'j':
+  case KEY_DOWN:
+    reference.position.x = turbo_remote_ ? -5.0 : -2.0;
+    remoteModeFly(reference);
+    remote_hover_ = true;
+    break;
+
+  case 'a':
+  case 'h':
+  case KEY_LEFT:
+    reference.position.y = turbo_remote_ ? 5.0 : 2.0;
+    remoteModeFly(reference);
+    remote_hover_ = true;
+    break;
+
+  case 'd':
+  case 'l':
+  case KEY_RIGHT:
+    reference.position.y = turbo_remote_ ? -5.0 : -2.0;
+    remoteModeFly(reference);
+    remote_hover_ = true;
+    break;
+
+  case 'r':
+    reference.position.z = turbo_remote_ ? 2.0 : 1.0;
+    remoteModeFly(reference);
+    remote_hover_ = true;
+    break;
+
+  case 'f':
+    reference.position.z = turbo_remote_ ? -2.0 : -1.0;
+    remoteModeFly(reference);
+    remote_hover_ = true;
+    break;
+
+  case 'q':
+    reference.heading = turbo_remote_ ? 1.0 : 0.5;
+    remoteModeFly(reference);
+    remote_hover_ = true;
+    break;
+
+  case 'e':
+    reference.heading = turbo_remote_ ? -1.0 : -0.5;
+    remoteModeFly(reference);
+    remote_hover_ = true;
+    break;
+
+  case 'T': {
+    bool is_flying_normally;
+    {
+      std::scoped_lock lock(mutex_status_msg_);
+      is_flying_normally = uav_status_.flying_normally;
+    }
+
+    if (is_flying_normally) {
+      if (turbo_remote_) {
+        turbo_remote_  = false;
+        auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
+        request->value = old_constraints_;
+        auto response  = sc_set_constraints_.callSync(request);
+        if (response) {
+          renderServiceResult(response.value()->success, response.value()->message);
+        } else {
+          renderServiceResult(false, "service could not be called");
+        }
+      } else {
+        turbo_remote_ = true;
+        {
+          std::scoped_lock lock(mutex_status_msg_);
+          old_constraints_ = uav_status_.constraints[0];
+        }
+        auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
+        request->value = _turbo_remote_constraints_;
+        auto response  = sc_set_constraints_.callSync(request);
+        if (response) {
+          renderServiceResult(response.value()->success, response.value()->message);
+        } else {
+          renderServiceResult(false, "service could not be called");
+        }
+      }
+    }
+    break;
+  }
+
+  case 'G': {
+    bool is_flying_normally;
+    {
+      std::scoped_lock lock(mutex_status_msg_);
+      is_flying_normally = uav_status_.flying_normally;
+    }
+    if (is_flying_normally) {
+      remote_global_ = !remote_global_;
+    }
+    break;
+  }
+
+  default: {
+    if (remote_hover_) {
+      auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
+      sc_hover_.callSync(request);
+      remote_hover_ = false;
+    }
+    break;
+  }
+  }
+
+  wattroff(win, A_BOLD);
+}
+
+void TUI::gimbalHandler(int key, WINDOW *win, bool /* mini */) {
+  if (_light_) {
+    wattron(win, A_STANDOUT);
+  }
+
+  wattron(win, A_BOLD);
+  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+  mvwprintw(win, 0, 43, "GIMBAL      MODE IS ACTIVE");
+
+  if (gimbal_command_.fpv_mode) {
+    mvwprintw(win, 0, 50, "FPV");
+  } else {
+    mvwprintw(win, 0, 50, "P-T");
+  }
+
+  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+
+  const uint16_t gimbal_max       = 2000;
+  const uint16_t gimbal_min       = 1000;
+  const uint16_t gimbal_increment = 10;
+
+  switch (key) {
+  case 'w':
+  case 'k':
+  case KEY_UP:
+    gimbal_command_.gimbal_tilt -= gimbal_increment;
+    break;
+  case 's':
+  case 'j':
+  case KEY_DOWN:
+    gimbal_command_.gimbal_tilt += gimbal_increment;
+    break;
+  case 'a':
+  case 'h':
+  case KEY_LEFT:
+    gimbal_command_.gimbal_pan -= gimbal_increment;
+    break;
+  case 'd':
+  case 'l':
+  case KEY_RIGHT:
+    gimbal_command_.gimbal_pan += gimbal_increment;
+    break;
+  case 'm':
+    gimbal_command_.fpv_mode = !gimbal_command_.fpv_mode;
+    break;
+  case 'o':
+    gimbal_command_.is_on = !gimbal_command_.is_on;
+    break;
+  case 'r':
+    resetGimbalCommand();
+    break;
+  }
+
+  if (gimbal_command_.gimbal_pan > gimbal_max) {
+    gimbal_command_.gimbal_pan = gimbal_max;
+  }
+  if (gimbal_command_.gimbal_tilt > gimbal_max) {
+    gimbal_command_.gimbal_tilt = gimbal_max;
+  }
+  if (gimbal_command_.gimbal_pan < gimbal_min) {
+    gimbal_command_.gimbal_pan = gimbal_min;
+  }
+  if (gimbal_command_.gimbal_tilt < gimbal_min) {
+    gimbal_command_.gimbal_tilt = gimbal_min;
+  }
+
+  ph_gimbal_state_.publish(gimbal_command_);
+
+  wattroff(win, A_BOLD);
+}
+
+void TUI::remoteModeFly(const mrs_msgs::msg::Reference &ref_in) {
+  auto request = std::make_shared<mrs_msgs::srv::ReferenceStampedSrv::Request>();
+
+  if (remote_global_) {
+
+    double      cmd_x, cmd_y, cmd_z, cmd_hdg;
+    std::string odom_frame;
+
+    {
+      std::scoped_lock lock(mutex_status_msg_);
+      cmd_x      = uav_status_.cmd_x;
+      cmd_y      = uav_status_.cmd_y;
+      cmd_z      = uav_status_.cmd_z;
+      cmd_hdg    = uav_status_.cmd_hdg;
+      odom_frame = uav_status_.odom_frame;
+    }
+
+    request->reference.position.x = cmd_x + ref_in.position.x;
+    request->reference.position.y = cmd_y + ref_in.position.y;
+    request->reference.position.z = cmd_z + ref_in.position.z;
+    request->reference.heading    = cmd_hdg + ref_in.heading;
+    request->header.frame_id      = odom_frame;
+
+  } else {
+
+    request->reference = ref_in;
+
+    std::string uav_name, odom_frame;
+    double      cmd_x, cmd_y, cmd_z, cmd_hdg;
+
+    {
+      std::scoped_lock lock(mutex_status_msg_);
+      uav_name   = uav_status_.uav_name;
+      cmd_x      = uav_status_.cmd_x;
+      cmd_y      = uav_status_.cmd_y;
+      cmd_z      = uav_status_.cmd_z;
+      cmd_hdg    = uav_status_.cmd_hdg;
+      odom_frame = uav_status_.odom_frame;
+    }
+
+    mrs_msgs::msg::ReferenceStamped cmd_reference;
+
+    cmd_reference.reference.position.x = cmd_x;
+    cmd_reference.reference.position.y = cmd_y;
+    cmd_reference.reference.position.z = cmd_z;
+    cmd_reference.reference.heading    = cmd_hdg;
+    cmd_reference.header.frame_id      = odom_frame;
+
+    request->header.frame_id = uav_name + "/fcu_untilted";
+    request->header.stamp    = clock_->now();
+
+    auto response = transformer_->transformSingle(cmd_reference, request->header.frame_id);
+    if (response) {
+      cmd_reference = response.value();
+    } else {
+      RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "Transform failed when transforming cmd_reference.");
+      return;
+    }
+
+    request->reference = cmd_reference.reference;
+    request->reference.position.x += ref_in.position.x;
+    request->reference.position.y += ref_in.position.y;
+    request->reference.position.z += ref_in.position.z;
+    request->reference.heading += ref_in.heading;
+    request->header.frame_id = cmd_reference.header.frame_id;
+  }
+
+  request->header.stamp = clock_->now();
+
+  auto response = sc_goto_reference_.callSync(request);
+}
 
 void TUI::renderTmuxOrHelp(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2, bool mini, bool help_active) {
   if (mini) {

@@ -67,7 +67,8 @@ void Status::initialize() {
 
   param_loader.loadParam("colorscheme", _colorscheme_);
 
-  param_loader.loadParam("mrs_uav_status/turbo_remote_constraints", _turbo_remote_constraints_);
+  std::string turbo_remote_constraints;
+  param_loader.loadParam("mrs_uav_status/turbo_remote_constraints", turbo_remote_constraints);
 
   param_loader.loadParam("mrs_uav_status/colorblind_mode", _colorblind_mode_);
   param_loader.loadParam("mrs_uav_status/enable_profiler", _profiler_enabled_);
@@ -120,21 +121,8 @@ void Status::initialize() {
   sh_uav_status_       = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavStatus>(shopts, "~/uav_status_in", &Status::callbackUavStatus, this);
   sh_uav_status_short_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavStatusShort>(shopts, "~/uav_status_short_in", &Status::callbackUavStatusShort, this);
 
-  // | ------------------------ Publishers ------------------------ |
-
-  ph_gimbal_state_ = mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>(node_, "~/gimbal_command_out");
-
-  // | --------------------- service clients -------------------- |
-
-  sc_goto_reference_  = mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>(node_, "~/reference_out", cbkgrp_sc_);
-  sc_set_constraints_ = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_constraints_out", cbkgrp_sc_);
-  sc_hover_           = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, "~/hover_out", cbkgrp_sc_);
-
   // mrs_lib profiler
   profiler_ = mrs_lib::Profiler(node_, "Status", _profiler_enabled_);
-
-  transformer_ = std::make_unique<mrs_lib::Transformer>(node_);
-  transformer_->retryLookupNewest(true);
 
   // --------------------------------------------------------------
   // |            Window creation and topic association           |
@@ -145,7 +133,7 @@ void Status::initialize() {
 
   _display_config_filename_ = _pwd_ + "/.mrs_status_display_config~";
 
-  tui_ = std::make_unique<tui::TUI>(node_, cbkgrp_sc_, _colorscheme_, _colorblind_mode_, mini_, _display_config_filename_, _turbo_remote_constraints_);
+  tui_ = std::make_unique<tui::TUI>(node_, cbkgrp_sc_, _colorscheme_, _colorblind_mode_, mini_, _display_config_filename_, turbo_remote_constraints);
   {
     std::scoped_lock lock(mutex_status_msg_);
     tui_->onUavStatus(uav_status_);
@@ -195,7 +183,7 @@ void Status::setupWindows() {
   }
 
   clear();
-  _light_ = tui::setupColors(false, _colorscheme_, _colorblind_mode_);
+  tui::setupColors(false, _colorscheme_, _colorblind_mode_);
 }
 
 //}
@@ -296,8 +284,8 @@ void Status::timerStatusFast() {
       }
 
       if (is_flying_normally_) {
-        remote_hover_ = false;
-        state_        = StatusState::REMOTE;
+        tui_->enterRemoteMode();
+        state_ = StatusState::REMOTE;
       }
 
       break;
@@ -309,11 +297,8 @@ void Status::timerStatusFast() {
 
     case 'G': {
 
-      gimbal_command_.fpv_mode    = true;
-      gimbal_command_.is_on       = true;
-      gimbal_command_.gimbal_pan  = 1500;
-      gimbal_command_.gimbal_tilt = 1500;
-      state_                      = StatusState::GIMBAL;
+      tui_->resetGimbalCommand();
+      state_ = StatusState::GIMBAL;
       break;
 
     case 'm':
@@ -360,27 +345,9 @@ void Status::timerStatusFast() {
   case StatusState::REMOTE: {
 
     flushinp();
-    remoteHandler(key_in, top_bar_window_);
+    tui_->remoteHandler(key_in, top_bar_window_, mini_);
 
     if (key_in == 'R' || key_in == static_cast<int>(mrs_uav_status::tui::Key::Escape)) {
-
-      if (turbo_remote_) {
-
-        turbo_remote_ = false;
-
-        auto request = std::make_shared<mrs_msgs::srv::String::Request>();
-
-        request->value = old_constraints_;
-
-        auto response = sc_set_constraints_.callSync(request);
-
-        if (response) {
-          tui_->renderServiceResult(response.value()->success, response.value()->message);
-        } else {
-          tui_->renderServiceResult(false, "service could not be called");
-        }
-      }
-
       state_ = StatusState::STANDARD;
     }
 
@@ -395,7 +362,7 @@ void Status::timerStatusFast() {
 
     flushinp();
 
-    gimbalHandler(key_in, top_bar_window_);
+    tui_->gimbalHandler(key_in, top_bar_window_, mini_);
 
     if (key_in == 'G' || key_in == static_cast<int>(mrs_uav_status::tui::Key::Escape)) {
       state_ = StatusState::STANDARD;
@@ -516,409 +483,6 @@ void Status::timerStatusSlow() {
 /* HANDLERS //{ */
 
 
-/* remoteHandler() //{ */
-
-void Status::remoteHandler(int key, WINDOW *win) {
-  if (_light_) {
-    wattron(win, A_STANDOUT);
-  }
-
-  wattron(win, A_BOLD);
-  wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-  if (mini_) {
-    mvwprintw(win, 0, 33, "REM");
-  } else {
-    mvwprintw(win, 0, 55, "REMOTE MODE");
-  }
-
-  if (remote_global_) {
-    if (mini_) {
-      mvwprintw(win, 0, 37, "G");
-    } else {
-      mvwprintw(win, 0, 75, "GLOBAL MODE");
-    }
-  } else {
-    if (mini_) {
-      mvwprintw(win, 0, 37, "L");
-    } else {
-      mvwprintw(win, 0, 75, "LOCAL MODE");
-    }
-  }
-
-  if (turbo_remote_) {
-    wattron(win, A_BLINK);
-    if (mini_) {
-      mvwprintw(win, 0, 39, "!T!");
-    } else {
-      mvwprintw(win, 0, 67, "!TURBO!");
-    }
-    wattroff(win, A_BLINK);
-  }
-
-  wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-
-  mrs_msgs::msg::Reference       reference;
-  mrs_msgs::srv::String::Request string_service;
-
-  reference.position.x = 0.0;
-  reference.position.y = 0.0;
-  reference.position.z = 0.0;
-  reference.heading    = 0.0;
-
-  switch (key) {
-
-  case 'w':
-  case 'k':
-  case KEY_UP:
-    reference.position.x = 2.0;
-
-    if (turbo_remote_) {
-      reference.position.x = 5.0;
-    }
-    remoteModeFly(reference);
-    remote_hover_ = true;
-    break;
-
-  case 's':
-  case 'j':
-  case KEY_DOWN:
-    reference.position.x = -2.0;
-
-    if (turbo_remote_) {
-      reference.position.x = -5.0;
-    }
-
-    remoteModeFly(reference);
-    remote_hover_ = true;
-    break;
-
-  case 'a':
-  case 'h':
-  case KEY_LEFT:
-    reference.position.y = 2.0;
-
-    if (turbo_remote_) {
-      reference.position.y = 5.0;
-    }
-
-    remoteModeFly(reference);
-    remote_hover_ = true;
-    break;
-
-  case 'd':
-  case 'l':
-  case KEY_RIGHT:
-    reference.position.y = -2.0;
-
-    if (turbo_remote_) {
-      reference.position.y = -5.0;
-    }
-
-    remoteModeFly(reference);
-    remote_hover_ = true;
-    break;
-
-  case 'r':
-    reference.position.z = 1.0;
-
-    if (turbo_remote_) {
-      reference.position.z = 2.0;
-    }
-
-    remoteModeFly(reference);
-    remote_hover_ = true;
-    break;
-
-  case 'f':
-    reference.position.z = -1.0;
-
-    if (turbo_remote_) {
-      reference.position.z = -2.0;
-    }
-
-    remoteModeFly(reference);
-    remote_hover_ = true;
-    break;
-
-  case 'q':
-    reference.heading = 0.5;
-
-    if (turbo_remote_) {
-      reference.heading = 1.0;
-    }
-
-    remoteModeFly(reference);
-    remote_hover_ = true;
-    break;
-
-  case 'e':
-    reference.heading = -0.5;
-
-    if (turbo_remote_) {
-      reference.heading = -1.0;
-    }
-
-    remoteModeFly(reference);
-    remote_hover_ = true;
-    break;
-
-  case 'T':
-
-    bool is_flying_normally_;
-
-    {
-      std::scoped_lock lock(mutex_status_msg_);
-      is_flying_normally_ = uav_status_.flying_normally;
-    }
-
-    if (is_flying_normally_) {
-
-      if (turbo_remote_) {
-
-        turbo_remote_ = false;
-
-        auto request = std::make_shared<mrs_msgs::srv::String::Request>();
-
-        request->value = old_constraints_;
-
-        auto response = sc_set_constraints_.callSync(request);
-
-        if (response) {
-          tui_->renderServiceResult(response.value()->success, response.value()->message);
-        } else {
-          tui_->renderServiceResult(false, "service could not be called");
-        }
-
-      } else {
-
-        turbo_remote_ = true;
-
-        {
-          std::scoped_lock lock(mutex_status_msg_);
-          old_constraints_ = uav_status_.constraints[0];
-        }
-
-        auto request = std::make_shared<mrs_msgs::srv::String::Request>();
-
-        request->value = _turbo_remote_constraints_;
-
-        auto response = sc_set_constraints_.callSync(request);
-
-        if (response) {
-          tui_->renderServiceResult(response.value()->success, response.value()->message);
-        } else {
-          tui_->renderServiceResult(false, "service could not be called");
-        }
-      }
-    }
-
-    break;
-
-  case 'G': {
-
-    {
-      std::scoped_lock lock(mutex_status_msg_);
-      is_flying_normally_ = uav_status_.flying_normally;
-    }
-
-    if (is_flying_normally_) {
-      remote_global_ = !remote_global_;
-    }
-
-    break;
-  }
-
-  default: {
-
-    if (remote_hover_) {
-
-      auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
-
-      sc_hover_.callSync(request);
-
-      remote_hover_ = false;
-    }
-
-    break;
-  }
-  }
-
-  wattroff(win, A_BOLD);
-}
-
-//}
-
-/* gimbalHandler() //{ */
-
-void Status::gimbalHandler(int key, WINDOW *win) {
-  if (_light_) {
-    wattron(win, A_STANDOUT);
-  }
-
-  wattron(win, A_BOLD);
-  wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-  mvwprintw(win, 0, 43, "GIMBAL      MODE IS ACTIVE");
-
-  if (gimbal_command_.fpv_mode) {
-    mvwprintw(win, 0, 50, "FPV");
-  } else {
-    mvwprintw(win, 0, 50, "P-T");
-  }
-
-  wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Red)));
-
-  const uint16_t gimbal_max       = 2000;
-  const uint16_t gimbal_min       = 1000;
-  uint16_t       gimbal_increment = 10;
-
-  switch (key) {
-
-  case 'w':
-  case 'k':
-  case KEY_UP:
-    gimbal_command_.gimbal_tilt -= gimbal_increment;
-    break;
-
-  case 's':
-  case 'j':
-  case KEY_DOWN:
-    gimbal_command_.gimbal_tilt += gimbal_increment;
-    break;
-
-  case 'a':
-  case 'h':
-  case KEY_LEFT:
-    gimbal_command_.gimbal_pan -= gimbal_increment;
-    break;
-
-  case 'd':
-  case 'l':
-  case KEY_RIGHT:
-    gimbal_command_.gimbal_pan += gimbal_increment;
-    break;
-
-  case 'm':
-    gimbal_command_.fpv_mode = !gimbal_command_.fpv_mode;
-    break;
-
-  case 'o':
-    gimbal_command_.is_on = !gimbal_command_.is_on;
-    break;
-
-  case 'r':
-    gimbal_command_.is_on       = true;
-    gimbal_command_.fpv_mode    = true;
-    gimbal_command_.gimbal_tilt = 1500;
-    gimbal_command_.gimbal_pan  = 1500;
-    break;
-  }
-
-  if (gimbal_command_.gimbal_pan > gimbal_max) {
-    gimbal_command_.gimbal_pan = gimbal_max;
-  }
-  if (gimbal_command_.gimbal_tilt > gimbal_max) {
-    gimbal_command_.gimbal_tilt = gimbal_max;
-  }
-
-  if (gimbal_command_.gimbal_pan < gimbal_min) {
-    gimbal_command_.gimbal_pan = gimbal_min;
-  }
-  if (gimbal_command_.gimbal_tilt < gimbal_min) {
-    gimbal_command_.gimbal_tilt = gimbal_min;
-  }
-
-  ph_gimbal_state_.publish(gimbal_command_);
-
-  wattroff(win, A_BOLD);
-}
-
-//}
-
-/* remoteModeFly() //{ */
-
-void Status::remoteModeFly(const mrs_msgs::msg::Reference &ref_in) {
-  auto request = std::make_shared<mrs_msgs::srv::ReferenceStampedSrv::Request>();
-
-  if (remote_global_) {
-
-    double      cmd_x;
-    double      cmd_y;
-    double      cmd_z;
-    double      cmd_hdg;
-    std::string odom_frame;
-
-    {
-      std::scoped_lock lock(mutex_status_msg_);
-      cmd_x      = uav_status_.cmd_x;
-      cmd_y      = uav_status_.cmd_y;
-      cmd_z      = uav_status_.cmd_z;
-      cmd_hdg    = uav_status_.cmd_hdg;
-      odom_frame = uav_status_.odom_frame;
-    }
-
-    request->reference.position.x = cmd_x + ref_in.position.x;
-    request->reference.position.y = cmd_y + ref_in.position.y;
-    request->reference.position.z = cmd_z + ref_in.position.z;
-    request->reference.heading    = cmd_hdg + ref_in.heading;
-    request->header.frame_id      = odom_frame;
-
-  } else {
-
-    request->reference = ref_in;
-
-    std::string uav_name;
-    double      cmd_x;
-    double      cmd_y;
-    double      cmd_z;
-    double      cmd_hdg;
-    std::string odom_frame;
-
-    {
-      std::scoped_lock lock(mutex_status_msg_);
-      uav_name   = uav_status_.uav_name;
-      cmd_x      = uav_status_.cmd_x;
-      cmd_y      = uav_status_.cmd_y;
-      cmd_z      = uav_status_.cmd_z;
-      cmd_hdg    = uav_status_.cmd_hdg;
-      odom_frame = uav_status_.odom_frame;
-    }
-
-    mrs_msgs::msg::ReferenceStamped cmd_reference;
-
-    cmd_reference.reference.position.x = cmd_x;
-    cmd_reference.reference.position.y = cmd_y;
-    cmd_reference.reference.position.z = cmd_z;
-    cmd_reference.reference.heading    = cmd_hdg;
-    cmd_reference.header.frame_id      = odom_frame;
-
-    request->header.frame_id = uav_name + "/fcu_untilted";
-    request->header.stamp    = clock_->now();
-
-    auto response = transformer_->transformSingle(cmd_reference, request->header.frame_id);
-    if (response) {
-      cmd_reference = response.value();
-    } else {
-      RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "Transform failed when transforming cmd_reference.");
-      return;
-    }
-
-    request->reference = cmd_reference.reference;
-    request->reference.position.x += ref_in.position.x;
-    request->reference.position.y += ref_in.position.y;
-    request->reference.position.z += ref_in.position.z;
-    request->reference.heading += ref_in.heading;
-    request->header.frame_id = cmd_reference.header.frame_id;
-  }
-
-  request->header.stamp = clock_->now();
-
-  auto response = sc_goto_reference_.callSync(request);
-}
-
-//}
-
-
-//}
 
 /* callbackUavStatus() //{ */
 

@@ -70,6 +70,12 @@ public:
   void loadDisplayConfig();
   void renderTmuxOrHelp(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2, bool mini, bool help_active);
 
+  // | -------------------- Remote & Gimbal --------------------- |
+  void remoteHandler(int key, WINDOW *win, bool mini);
+  void gimbalHandler(int key, WINDOW *win, bool mini);
+  void resetGimbalCommand();
+  void enterRemoteMode();
+
 private:
   std::string _colorscheme_;
   std::string _display_config_filename_;
@@ -106,10 +112,14 @@ private:
   std::vector<MenuRow> main_menu_rows_;
   std::vector<MenuRow> sub_menu_rows_;
 
-  // | -------------------- Remote & Flight --------------------- |
-  void remoteHandler(int key, WINDOW *win);
-  void gimbalHandler(int key, WINDOW *win);
+  // | -------------------- Remote (private helpers) ------------ |
   void remoteModeFly(const mrs_msgs::msg::Reference &ref_in);
+
+  bool remote_hover_  = false;
+  bool turbo_remote_  = false;
+  bool remote_global_ = false;
+  std::string old_constraints_;
+  mrs_msgs::msg::GimbalState gimbal_command_;
 
   // | ------------------- Menu (private helpers) --------------- |
   static bool isValidMenuIndex(int index, size_t container_size);
