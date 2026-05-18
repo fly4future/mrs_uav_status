@@ -136,7 +136,7 @@ void Status::timerStatusFast() {
     tui_->uavStateHandler();
   }
 
-  tui_->maybeBlankBottomWindow();
+  tui_->blankBottomWindow();
 
   int key_in = getch();
 

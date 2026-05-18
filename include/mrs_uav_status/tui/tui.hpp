@@ -66,7 +66,7 @@ public:
   void tickSlowCounter();
 
   // | --------------------- Bottom-window helpers --------------- |
-  void maybeBlankBottomWindow();
+  void blankBottomWindow();
   void refreshBottomWindow();
   void renderServiceResult(bool success, const std::string &msg);
 
@@ -116,6 +116,15 @@ private:
   std::mutex               mutex_status_msg_;
   mrs_msgs::msg::UavStatus uav_status_;
 
+  /** @brief struct to hold menu entries and their associated actions */
+  /*
+  // This is used for both the main menu and submenus, where the on_open function defines what happens when the menu entry is selected
+  // For the main menu, the on_open function typically creates a submenu with specific entries and actions. For the submenus, the on_open function typically
+      - @label: the text displayed for the menu entry
+      - @on_open: a function that is called when the menu entry is selected. This function can be used to create submenus or perform actions directly. It is
+  defined as a std::function that takes no arguments and returns void, allowing for flexibility in the actions that can be performed when a menu entry is
+  selected.
+  */
   struct MenuRow
   {
     std::string           label;
@@ -127,6 +136,9 @@ private:
 
   // | -------------------- Remote (private helpers) ------------ |
   void remoteModeFly(const mrs_msgs::msg::Reference &ref_in);
+  void drawRemoteBanner(WINDOW *win);
+  void handleRemoteMotion(int key);
+  void toggleTurboRemote();
 
   bool                       remote_hover_  = false;
   bool                       turbo_remote_  = false;

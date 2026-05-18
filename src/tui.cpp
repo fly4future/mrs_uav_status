@@ -351,23 +351,30 @@ void TUI::stringHandler() {
     bool        blink              = false;
     std::string tmp_display_string = string_vector[i];
 
-    if (tmp_display_string.at(0) == '-') {
+    if (tmp_display_string.size() >= 3 && tmp_display_string[0] == '-') {
+      const char c = tmp_display_string[1];
 
-      if (tmp_display_string.at(1) == 'r') {
+      switch (c) {
+      case 'R':
+        blink = true;
+        [[fallthrough]];
+      case 'r':
         tmp_color = static_cast<int>(ColorPair::Red);
-      } else if (tmp_display_string.at(1) == 'R') {
-        tmp_color = static_cast<int>(ColorPair::Red);
-        blink     = true;
-      } else if (tmp_display_string.at(1) == 'y') {
+        break;
+
+      case 'Y':
+        blink = true;
+        [[fallthrough]];
+      case 'y':
         tmp_color = static_cast<int>(ColorPair::Yellow);
-      } else if (tmp_display_string.at(1) == 'Y') {
-        tmp_color = static_cast<int>(ColorPair::Yellow);
-        blink     = true;
-      } else if (tmp_display_string.at(1) == 'g') {
+        break;
+
+      case 'G':
+        blink = true;
+        [[fallthrough]];
+      case 'g':
         tmp_color = static_cast<int>(ColorPair::Green);
-      } else if (tmp_display_string.at(1) == 'G') {
-        tmp_color = static_cast<int>(ColorPair::Green);
-        blink     = true;
+        break;
       }
 
       if (tmp_color != static_cast<int>(ColorPair::Normal)) {
@@ -418,7 +425,6 @@ void TUI::genericTopicHandler() {
   }
 
   if (!custom_topic_vec.empty()) {
-
     for (size_t i = 0; i < custom_topic_vec.size(); i++) {
 
       wattron(win, COLOR_PAIR(custom_topic_vec[i].topic_color));
@@ -431,9 +437,7 @@ void TUI::genericTopicHandler() {
       }
       wattroff(win, COLOR_PAIR(custom_topic_vec[i].topic_color));
     }
-
   } else {
-
     werase(win);
   }
 
@@ -1184,84 +1188,60 @@ void TUI::topLineHandler() {
     num_other_uavs              = uav_status_.num_other_uavs;
   }
 
-  double tmp_time       = (clock_->now() - last_time_got_data_).seconds();
-  double tmp_short_time = (clock_->now() - last_time_got_short_data_).seconds();
+  double since_data_s       = (clock_->now() - last_time_got_data_).seconds();
+  double since_data_short_s = (clock_->now() - last_time_got_short_data_).seconds();
 
-  if (tmp_short_time < 3.0) {
-    have_short_data_ = true;
-  } else {
-    have_short_data_ = false;
-  }
+  have_short_data_ = (since_data_short_s < 3.0);
 
-  if (tmp_short_time >= 99.9) {
-    tmp_short_time = 99.9;
-  }
-
-  if (tmp_time > 3.0 && have_data_) {
-    have_data_ = false;
+  // If we haven't received data for a while, switch to the "no data" color scheme. If we start receiving data again, switch back to the normal color scheme.
+  if (const bool nd = (since_data_s < 3.0); nd != have_data_) {
+    have_data_ = nd;
     _light_    = setupColors(have_data_, _colorscheme_, _colorblind_mode_);
   }
 
-  if (tmp_time < 3.0 && !have_data_) {
-    have_data_ = true;
-    _light_    = setupColors(have_data_, _colorscheme_, _colorblind_mode_);
-  }
-
-  if (tmp_time >= 99.9) {
-    tmp_time = 99.9;
-  }
+  since_data_short_s = std::min(since_data_short_s, 99.9);
+  since_data_s       = std::min(since_data_s, 99.9);
 
   mvwprintw(win, 0, 10, " %s %s ", uav_name.c_str(), uav_type.c_str());
 
-  if (!mini_) {
-    if (collision_avoidance_enabled) {
-      if (avoiding_collision) {
-        wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-        wattron(win, A_BLINK);
-        mvwprintw(win, 0, 26, "!! AVOIDING COLLISION !!");
-        wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-        wattroff(win, A_BLINK);
-      } else {
-        wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
-        mvwprintw(win, 0, 26, "COL AVOID ENABLED,");
-        if (num_other_uavs == 0) {
-          wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-        }
-        mvwprintw(win, 0, 45, "UAVs: ");
-        printLimitedInt(win, 0, 51, "%i", num_other_uavs, 100);
-        wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
-        wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-      }
-    } else {
-      wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-      mvwprintw(win, 0, 26, "COL AVOID DISABLED");
-      wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-    }
+  const int status_x = mini_ ? 27 : 26;
+  const int alert_x  = mini_ ? 22 : 26;
+  const int count_x  = mini_ ? 31 : 51;
+  const int uavs_x   = mini_ ? -1 : 45;
+
+  const char *disabled_text = mini_ ? "C/A" : "COL AVOID DISABLED";
+  const char *avoiding_text = mini_ ? "!AVOIDING!" : "!! AVOIDING COLLISION !!";
+  const char *enabled_text  = mini_ ? "C/A" : "COL AVOID ENABLED,";
+
+  if (!collision_avoidance_enabled) {
+    wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+    mvwprintw(win, 0, status_x, "%s", disabled_text);
+    wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+  } else if (avoiding_collision) {
+    wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+    wattron(win, A_BLINK);
+    mvwprintw(win, 0, alert_x, "%s", avoiding_text);
+    wattroff(win, A_BLINK);
+    wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   } else {
+    wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
+    mvwprintw(win, 0, status_x, "%s", enabled_text);
 
-    if (collision_avoidance_enabled) {
+    if (!mini_) {
+      mvwprintw(win, 0, uavs_x, "UAVs: ");
+    }
 
-      if (avoiding_collision) {
-        wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-        wattron(win, A_BLINK);
-        mvwprintw(win, 0, 22, "!AVOIDING!");
-        wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-        wattroff(win, A_BLINK);
-      } else {
-        wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
-        mvwprintw(win, 0, 27, "C/A");
-        if (num_other_uavs == 0) {
-          wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-        }
-        printLimitedInt(win, 0, 31, "%i", num_other_uavs, 100);
-        wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
-        wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-      }
-    } else {
+    if (num_other_uavs == 0) {
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-      mvwprintw(win, 0, 27, "C/A");
+    }
+
+    printLimitedInt(win, 0, count_x, "%i", num_other_uavs, 100);
+
+    if (num_other_uavs == 0) {
       wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
     }
+
+    wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
   }
 
   if (!have_data_) {
@@ -1283,7 +1263,7 @@ void TUI::topLineHandler() {
 
 // | --------------------- Bottom-window helpers --------------- |
 
-void TUI::maybeBlankBottomWindow() {
+void TUI::blankBottomWindow() {
   if ((clock_->now() - bottom_window_clear_time_).seconds() > 3.0) {
     werase(bottom_window_);
   }
@@ -1406,6 +1386,7 @@ void TUI::setupMainMenu() {
   main_menu_rows_.clear();
   main_menu_text_.clear();
 
+  // Create menu entries for services
   for (auto &service : service_vec_) {
     main_menu_rows_.push_back({service.service_display_name, [this, &service]() {
                                  std::vector<std::string> menu_text{"CANCEL", service.service_display_name};
@@ -1414,6 +1395,7 @@ void TUI::setupMainMenu() {
                                }});
   }
 
+  // Create menu entries for setting controller, tracker, gains, constraints, estimator
   main_menu_rows_.push_back({"Set Constraints", [this]() {
                                std::vector<std::string> constraints_text;
                                {
@@ -1567,14 +1549,14 @@ bool TUI::gotoMenuHandler(int key_in) {
 
     auto response = sc_goto_reference_.callSync(request);
 
-    if (response) {
-      renderServiceResult(response.value()->success, response.value()->message);
-    } else {
+    if (!response) {
       renderServiceResult(false, "service could not be called");
+      menu_vec_.clear();
+      return true;
     }
 
+    renderServiceResult(response.value()->success, response.value()->message);
     menu_vec_.clear();
-
     return true;
 
   } else if (isValidMenuIndex(result.selected_line, goto_menu_inputs_.size())) {
@@ -1694,160 +1676,105 @@ void TUI::resetGimbalCommand() {
 }
 
 void TUI::remoteHandler(int key) {
-  WINDOW *win = top_bar_window_;
+  drawRemoteBanner(top_bar_window_);
+
+  if (key == 'T') {
+    toggleTurboRemote();
+    return;
+  }
+
+  if (key == 'G') {
+    std::scoped_lock lock(mutex_status_msg_);
+    if (uav_status_.flying_normally) {
+      remote_global_ = !remote_global_;
+    }
+    return;
+  }
+
+  handleRemoteMotion(key);
+}
+
+void TUI::drawRemoteBanner(WINDOW *win) {
   if (_light_) {
     wattron(win, A_STANDOUT);
   }
 
+  const int rem_x   = mini_ ? 33 : 55;
+  const int mode_x  = mini_ ? 37 : 75;
+  const int turbo_x = mini_ ? 39 : 67;
+
+  const char *rem_text   = mini_ ? "REM" : "REMOTE MODE";
+  const char *mode_text  = remote_global_ ? (mini_ ? "G" : "GLOBAL MODE") : (mini_ ? "L" : "LOCAL MODE");
+  const char *turbo_text = mini_ ? "!T!" : "!TURBO!";
+
   wattron(win, A_BOLD);
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-  if (mini_) {
-    mvwprintw(win, 0, 33, "REM");
-  } else {
-    mvwprintw(win, 0, 55, "REMOTE MODE");
-  }
 
-  if (remote_global_) {
-    if (mini_) {
-      mvwprintw(win, 0, 37, "G");
-    } else {
-      mvwprintw(win, 0, 75, "GLOBAL MODE");
-    }
-  } else {
-    if (mini_) {
-      mvwprintw(win, 0, 37, "L");
-    } else {
-      mvwprintw(win, 0, 75, "LOCAL MODE");
-    }
-  }
+  mvwprintw(win, 0, rem_x, "%s", rem_text);
+  mvwprintw(win, 0, mode_x, "%s", mode_text);
 
   if (turbo_remote_) {
     wattron(win, A_BLINK);
-    if (mini_) {
-      mvwprintw(win, 0, 39, "!T!");
-    } else {
-      mvwprintw(win, 0, 67, "!TURBO!");
-    }
+    mvwprintw(win, 0, turbo_x, "%s", turbo_text);
     wattroff(win, A_BLINK);
   }
 
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+  wattroff(win, A_BOLD);
+}
 
-  mrs_msgs::msg::Reference reference;
+void TUI::handleRemoteMotion(int key) {
+  const double xy_step  = turbo_remote_ ? 5.0 : 2.0;
+  const double z_step   = turbo_remote_ ? 2.0 : 1.0;
+  const double hdg_step = turbo_remote_ ? 1.0 : 0.5;
 
-  reference.position.x = 0.0;
-  reference.position.y = 0.0;
-  reference.position.z = 0.0;
-  reference.heading    = 0.0;
+  auto fly = [&](double dx, double dy, double dz, double dhdg) {
+    mrs_msgs::msg::Reference reference{};
+    reference.position.x = dx;
+    reference.position.y = dy;
+    reference.position.z = dz;
+    reference.heading    = dhdg;
+    remoteModeFly(reference);
+    remote_hover_ = true;
+  };
 
   switch (key) {
-
   case 'w':
   case 'k':
   case KEY_UP:
-    reference.position.x = turbo_remote_ ? 5.0 : 2.0;
-    remoteModeFly(reference);
-    remote_hover_ = true;
+    fly(xy_step, 0, 0, 0);
     break;
-
   case 's':
   case 'j':
   case KEY_DOWN:
-    reference.position.x = turbo_remote_ ? -5.0 : -2.0;
-    remoteModeFly(reference);
-    remote_hover_ = true;
+    fly(-xy_step, 0, 0, 0);
     break;
-
   case 'a':
   case 'h':
   case KEY_LEFT:
-    reference.position.y = turbo_remote_ ? 5.0 : 2.0;
-    remoteModeFly(reference);
-    remote_hover_ = true;
+    fly(0, xy_step, 0, 0);
     break;
-
   case 'd':
   case 'l':
   case KEY_RIGHT:
-    reference.position.y = turbo_remote_ ? -5.0 : -2.0;
-    remoteModeFly(reference);
-    remote_hover_ = true;
+    fly(0, -xy_step, 0, 0);
     break;
 
   case 'r':
-    reference.position.z = turbo_remote_ ? 2.0 : 1.0;
-    remoteModeFly(reference);
-    remote_hover_ = true;
+    fly(0, 0, z_step, 0);
     break;
-
   case 'f':
-    reference.position.z = turbo_remote_ ? -2.0 : -1.0;
-    remoteModeFly(reference);
-    remote_hover_ = true;
+    fly(0, 0, -z_step, 0);
     break;
 
   case 'q':
-    reference.heading = turbo_remote_ ? 1.0 : 0.5;
-    remoteModeFly(reference);
-    remote_hover_ = true;
+    fly(0, 0, 0, hdg_step);
     break;
-
   case 'e':
-    reference.heading = turbo_remote_ ? -1.0 : -0.5;
-    remoteModeFly(reference);
-    remote_hover_ = true;
+    fly(0, 0, 0, -hdg_step);
     break;
 
-  case 'T': {
-    bool is_flying_normally;
-    {
-      std::scoped_lock lock(mutex_status_msg_);
-      is_flying_normally = uav_status_.flying_normally;
-    }
-
-    if (is_flying_normally) {
-      if (turbo_remote_) {
-        turbo_remote_  = false;
-        auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
-        request->value = old_constraints_;
-        auto response  = sc_set_constraints_.callSync(request);
-        if (response) {
-          renderServiceResult(response.value()->success, response.value()->message);
-        } else {
-          renderServiceResult(false, "service could not be called");
-        }
-      } else {
-        turbo_remote_ = true;
-        {
-          std::scoped_lock lock(mutex_status_msg_);
-          old_constraints_ = uav_status_.constraints[0];
-        }
-        auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
-        request->value = _turbo_remote_constraints_;
-        auto response  = sc_set_constraints_.callSync(request);
-        if (response) {
-          renderServiceResult(response.value()->success, response.value()->message);
-        } else {
-          renderServiceResult(false, "service could not be called");
-        }
-      }
-    }
-    break;
-  }
-
-  case 'G': {
-    bool is_flying_normally;
-    {
-      std::scoped_lock lock(mutex_status_msg_);
-      is_flying_normally = uav_status_.flying_normally;
-    }
-    if (is_flying_normally) {
-      remote_global_ = !remote_global_;
-    }
-    break;
-  }
-
-  default: {
+  default:
     if (remote_hover_) {
       auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
       sc_hover_.callSync(request);
@@ -1855,9 +1782,47 @@ void TUI::remoteHandler(int key) {
     }
     break;
   }
+}
+
+void TUI::toggleTurboRemote() {
+  bool is_flying_normally;
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    is_flying_normally = uav_status_.flying_normally;
   }
 
-  wattroff(win, A_BOLD);
+  if (!is_flying_normally) {
+    return;
+  }
+
+  if (turbo_remote_) {
+    // Toggle down turbo remote after new pressed T
+    turbo_remote_  = false;
+    auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
+    request->value = old_constraints_;
+    auto response  = sc_set_constraints_.callSync(request);
+    if (!response) {
+      renderServiceResult(false, "service could not be called");
+      return;
+    }
+    renderServiceResult(response.value()->success, response.value()->message);
+    return;
+  }
+
+  // Enable turbo remote constraints
+  turbo_remote_ = true;
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    old_constraints_ = uav_status_.constraints[0];
+  }
+  auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
+  request->value = _turbo_remote_constraints_;
+  auto response  = sc_set_constraints_.callSync(request);
+  if (!response) {
+    renderServiceResult(false, "service could not be called");
+    return;
+  }
+  renderServiceResult(response.value()->success, response.value()->message);
 }
 
 void TUI::gimbalHandler(int key) {
