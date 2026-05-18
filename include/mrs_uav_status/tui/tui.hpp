@@ -54,6 +54,22 @@ public:
 
   void tickSlowCounter();
 
+  // | --------------------- Bottom-window helpers --------------- |
+  void bindBottomWindow(WINDOW *win);
+  void maybeBlankBottomWindow();
+  void renderServiceResult(bool success, const std::string &msg);
+
+  // | ------------------- Menu (public entry) ------------------- |
+  void setupMainMenu();
+  void setupGotoMenu();
+  void setupDisplayMenu();
+  bool mainMenuHandler(int key_in);
+  bool gotoMenuHandler(int key_in);
+  bool displayMenuHandler(int key_in);
+  void clearMenus();
+  void loadDisplayConfig();
+  void renderTmuxOrHelp(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2, bool mini, bool help_active);
+
 private:
   std::string _colorscheme_;
   std::string _display_config_filename_;
@@ -95,14 +111,7 @@ private:
   void gimbalHandler(int key, WINDOW *win);
   void remoteModeFly(const mrs_msgs::msg::Reference &ref_in);
 
-  // | ------------------- Menu & Input Logic ------------------- |
-  void        setupMainMenu();
-  void        setupGotoMenu();
-  void        setupDisplayMenu();
-  void        setupDisplayText();
-  bool        mainMenuHandler(int key_in);
-  bool        gotoMenuHandler(int key_in);
-  bool        displayMenuHandler(int key_in);
+  // | ------------------- Menu (private helpers) --------------- |
   static bool isValidMenuIndex(int index, size_t container_size);
   void        createSubMenu(std::vector<std::string> &submenu_entries);
   void        createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<mrs_msgs::srv::String> &service_client);
@@ -117,6 +126,7 @@ private:
 
   bool updateTermSize();
   void prefillUavStatus();
+  void setupDisplayText();
 
   long last_gigas_                 = 0;
   bool have_data_                  = false;
@@ -125,6 +135,7 @@ private:
   bool increment_counter_          = false;
   rclcpp::Time last_time_got_data_;
   rclcpp::Time last_time_got_short_data_;
+  rclcpp::Time bottom_window_clear_time_;
 
 
   // | ---------------------- Window Pointers ------------------- |
