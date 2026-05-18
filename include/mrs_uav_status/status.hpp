@@ -129,7 +129,6 @@ private:
   void hwApiStateHandler(WINDOW *win);
   void genericTopicHandler(WINDOW *win);
   void nodeStatsHandler(WINDOW *win);
-  void generalInfoHandler(WINDOW *win);
   void stringHandler(WINDOW *win);
 
   // | ---------------------- Window Pointers ------------------- |

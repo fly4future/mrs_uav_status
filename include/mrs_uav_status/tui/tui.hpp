@@ -47,7 +47,7 @@ public:
   void uavStateHandler(WINDOW *win);
   void nodeStatsHandler(WINDOW *win);
   void hwApiStateHandler(WINDOW *win);
-  void generalInfoHandler(WINDOW *win);
+  void generalInfoHandler(WINDOW *win, bool mini);
   void genericTopicHandler(WINDOW *win);
   void controlManagerHandler(WINDOW *win);
 
@@ -115,6 +115,8 @@ private:
   bool updateTermSize();
   void prefillUavStatus();
   void topLineHandler(WINDOW *win);
+
+  long last_gigas_ = 0;
 
 
   // | ---------------------- Window Pointers ------------------- |

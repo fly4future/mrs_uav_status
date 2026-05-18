@@ -571,7 +571,7 @@ void Status::timerStatusSlow() {
 
   {
     mrs_lib::Routine profiler_routine = profiler_.createRoutine("generalInfoHandler");
-    generalInfoHandler(general_info_window_);
+    tui_->generalInfoHandler(general_info_window_, mini_);
   }
 }
 
@@ -2308,43 +2308,6 @@ void Status::topLineHandler(WINDOW *win) {
 
   mvwprintw(win, 0, 0, "ToF: %i:%02i", mins, secs);
   wattroff(win, A_BOLD);
-
-  wnoutrefresh(win);
-}
-
-//}
-
-/* generalInfoHandler() //{ */
-
-void Status::generalInfoHandler(WINDOW *win) {
-  werase(win);
-  wattron(win, A_BOLD);
-  wattron(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
-  wattroff(win, COLOR_PAIR(static_cast<int>(mrs_uav_status::tui::ColorPair::Normal)));
-  wattroff(win, A_STANDOUT);
-  tui::printBox(win, avoiding_collision_, automatic_start_can_takeoff_, null_tracker_);
-
-  if (_light_) {
-    wattron(win, A_STANDOUT);
-  }
-
-  double cpu_load, cpu_ghz, free_ram, total_ram;
-  int    free_hdd;
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    cpu_load  = uav_status_.cpu_load;
-    cpu_ghz   = uav_status_.cpu_ghz;
-    free_ram  = uav_status_.free_ram;
-    total_ram = uav_status_.total_ram;
-    free_hdd  = uav_status_.free_hdd;
-  }
-  tui::printCpuLoad(win, cpu_load, mini_);
-  tui::printMemLoad(win, free_ram, total_ram, mini_);
-  if (!mini_) {
-    tui::printCpuFreq(win, cpu_ghz);
-  }
-  tui::printDiskSpace(win, free_hdd, last_gigas_, mini_);
-  last_gigas_ = free_hdd;
 
   wnoutrefresh(win);
 }

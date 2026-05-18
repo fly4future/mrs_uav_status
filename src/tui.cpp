@@ -13,6 +13,8 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
       node_(node),
       clock_(node->get_clock()) {
 
+  _light_ = (colorscheme.find("COLORSCHEME_LIGHT") != std::string::npos);
+
   ph_gimbal_state_    = mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>(node_, "~/gimbal_command_out");
   sc_goto_reference_  = mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>(node_, "~/reference_out", cbkgrp_sc);
   sc_set_constraints_ = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_constraints_out", cbkgrp_sc);
@@ -120,6 +122,45 @@ void TUI::setupWindows(bool have_data) {
 
   clear();
   _light_ = tui::setupColors(have_data, _colorscheme_, _colorblind_mode_);
+}
+
+void TUI::generalInfoHandler(WINDOW *win, bool mini) {
+  werase(win);
+  wattron(win, A_BOLD);
+  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
+  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
+  wattroff(win, A_STANDOUT);
+
+  bool   avoiding_collision, can_takeoff, null_tracker;
+  double cpu_load, cpu_ghz, free_ram, total_ram;
+  int    free_hdd;
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    avoiding_collision = uav_status_.avoiding_collision;
+    can_takeoff        = uav_status_.automatic_start_can_takeoff;
+    null_tracker       = uav_status_.null_tracker;
+    cpu_load           = uav_status_.cpu_load;
+    cpu_ghz            = uav_status_.cpu_ghz;
+    free_ram           = uav_status_.free_ram;
+    total_ram          = uav_status_.total_ram;
+    free_hdd           = uav_status_.free_hdd;
+  }
+
+  printBox(win, avoiding_collision, can_takeoff, null_tracker);
+
+  if (_light_) {
+    wattron(win, A_STANDOUT);
+  }
+
+  printCpuLoad(win, cpu_load, mini);
+  printMemLoad(win, free_ram, total_ram, mini);
+  if (!mini) {
+    printCpuFreq(win, cpu_ghz);
+  }
+  printDiskSpace(win, free_hdd, last_gigas_, mini);
+  last_gigas_ = free_hdd;
+
+  wnoutrefresh(win);
 }
 
 
