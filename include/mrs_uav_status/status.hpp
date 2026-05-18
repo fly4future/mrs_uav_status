@@ -124,12 +124,6 @@ private:
 
   // | --------------------- Window Handlers -------------------- |
   void setupWindows();
-  void uavStateHandler(WINDOW *win);
-  void controlManagerHandler(WINDOW *win);
-  void hwApiStateHandler(WINDOW *win);
-  void genericTopicHandler(WINDOW *win);
-  void nodeStatsHandler(WINDOW *win);
-  void stringHandler(WINDOW *win);
 
   // | ---------------------- Window Pointers ------------------- |
   WINDOW *uav_state_window_       = nullptr;

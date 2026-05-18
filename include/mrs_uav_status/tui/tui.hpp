@@ -43,13 +43,16 @@ public:
 
   // | --------------------- Window Handlers -------------------- |
   void setupWindows(bool have_data);
-  void stringHandler(WINDOW *win);
-  void uavStateHandler(WINDOW *win);
+  void stringHandler(WINDOW *win, bool mini);
+  void uavStateHandler(WINDOW *win, bool mini);
   void nodeStatsHandler(WINDOW *win);
-  void hwApiStateHandler(WINDOW *win);
+  void hwApiStateHandler(WINDOW *win, bool mini);
   void generalInfoHandler(WINDOW *win, bool mini);
-  void genericTopicHandler(WINDOW *win);
-  void controlManagerHandler(WINDOW *win);
+  void genericTopicHandler(WINDOW *win, bool mini);
+  void controlManagerHandler(WINDOW *win, bool mini);
+  void topLineHandler(WINDOW *win, bool mini);
+
+  void tickSlowCounter();
 
 private:
   std::string _colorscheme_;
@@ -114,9 +117,14 @@ private:
 
   bool updateTermSize();
   void prefillUavStatus();
-  void topLineHandler(WINDOW *win);
 
-  long last_gigas_ = 0;
+  long last_gigas_                 = 0;
+  bool have_data_                  = false;
+  bool have_short_data_            = false;
+  int  estimator_display_counter_  = 0;
+  bool increment_counter_          = false;
+  rclcpp::Time last_time_got_data_;
+  rclcpp::Time last_time_got_short_data_;
 
 
   // | ---------------------- Window Pointers ------------------- |
