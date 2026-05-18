@@ -164,6 +164,8 @@ void Status::initialize() {
 
   _display_config_filename_ = _pwd_ + "/.mrs_status_display_config~";
 
+  tui_ = std::make_unique<tui::TUI>(node_, cbkgrp_sc_, _colorscheme_, _colorblind_mode_, mini_, _display_config_filename_, _turbo_remote_constraints_);
+
   if (std::filesystem::exists(_display_config_filename_)) {
 
     selected_tmux_window_.clear();
@@ -2363,6 +2365,8 @@ void Status::callbackUavStatus(const mrs_msgs::msg::UavStatus::ConstSharedPtr ms
     uav_status_ = *msg;
   }
 
+  tui_->onUavStatus(*msg);
+
   last_time_got_data_ = clock_->now();
 }
 
@@ -2390,6 +2394,8 @@ void Status::callbackUavStatusShort(const mrs_msgs::msg::UavStatusShort::ConstSh
     uav_status_.cmd_z   = msg->cmd_z;
     uav_status_.cmd_hdg = msg->cmd_hdg;
   }
+
+  tui_->onUavStatusShort(*msg);
 
   last_time_got_short_data_ = clock_->now();
 }

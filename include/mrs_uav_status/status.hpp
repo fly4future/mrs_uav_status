@@ -18,6 +18,7 @@
 #include <mrs_uav_status/tui/print_helpers.hpp>
 #include <mrs_uav_status/tui/status_window.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
+#include <mrs_uav_status/tui/tui.hpp>
 #include <mrs_uav_status/utils/split.hpp>
 #include <mrs_uav_status/utils/terminal.hpp>
 
@@ -221,6 +222,8 @@ private:
 
   mrs_lib::Profiler                     profiler_;
   std::unique_ptr<mrs_lib::Transformer> transformer_;
+
+  std::unique_ptr<tui::TUI> tui_;
 };
 
 } // namespace mrs_uav_status
