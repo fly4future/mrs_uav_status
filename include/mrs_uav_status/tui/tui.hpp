@@ -36,7 +36,8 @@ namespace mrs_uav_status::tui
 class TUI {
 public:
   TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const std::string &colorscheme, bool colorblind_mode, bool minimized_mode,
-      const std::string &display_config_filename, const std::string &turbo_remote_constraints);
+      const std::string &display_config_filename, const std::string &turbo_remote_constraints, const std::vector<std::string> &service_list,
+      const std::vector<double> &goto_values);
 
   // | --------------------- Data push (thread-safe) --------------------- |
   void onUavStatus(const mrs_msgs::msg::UavStatus &msg);

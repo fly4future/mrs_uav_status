@@ -17,7 +17,8 @@ using radians = mrs_lib::geometry::radians;
 
 
 TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const std::string &colorscheme, bool colorblind_mode, bool minimized_mode,
-         const std::string &display_config_filename, const std::string &turbo_remote_constraints)
+         const std::string &display_config_filename, const std::string &turbo_remote_constraints, const std::vector<std::string> &service_list,
+         const std::vector<double> &goto_values)
     : _colorscheme_(colorscheme), _display_config_filename_(display_config_filename), _turbo_remote_constraints_(turbo_remote_constraints),
       _colorblind_mode_(colorblind_mode), mini_(minimized_mode), node_(node), clock_(node->get_clock()) {
 
@@ -29,13 +30,8 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
   last_time_got_short_data_ = rclcpp::Time(0, 0, clock_->get_clock_type());
   bottom_window_clear_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
 
-  goto_double_vec_ = {0.0, 0.0, 2.0, 1.57};
-
-  service_input_vec_ = {
-      "uav_manager/land Land",
-      "uav_manager/land_home Land Home",
-      "uav_manager/takeoff Takeoff",
-  };
+  goto_double_vec_   = goto_values;
+  service_input_vec_ = service_list;
 
   ph_gimbal_state_    = mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>(node_, "~/gimbal_command_out");
   sc_goto_reference_  = mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>(node_, "~/reference_out", cbkgrp_sc);

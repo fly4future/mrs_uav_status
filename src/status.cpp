@@ -53,15 +53,23 @@ void Status::initialize() {
   param_loader.addYamlFileFromParam("config_public");
 
   std::string pwd, colorscheme, turbo_remote_constraints;
+  double      update_rate, update_rate_slow, resize_rate;
+  std::vector<double> goto_values; 
   bool        colorblind_mode = false;
   bool        start_minimized = false;
 
   param_loader.loadParam("pwd", pwd);
   param_loader.loadParam("colorscheme", colorscheme);
+  param_loader.loadParam("mrs_uav_status/update_rate", update_rate);
+  param_loader.loadParam("mrs_uav_status/update_rate_slow", update_rate_slow);
+  param_loader.loadParam("mrs_uav_status/resize_rate", resize_rate);
   param_loader.loadParam("mrs_uav_status/turbo_remote_constraints", turbo_remote_constraints);
   param_loader.loadParam("mrs_uav_status/colorblind_mode", colorblind_mode);
   param_loader.loadParam("mrs_uav_status/enable_profiler", _profiler_enabled_);
   param_loader.loadParam("mrs_uav_status/start_minimized", start_minimized);
+  std::vector<std::string> service_list;
+  param_loader.loadParam("mrs_uav_status/service_list", service_list);
+  param_loader.loadParam("mrs_uav_status/goto_values", goto_values);
 
   if (!param_loader.loadedSuccessfully()) {
     RCLCPP_ERROR(node_->get_logger(), "Could not load all parameters!");
@@ -72,7 +80,7 @@ void Status::initialize() {
 
   const std::string display_config_filename = pwd + "/.mrs_status_display_config~";
 
-  tui_ = std::make_unique<tui::TUI>(node_, cbkgrp_sc_, colorscheme, colorblind_mode, start_minimized, display_config_filename, turbo_remote_constraints);
+  tui_ = std::make_unique<tui::TUI>(node_, cbkgrp_sc_, colorscheme, colorblind_mode, start_minimized, display_config_filename, turbo_remote_constraints, service_list, goto_values);
   tui_->updateTermSize();
   tui_->setupWindows();
   tui_->loadDisplayConfig();
@@ -84,9 +92,9 @@ void Status::initialize() {
   timer_opts_start.autostart      = true;
   timer_opts_start.callback_group = cbkgrp_timers_;
 
-  timer_status_fast_ = std::make_shared<TimerType>(timer_opts_start, rclcpp::Rate(20.0, clock_), std::bind(&Status::timerStatusFast, this));
-  timer_status_slow_ = std::make_shared<TimerType>(timer_opts_start, rclcpp::Rate(1.0, clock_), std::bind(&Status::timerStatusSlow, this));
-  timer_resize_      = std::make_shared<TimerType>(timer_opts_start, rclcpp::Rate(1.0, clock_), std::bind(&Status::timerResize, this));
+  timer_status_fast_ = std::make_shared<TimerType>(timer_opts_start, rclcpp::Rate(update_rate, clock_), std::bind(&Status::timerStatusFast, this));
+  timer_status_slow_ = std::make_shared<TimerType>(timer_opts_start, rclcpp::Rate(update_rate_slow, clock_), std::bind(&Status::timerStatusSlow, this));
+  timer_resize_      = std::make_shared<TimerType>(timer_opts_start, rclcpp::Rate(resize_rate, clock_), std::bind(&Status::timerResize, this));
 
   // | ------------------------ Subscribers ------------------------ |
 
