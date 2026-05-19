@@ -1373,13 +1373,13 @@ void TUI::setupMainMenu() {
       service_name = "/" + uav_name + "/" + results[0];
     }
 
-    Service tmp_service(service_name, results[1]);
-    tmp_service.service_client = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, service_name);
-    auto client                = tmp_service.service_client;
-    main_menu_rows_.push_back({tmp_service.service_display_name, [this, tmp_service]() mutable {
-                                 std::vector<std::string> menu_text{"CANCEL", tmp_service.service_display_name};
+    auto service_display_name = results[1];
+    auto service_client       = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, service_name);
+
+    main_menu_rows_.push_back({service_display_name, [this, service_client, service_display_name]() mutable {
+                                 std::vector<std::string> menu_text{"CANCEL", service_display_name};
                                  createSubMenu(menu_text);
-                                 createSubMenuActions(menu_text, tmp_service.service_client);
+                                 createSubMenuActions(menu_text, service_client);
                                }});
   }
 

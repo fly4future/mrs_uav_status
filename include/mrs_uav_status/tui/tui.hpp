@@ -6,7 +6,6 @@
 #include <memory>
 
 // --- Internal Package Includes ---
-#include <mrs_uav_status/ros/service.hpp>
 #include <mrs_uav_status/ros/topic_info.hpp>
 
 #include <mrs_uav_status/tui/system_info.hpp>

@@ -5,7 +5,6 @@
 #include <mrs_msgs/msg/node_cpu_load.hpp>
 #include <mrs_uav_status/ros/topic_info.hpp>
 #include <mrs_uav_status/ros/topic_status.hpp>
-#include <mrs_uav_status/ros/service.hpp>
 #include <mrs_uav_status/utils/node_info.hpp>
 #include <mrs_uav_status/utils/split.hpp>
 #include <mrs_uav_status/utils/string_info.hpp>
