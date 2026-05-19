@@ -122,33 +122,30 @@ void TUI::setupWindows() {
   session_name_.erase(std::remove(session_name_.begin(), session_name_.end(), '\n'), session_name_.end());
 
   if (mini_) {
-
-    control_manager_window_ = newwin(4, 9, 1, 1);
-    uav_state_window_       = newwin(6, 9, 5, 1);
-    top_bar_window_         = newwin(1, 140, 0, 1);
-    general_info_window_    = newwin(4, 9, 1, 10);
-    hw_api_state_window_    = newwin(6, 9, 5, 10);
-    debug_window_           = newwin(terminal_lines_ - 15, terminal_cols_ - 1, 13, 1);
-    generic_topic_window_   = newwin(10, 9, 1, 19);
-    string_window_          = newwin(10, 15, 1, 28);
-    bottom_window_          = newwin(1, 120, 11, 1);
+    control_manager_window_.reset(newwin(4, 9, 1, 1));
+    uav_state_window_.reset(newwin(6, 9, 5, 1));
+    top_bar_window_.reset(newwin(1, 140, 0, 1));
+    general_info_window_.reset(newwin(4, 9, 1, 10));
+    hw_api_state_window_.reset(newwin(6, 9, 5, 10));
+    debug_window_.reset(newwin(terminal_lines_ - 15, terminal_cols_ - 1, 13, 1));
+    generic_topic_window_.reset(newwin(10, 9, 1, 19));
+    string_window_.reset(newwin(10, 15, 1, 28));
+    bottom_window_.reset(newwin(1, 120, 11, 1));
 
   } else {
 
-    uav_state_window_       = newwin(7, 26, 5, 1);
-    control_manager_window_ = newwin(4, 26, 1, 1);
-    hw_api_state_window_    = newwin(7, 25, 5, 27);
-    general_info_window_    = newwin(4, 25, 1, 27);
-    top_bar_window_         = newwin(1, 140, 0, 1);
-    bottom_window_          = newwin(1, 120, 12, 1);
-    debug_window_           = newwin(terminal_lines_ - 15, terminal_cols_ - 1, 13, 1);
-    int half_lines          = (terminal_lines_ - 18) / 2;
-    sub_tmux_window_1_      = derwin(debug_window_, half_lines, terminal_cols_ - 3, 1, 1);
-    sub_tmux_window_2_      = derwin(debug_window_, half_lines, terminal_cols_ - 3, half_lines + 2, 1);
-
-    generic_topic_window_ = newwin(11, 25, 1, 52);
-    string_window_        = newwin(11, 32, 1, 77);
-    node_stats_window_    = newwin(11, 50, 1, 109);
+    uav_state_window_.reset(newwin(7, 26, 5, 1));
+    control_manager_window_.reset(newwin(4, 26, 1, 1));
+    hw_api_state_window_.reset(newwin(7, 25, 5, 27));
+    general_info_window_.reset(newwin(4, 25, 1, 27));
+    top_bar_window_.reset(newwin(1, 140, 0, 1));
+    bottom_window_.reset(newwin(1, 120, 12, 1));
+    int half_lines = (terminal_lines_ - 18) / 2;
+    sub_tmux_window_1_.reset(derwin(debug_window_.get(), half_lines, terminal_cols_ - 3, 1, 1));
+    sub_tmux_window_2_.reset(derwin(debug_window_.get(), half_lines, terminal_cols_ - 3, half_lines + 2, 1));
+    generic_topic_window_.reset(newwin(11, 25, 1, 52));
+    string_window_.reset(newwin(11, 32, 1, 77));
+    node_stats_window_.reset(newwin(11, 50, 1, 109));
   }
 
   clear();
@@ -179,16 +176,16 @@ bool TUI::isFlyingNormally() {
 }
 
 void TUI::refreshTopBar() {
-  wnoutrefresh(top_bar_window_);
+  wnoutrefresh(top_bar_window_.get());
 }
 
 void TUI::refreshBottomWindow() {
-  wnoutrefresh(bottom_window_);
+  wnoutrefresh(bottom_window_.get());
 }
 
 void TUI::refreshAfterMenu() {
-  wnoutrefresh(debug_window_);
-  wnoutrefresh(bottom_window_);
+  wnoutrefresh(debug_window_.get());
+  wnoutrefresh(bottom_window_.get());
 }
 
 void TUI::prefillUavStatus() {
@@ -217,7 +214,7 @@ void TUI::prefillUavStatus() {
 }
 
 void TUI::generalInfoHandler() {
-  WINDOW *win = general_info_window_;
+  WINDOW *win = general_info_window_.get();
   werase(win);
   wattron(win, A_BOLD);
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
@@ -257,7 +254,7 @@ void TUI::generalInfoHandler() {
 }
 
 void TUI::stringHandler() {
-  WINDOW                  *win = string_window_;
+  WINDOW                  *win = string_window_.get();
   std::vector<std::string> string_vector;
   bool                     avoiding_collision, can_takeoff, null_tracker;
   uint8_t                  gnss_fix_type, gnss_num_sats;
@@ -403,7 +400,7 @@ void TUI::stringHandler() {
 }
 
 void TUI::genericTopicHandler() {
-  WINDOW                                 *win = generic_topic_window_;
+  WINDOW                                 *win = generic_topic_window_.get();
   std::vector<mrs_msgs::msg::CustomTopic> custom_topic_vec;
   bool                                    avoiding_collision, can_takeoff, null_tracker;
 
@@ -446,7 +443,7 @@ void TUI::genericTopicHandler() {
 }
 
 void TUI::nodeStatsHandler() {
-  WINDOW                    *win = node_stats_window_;
+  WINDOW                    *win = node_stats_window_.get();
   mrs_msgs::msg::NodeCpuLoad node_cpu_load_vec;
   double                     cpu_load_total;
   bool                       avoiding_collision, can_takeoff, null_tracker;
@@ -507,7 +504,7 @@ void TUI::nodeStatsHandler() {
 }
 
 void TUI::uavStateHandler() {
-  WINDOW     *win = uav_state_window_;
+  WINDOW     *win = uav_state_window_.get();
   double      avg_rate, color, heading;
   double      state_x, state_y, state_z;
   double      cmd_x, cmd_y, cmd_z, cmd_hdg;
@@ -679,7 +676,8 @@ void TUI::uavStateHandler() {
 }
 
 void TUI::controlManagerHandler() {
-  WINDOW     *win = control_manager_window_;
+  WINDOW *win = control_manager_window_.get();
+
   int16_t     color;
   bool        null_tracker, avoiding_collision, can_takeoff;
   double      rate;
@@ -841,7 +839,7 @@ void TUI::controlManagerHandler() {
 }
 
 void TUI::hwApiStateHandler() {
-  WINDOW     *win = hw_api_state_window_;
+  WINDOW     *win = hw_api_state_window_.get();
   int16_t     color;
   double      hw_api_rate, state_rate, cmd_rate, battery_rate;
   bool        gnss_ok, armed;
@@ -1159,7 +1157,7 @@ void TUI::hwApiStateHandler() {
 }
 
 void TUI::topLineHandler() {
-  WINDOW *win = top_bar_window_;
+  WINDOW *win = top_bar_window_.get();
   werase(win);
   int secs_flown;
 
@@ -1265,12 +1263,12 @@ void TUI::topLineHandler() {
 
 void TUI::blankBottomWindow() {
   if ((clock_->now() - bottom_window_clear_time_).seconds() > 3.0) {
-    werase(bottom_window_);
+    werase(bottom_window_.get());
   }
 }
 
 void TUI::renderServiceResult(bool success, const std::string &msg) {
-  printServiceResult(bottom_window_, _light_, success, msg);
+  printServiceResult(bottom_window_.get(), _light_, success, msg);
   bottom_window_clear_time_ = clock_->now();
 }
 
@@ -1676,7 +1674,7 @@ void TUI::resetGimbalCommand() {
 }
 
 void TUI::remoteHandler(int key) {
-  drawRemoteBanner(top_bar_window_);
+  drawRemoteBanner(top_bar_window_.get());
 
   if (key == 'T') {
     toggleTurboRemote();
@@ -1826,7 +1824,7 @@ void TUI::toggleTurboRemote() {
 }
 
 void TUI::gimbalHandler(int key) {
-  WINDOW *win = top_bar_window_;
+  WINDOW *win = top_bar_window_.get();
   if (_light_) {
     wattron(win, A_STANDOUT);
   }
@@ -1970,9 +1968,9 @@ void TUI::remoteModeFly(const mrs_msgs::msg::Reference &ref_in) {
 }
 
 void TUI::renderTmuxOrHelp() {
-  WINDOW *debug_window = debug_window_;
-  WINDOW *sub1         = sub_tmux_window_1_;
-  WINDOW *sub2         = sub_tmux_window_2_;
+  WINDOW *debug_window = debug_window_.get();
+  WINDOW *sub1         = sub_tmux_window_1_.get();
+  WINDOW *sub2         = sub_tmux_window_2_.get();
   if (mini_) {
     return;
   }

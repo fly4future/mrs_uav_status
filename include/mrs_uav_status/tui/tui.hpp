@@ -32,6 +32,7 @@
 
 namespace mrs_uav_status::tui
 {
+
 class TUI {
 public:
   TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const std::string &colorscheme, bool colorblind_mode, bool minimized_mode,
@@ -173,18 +174,29 @@ private:
 
 
   // | ---------------------- Window Pointers ------------------- |
-  WINDOW *uav_state_window_       = nullptr;
-  WINDOW *control_manager_window_ = nullptr;
-  WINDOW *hw_api_state_window_    = nullptr;
-  WINDOW *top_bar_window_         = nullptr;
-  WINDOW *bottom_window_          = nullptr;
-  WINDOW *generic_topic_window_   = nullptr;
-  WINDOW *node_stats_window_      = nullptr;
-  WINDOW *general_info_window_    = nullptr;
-  WINDOW *debug_window_           = nullptr;
-  WINDOW *sub_tmux_window_1_      = nullptr;
-  WINDOW *sub_tmux_window_2_      = nullptr;
-  WINDOW *string_window_          = nullptr;
+  // RAII wrapper for ncurses windows — delwin() called on destruction.
+  struct WindowDeleter
+  {
+    void operator()(WINDOW *w) const noexcept {
+      if (w)
+        delwin(w);
+    }
+  };
+
+  using WindowPtr = std::unique_ptr<WINDOW, WindowDeleter>;
+
+  WindowPtr uav_state_window_;
+  WindowPtr control_manager_window_;
+  WindowPtr hw_api_state_window_;
+  WindowPtr top_bar_window_;
+  WindowPtr bottom_window_;
+  WindowPtr generic_topic_window_;
+  WindowPtr node_stats_window_;
+  WindowPtr general_info_window_;
+  WindowPtr debug_window_;
+  WindowPtr sub_tmux_window_1_;
+  WindowPtr sub_tmux_window_2_;
+  WindowPtr string_window_;
 
   // | ----------------------- Data Storage --------------------- |
   std::vector<tui::StatusWindow> menu_vec_;
@@ -199,4 +211,5 @@ private:
   std::vector<std::string> goto_menu_text_;
   std::vector<double>      goto_double_vec_;
 };
+
 } // namespace mrs_uav_status::tui
