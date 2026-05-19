@@ -4,11 +4,6 @@
 namespace mrs_uav_status
 {
 
-/* TopicInfo() //{ */
-
-TopicInfo::TopicInfo() {
-}
-
 //}
 
 /* TopicInfo() //{ */
@@ -23,18 +18,9 @@ TopicInfo::TopicInfo(rclcpp::Node::SharedPtr node, double window_rate, int buffe
 
 TopicInfo::TopicInfo(rclcpp::Node::SharedPtr node, double window_rate, int buffer_length, double desired_rate, const std::string &topic_name,
                      const std::string &topic_display_name)
-{
-
-  node_         = node;
-  window_rate_  = window_rate;
-  desired_rate_ = desired_rate;
-  rates_.resize(buffer_length * int(window_rate_));
-  rates_.assign(rates_.size(), 0.0);
-  rates_iterator_ = 0;
-  last_time_      = rclcpp::Time(0, 0, node_->get_clock()->get_clock_type());
-  counter_        = 0;
-  topic_name_         = topic_name;
-  topic_display_name_ = topic_display_name;
+    : node_(node), window_rate_(window_rate), desired_rate_(desired_rate), topic_name_(topic_name), topic_display_name_(topic_display_name),
+      last_time_(0, 0, node->get_clock()->get_clock_type()), counter_(0), rates_(static_cast<size_t>(buffer_length * int(window_rate)), 0.0),
+      rates_iterator_(0) {
 }
 
 //}

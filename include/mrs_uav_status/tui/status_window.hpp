@@ -5,9 +5,7 @@
 #include <vector>
 #include <string>
 
-namespace mrs_uav_status
-{
-namespace tui
+namespace mrs_uav_status::tui
 {
 
 class StatusWindow {
@@ -46,5 +44,4 @@ private:
   std::vector<std::string> text_;
 };
 
-} // namespace tui
-} // namespace mrs_uav_status
+} // namespace mrs_uav_status::tui

@@ -1,8 +1,6 @@
 #pragma once
 
-namespace mrs_uav_status
-{
-namespace tui
+namespace mrs_uav_status::tui
 {
 
 // --- Keyboard Input Constants ---
@@ -49,5 +47,4 @@ enum class Color : int
   DarkYellow = 172
 };
 
-} // namespace tui
-} // namespace mrs_uav_status
+} // namespace mrs_uav_status::tui

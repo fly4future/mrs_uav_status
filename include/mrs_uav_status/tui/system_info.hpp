@@ -5,9 +5,7 @@
 #include <mrs_uav_status/tui/print_helpers.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
 
-namespace mrs_uav_status
-{
-namespace tui
+namespace mrs_uav_status::tui
 {
 
 inline void printCpuLoad(WINDOW *win, double cpu_load, bool mini) {
@@ -111,5 +109,4 @@ inline void printDiskSpace(WINDOW *win, int free_hdd, long last_gigas, bool mini
   }
 }
 
-} // namespace tui
-} // namespace mrs_uav_status
+} // namespace mrs_uav_status::tui

@@ -9,9 +9,7 @@
 #include <mrs_uav_status/tui/constants.hpp>
 #include <mrs_uav_status/utils/terminal.hpp>
 
-namespace mrs_uav_status
-{
-namespace tui
+namespace mrs_uav_status::tui
 {
 
 inline void printLimitedInt(WINDOW *win, int y, int x, const std::string &str_in, int num, int limit) {
@@ -55,7 +53,7 @@ inline void printCompressedLimitedString(WINDOW *win, int y, int x, const std::s
   if (str_in.empty()) {
     return;
   }
-  std::string compressed      = str_in;
+  std::string compressed = str_in;
   std::string chars_to_remove("aeiouAEIOU :");
   for (char c : chars_to_remove) {
     if (compressed.length() > 1) {
@@ -135,15 +133,15 @@ inline void printServiceResult(WINDOW *win, bool light, bool success, const std:
 inline void printHelp(WINDOW *win, bool help_active) {
   werase(win);
   if (help_active) {
-    printLimitedString(win, 1,  0, "How to use mrs_status:", 120);
-    printLimitedString(win, 2,  0, "Press the 'm' key to enter a services menu", 120);
-    printLimitedString(win, 3,  0, "Press the 'g' key to set a goto reference", 120);
-    printLimitedString(win, 4,  0, "Press the 'M' key to switch into minimalistic mode, which takes less screen space", 120);
-    printLimitedString(win, 5,  0, "Press the 'R' key to enter 'remote' mode to take direct control of the uav with your keyboad", 120);
-    printLimitedString(win, 6,  0, "   In remote mode, use these keys to control the drone:", 120);
-    printLimitedString(win, 7,  0, "      'w','s','a','d' to control pitch and roll ('h','j','k','l' works too)", 120);
-    printLimitedString(win, 8,  0, "      'q','e'         to control heading", 120);
-    printLimitedString(win, 9,  0, "      'r','f'         to control altitude", 120);
+    printLimitedString(win, 1, 0, "How to use mrs_status:", 120);
+    printLimitedString(win, 2, 0, "Press the 'm' key to enter a services menu", 120);
+    printLimitedString(win, 3, 0, "Press the 'g' key to set a goto reference", 120);
+    printLimitedString(win, 4, 0, "Press the 'M' key to switch into minimalistic mode, which takes less screen space", 120);
+    printLimitedString(win, 5, 0, "Press the 'R' key to enter 'remote' mode to take direct control of the uav with your keyboad", 120);
+    printLimitedString(win, 6, 0, "   In remote mode, use these keys to control the drone:", 120);
+    printLimitedString(win, 7, 0, "      'w','s','a','d' to control pitch and roll ('h','j','k','l' works too)", 120);
+    printLimitedString(win, 8, 0, "      'q','e'         to control heading", 120);
+    printLimitedString(win, 9, 0, "      'r','f'         to control altitude", 120);
     printLimitedString(win, 10, 0, "      'G'             to switch controlling in the FCU frame (local) or the world frame (global)", 120);
     printLimitedString(win, 12, 0, "You can also display any info from your node in the mrs_status:", 120);
     printLimitedString(win, 14, 0, "   topic: mrs_status/display_string (std_msgs::String)", 120);
@@ -156,10 +154,8 @@ inline void printHelp(WINDOW *win, bool help_active) {
   wnoutrefresh(win);
 }
 
-inline void printTmuxDump(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2,
-                           const std::vector<int> &selected, const std::string &session_name,
-                           const std::vector<std::string> &display_menu_text, int max_windows,
-                           bool avoiding_collision, bool can_takeoff, bool null_tracker) {
+inline void printTmuxDump(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2, const std::vector<int> &selected, const std::string &session_name,
+                          const std::vector<std::string> &display_menu_text, int max_windows, bool avoiding_collision, bool can_takeoff, bool null_tracker) {
   werase(debug_window);
   printBox(debug_window, avoiding_collision, can_takeoff, null_tracker);
 
@@ -173,11 +169,15 @@ inline void printTmuxDump(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2,
   for (size_t i = 0; i < selected.size(); i++) {
     std::string command_str = "tmux resize-window -t " + session_name + ":" + std::to_string(selected[i]) + " -A";
     mrs_uav_status::utils::callTerminal(command_str.c_str());
-    command_str = "tmux capture-pane -pt " + session_name + ":" + std::to_string(selected[i]) + " -S 0 | tail -n " + std::to_string(tmp_rows + 1);
+    command_str          = "tmux capture-pane -pt " + session_name + ":" + std::to_string(selected[i]) + " -S 0 | tail -n " + std::to_string(tmp_rows + 1);
     std::string response = mrs_uav_status::utils::callTerminal(command_str.c_str());
     switch (i) {
-    case 0: mvwaddstr(sub1, 0, 0, response.c_str()); break;
-    case 1: mvwaddstr(sub2, 0, 0, response.c_str()); break;
+    case 0:
+      mvwaddstr(sub1, 0, 0, response.c_str());
+      break;
+    case 1:
+      mvwaddstr(sub2, 0, 0, response.c_str());
+      break;
     }
   }
 
@@ -196,5 +196,4 @@ inline void printTmuxDump(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2,
   wnoutrefresh(sub2);
 }
 
-} // namespace tui
-} // namespace mrs_uav_status
+} // namespace mrs_uav_status::tui

@@ -4,9 +4,7 @@
 
 #include <vector>
 
-namespace mrs_uav_status
-{
-namespace tui
+namespace mrs_uav_status::tui
 {
 
 class ControlBar {
@@ -26,5 +24,4 @@ private:
   std::vector<char> buffer_;
 };
 
-} // namespace tui
 } // namespace mrs_uav_status

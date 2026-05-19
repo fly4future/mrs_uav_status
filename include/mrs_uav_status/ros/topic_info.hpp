@@ -12,9 +12,9 @@ namespace mrs_uav_status
 
 class TopicInfo {
 public:
-  TopicInfo();
+  TopicInfo() = default;
   
-  TopicInfo(rclcpp::Node::SharedPtr node, double window_rate, int buffer_length, double desired_rate);
+  TopicInfo(rclcpp::Node::SharedPtr node, double window_rate, int buffer_length, double desired_rate); 
   
   TopicInfo(rclcpp::Node::SharedPtr node, double window_rate, int buffer_length, double desired_rate, 
             const std::string& topic_name, const std::string& topic_display_name);
@@ -27,12 +27,12 @@ public:
 
 private:
   rclcpp::Node::SharedPtr node_;
-  rclcpp::Time            last_time_;
-  int                     counter_;
-  std::string             topic_name_;
-  std::string             topic_display_name_;
   double                  window_rate_;
   double                  desired_rate_;
+  std::string             topic_name_;
+  std::string             topic_display_name_;
+  rclcpp::Time            last_time_;
+  int                     counter_;
   std::vector<double>     rates_;
   size_t                  rates_iterator_;
 };
