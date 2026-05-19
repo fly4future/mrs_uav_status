@@ -54,7 +54,7 @@ target_sources(MrsUavStatus_Status
   PRIVATE
     "src/ros/topic_info.cpp"
     "src/status.cpp"
-    "src/tui.cpp"
+    "src/tui/tui.cpp"
     "src/tui/control_bar.cpp"
     "src/tui/status_window.cpp"
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
