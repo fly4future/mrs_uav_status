@@ -61,7 +61,7 @@ StatusWindow::Result StatusWindow::iterate(const std::vector<std::string> &text,
 
   wattron(win_, A_BOLD);
 
-  if (key == 'q' || key == static_cast<int>(Key::Escape)) {
+  if (key == 'q' || key == static_cast<int>(Key::Escape) || text.empty()) {
     result.action = Result::Action::Exit;
     wattroff(win_, A_BOLD);
     return result;
