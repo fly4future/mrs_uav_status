@@ -1338,7 +1338,8 @@ void TUI::createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_li
 // | --------------------- Main menu ----------------------- |
 
 void TUI::setupMainMenu() {
-  service_vec_.clear();
+  main_menu_rows_.clear();
+  main_menu_text_.clear();
 
   bool null_tracker;
 
@@ -1378,18 +1379,11 @@ void TUI::setupMainMenu() {
 
     Service tmp_service(service_name, results[1]);
     tmp_service.service_client = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, service_name);
-    service_vec_.push_back(tmp_service);
-  }
-
-  main_menu_rows_.clear();
-  main_menu_text_.clear();
-
-  // Create menu entries for services
-  for (auto &service : service_vec_) {
-    main_menu_rows_.push_back({service.service_display_name, [this, &service]() {
-                                 std::vector<std::string> menu_text{"CANCEL", service.service_display_name};
+    auto client                = tmp_service.service_client;
+    main_menu_rows_.push_back({tmp_service.service_display_name, [this, tmp_service]() mutable {
+                                 std::vector<std::string> menu_text{"CANCEL", tmp_service.service_display_name};
                                  createSubMenu(menu_text);
-                                 createSubMenuActions(menu_text, service.service_client);
+                                 createSubMenuActions(menu_text, tmp_service.service_client);
                                }});
   }
 

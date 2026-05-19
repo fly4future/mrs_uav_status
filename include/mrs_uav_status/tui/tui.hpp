@@ -204,7 +204,6 @@ private:
   std::vector<tui::ControlBar>   goto_menu_inputs_;
 
   std::vector<TopicInfo>   string_topic_;
-  std::vector<Service>     service_vec_;
   std::vector<std::string> service_input_vec_;
   std::vector<std::string> main_menu_text_;
   std::vector<std::string> display_menu_text_;
