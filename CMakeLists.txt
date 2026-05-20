@@ -23,7 +23,6 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(mrs_lib REQUIRED)
 find_package(backward_ros REQUIRED)
-find_package(Boost REQUIRED COMPONENTS filesystem)
 find_package(Curses REQUIRED)
 
 find_package(std_msgs REQUIRED)
@@ -47,39 +46,32 @@ endif()
 ## |                           Compile                          |
 ## --------------------------------------------------------------
 
-# NCurses test
-
-add_executable(MrsUavStatus_NcursesTest)
-
-target_sources(MrsUavStatus_NcursesTest
-  PRIVATE
-    src/ncurses_test.cpp
-)
-
-target_link_libraries(MrsUavStatus_NcursesTest
-  PRIVATE
-    mrs_lib::mrs_lib
-    Boost::filesystem
-    Curses::Curses
-)
-
-target_compile_definitions(MrsUavStatus_NcursesTest PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
-
 # MRS UAV Status
 
 add_executable(MrsUavStatus_Status)
 
 target_sources(MrsUavStatus_Status
   PRIVATE
-    "src/input_box.cpp"
-    "src/menu.cpp"
+    "src/ros/topic_info.cpp"
     "src/status.cpp"
-    "src/topic_info.cpp"
+    "src/tui/tui.cpp"
+    "src/tui/control_bar.cpp"
+    "src/tui/status_window.cpp"
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
   FILES
-    "include/commons.h"
-    "include/input_box.h"
-    "include/menu.h"
+    "include/mrs_uav_status/ros/topic_info.hpp"
+    "include/mrs_uav_status/ros/topic_status.hpp"
+    "include/mrs_uav_status/status.hpp"
+    "include/mrs_uav_status/tui/control_bar.hpp"
+    "include/mrs_uav_status/tui/colors.hpp"
+    "include/mrs_uav_status/tui/status_window.hpp"
+    "include/mrs_uav_status/tui/system_info.hpp"
+    "include/mrs_uav_status/tui/print_helpers.hpp"
+    "include/mrs_uav_status/tui/constants.hpp"
+    "include/mrs_uav_status/tui/tui.hpp"
+    "include/mrs_uav_status/utils/node_info.hpp"
+    "include/mrs_uav_status/utils/split.hpp"
+    "include/mrs_uav_status/utils/string_info.hpp"
 )
 
 target_link_libraries(MrsUavStatus_Status
@@ -87,7 +79,6 @@ target_link_libraries(MrsUavStatus_Status
     rclcpp::rclcpp
     rclcpp_components::component
     mrs_lib::mrs_lib
-    Boost::filesystem
     Curses::Curses
     ${std_msgs_TARGETS}
     ${mrs_msgs_TARGETS}
@@ -105,12 +96,20 @@ add_library(MrsUavStatus_Acquisition SHARED)
 target_sources(MrsUavStatus_Acquisition
   PRIVATE
     "src/data_acquisition.cpp"
-    "src/topic_info.cpp"
+    "src/ros/topic_info.cpp"
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
   FILES
-    "include/commons.h"
-    "include/input_box.h"
-    "include/menu.h"
+    "include/mrs_uav_status/ros/topic_info.hpp"
+    "include/mrs_uav_status/ros/topic_status.hpp"
+    "include/mrs_uav_status/tui/control_bar.hpp"
+    "include/mrs_uav_status/tui/colors.hpp"
+    "include/mrs_uav_status/tui/system_info.hpp"
+    "include/mrs_uav_status/tui/print_helpers.hpp"
+    "include/mrs_uav_status/tui/status_window.hpp"
+    "include/mrs_uav_status/tui/constants.hpp"
+    "include/mrs_uav_status/utils/node_info.hpp"
+    "include/mrs_uav_status/utils/split.hpp"
+    "include/mrs_uav_status/utils/string_info.hpp"
 )
 
 target_link_libraries(MrsUavStatus_Acquisition
@@ -118,7 +117,6 @@ target_link_libraries(MrsUavStatus_Acquisition
     rclcpp::rclcpp
     rclcpp_components::component
     mrs_lib::mrs_lib
-    Boost::filesystem
     Curses::Curses
     ${std_msgs_TARGETS}
     ${mrs_msgs_TARGETS}
@@ -132,10 +130,12 @@ target_compile_definitions(MrsUavStatus_Acquisition PRIVATE USE_ROS_TIMER=${USE_
 rclcpp_components_register_nodes(MrsUavStatus_Acquisition "mrs_uav_status::Acquisition")
 
 ## --------------------------------------------------------------
-## |                           testing                          |
+## |                           Testing                          |
 ## --------------------------------------------------------------
 
 if(ENABLE_TESTS)
+
+  add_subdirectory(test)
 
   find_package(ament_cmake_clang_format REQUIRED)
   ament_clang_format(CONFIG_FILE "${PROJECT_SOURCE_DIR}/.clang-format")
@@ -158,7 +158,6 @@ install(
 
 install(
   TARGETS
-    MrsUavStatus_NcursesTest
     MrsUavStatus_Status
   DESTINATION lib/${PROJECT_NAME}
 )
