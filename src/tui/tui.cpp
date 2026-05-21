@@ -30,8 +30,34 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
   last_time_got_short_data_ = rclcpp::Time(0, 0, clock_->get_clock_type());
   bottom_window_clear_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
 
-  goto_double_vec_   = goto_values;
-  service_input_vec_ = service_list;
+  goto_double_vec_   = params_.goto_values;
+  service_input_vec_ = params_.service_list;
+
+  for (const auto &service_input : service_input_vec_) {
+    std::vector<std::string> results = utils::splitByChar(service_input, ' ');
+
+    if (results.size() < 2) {
+      RCLCPP_ERROR(node_->get_logger(),
+                   "Invalid service entry: '%s'. Each entry must contain at least a service name and a display name, separated by a space.",
+                   service_input.c_str());
+      continue;
+    }
+
+    for (unsigned long j = 2; j < results.size(); j++) {
+      results[1] = results[1] + " " + results[j];
+    }
+
+    std::string service_name;
+
+    if (results[0].at(0) == '/') {
+      service_name = results[0];
+    } else {
+      service_name = "/" + params_.uav_name + "/" + results[0];
+    }
+
+    auto service_display_name = results[1];
+    service_entries_.emplace_back(service_display_name, mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, service_name, cbkgrp_sc));
+  }
 
   ph_gimbal_state_    = mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>(node_, "~/gimbal_command_out");
   sc_goto_reference_  = mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>(node_, "~/reference_out", cbkgrp_sc);
@@ -1344,42 +1370,17 @@ void TUI::setupMainMenu() {
     null_tracker = uav_status_.null_tracker;
   }
 
-  for (unsigned long i = 0; i < service_input_vec_.size(); i++) {
-
-    // TODO, fix this with proper flying state instead of null tracker
-    if (null_tracker && (i == 0 || i == 1)) {
+  // Create menu entries for trigger services
+  for (auto &service : service_entries_) {
+    std::string name = service.display_name;
+    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+    if (null_tracker && (name.find("land") != std::string::npos)) {
       continue;
     }
-    if (!null_tracker && i == 2) {
-      continue;
-    }
-
-    std::vector<std::string> results = utils::splitByChar(service_input_vec_[i], ' ');
-
-    for (unsigned long j = 2; j < results.size(); j++) {
-      results[1] = results[1] + " " + results[j];
-    }
-
-    std::string service_name;
-
-    if (results[0].at(0) == '/') {
-      service_name = results[0];
-    } else {
-      std::string uav_name;
-      {
-        std::scoped_lock lock(mutex_status_msg_);
-        uav_name = uav_status_.uav_name;
-      }
-      service_name = "/" + uav_name + "/" + results[0];
-    }
-
-    auto service_display_name = results[1];
-    auto service_client       = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, service_name);
-
-    main_menu_rows_.push_back({service_display_name, [this, service_client, service_display_name]() mutable {
-                                 std::vector<std::string> menu_text{"CANCEL", service_display_name};
+    main_menu_rows_.push_back({service.display_name, [this, service]() mutable {
+                                 std::vector<std::string> menu_text{"CANCEL", service.display_name};
                                  createSubMenu(menu_text);
-                                 createSubMenuActions(menu_text, service_client);
+                                 createSubMenuActions(menu_text, service.client);
                                }});
   }
 

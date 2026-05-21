@@ -111,6 +111,15 @@ private:
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>              sc_set_estimator_;
   mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>             sc_hover_;
 
+  /** @brief struct to hold service entries and their associated client handlers */
+  struct ServiceEntry
+  {
+    std::string                                           display_name;
+    mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger> client;
+  };
+
+  std::vector<ServiceEntry> service_entries_;
+
   std::unique_ptr<mrs_lib::Transformer> transformer_;
 
   // | ----------------------- UAV status snapshot --------------- |
