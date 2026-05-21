@@ -28,6 +28,7 @@ fi
 params=(
   "pwd"             "string" "$pwd"
   "colorscheme"     "string" "$colorscheme"
+  "uav_name"        "string" "$uav_name"
   "enable_profiler" "bool"   "false"
   "use_sim_time"    "bool"   "$use_sim_time"
   "start_minimized" "bool"   "false"

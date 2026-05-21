@@ -52,14 +52,15 @@ void Status::initialize() {
 
   param_loader.addYamlFileFromParam("config_public");
 
-  std::string pwd, colorscheme, turbo_remote_constraints;
-  double      update_rate, update_rate_slow, resize_rate;
-  std::vector<double> goto_values; 
-  bool        colorblind_mode = false;
-  bool        start_minimized = false;
+  std::string         pwd, colorscheme, turbo_remote_constraints, uav_name;
+  double              update_rate, update_rate_slow, resize_rate;
+  std::vector<double> goto_values;
+  bool                colorblind_mode = false;
+  bool                start_minimized = false;
 
   param_loader.loadParam("pwd", pwd);
   param_loader.loadParam("colorscheme", colorscheme);
+  param_loader.loadParam("uav_name", uav_name);
   param_loader.loadParam("mrs_uav_status/update_rate", update_rate);
   param_loader.loadParam("mrs_uav_status/update_rate_slow", update_rate_slow);
   param_loader.loadParam("mrs_uav_status/resize_rate", resize_rate);
