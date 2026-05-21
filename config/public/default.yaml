@@ -17,7 +17,7 @@ mrs_uav_status:
       "uav_manager/land Land",
       "uav_manager/land_home Land Home",
       "uav_manager/takeoff Takeoff",
-      "uav_manager/hover Hover",
+      "control_manager/hover Hover",
     ]
 
   # List of topics to monitor, format is:
