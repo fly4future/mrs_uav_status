@@ -16,13 +16,10 @@ namespace mrs_uav_status::tui
 using radians = mrs_lib::geometry::radians;
 
 
-TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const std::string &colorscheme, bool colorblind_mode, bool minimized_mode,
-         const std::string &display_config_filename, const std::string &turbo_remote_constraints, const std::vector<std::string> &service_list,
-         const std::vector<double> &goto_values)
-    : _colorscheme_(colorscheme), _display_config_filename_(display_config_filename), _turbo_remote_constraints_(turbo_remote_constraints),
-      _colorblind_mode_(colorblind_mode), mini_(minimized_mode), node_(node), clock_(node->get_clock()) {
+TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const TUI::TUIParams &params)
+    : node_(node), clock_(node->get_clock()), params_(params) {
 
-  _light_ = (colorscheme.find("COLORSCHEME_LIGHT") != std::string::npos);
+  _light_ = (params_.colorscheme.find("COLORSCHEME_LIGHT") != std::string::npos);
 
   prefillUavStatus();
 
@@ -143,7 +140,7 @@ void TUI::setupWindows() {
   session_name_       = utils::callTerminal(command.c_str());
   session_name_.erase(std::remove(session_name_.begin(), session_name_.end(), '\n'), session_name_.end());
 
-  if (mini_) {
+  if (params_.start_minimized) {
     control_manager_window_.reset(newwin(4, 9, 1, 1));
     uav_state_window_.reset(newwin(6, 9, 5, 1));
     top_bar_window_.reset(newwin(1, 140, 0, 1));
@@ -171,7 +168,7 @@ void TUI::setupWindows() {
   }
 
   clear();
-  _light_ = tui::setupColors(have_data_, _colorscheme_, _colorblind_mode_);
+  _light_ = tui::setupColors(have_data_, params_.colorscheme, params_.colorblind_mode);
 }
 
 void TUI::resize() {
@@ -185,7 +182,7 @@ void TUI::resize() {
 }
 
 void TUI::toggleMini() {
-  mini_ = !mini_;
+  params_.start_minimized = !params_.start_minimized;
 }
 
 void TUI::toggleHelp() {
@@ -264,12 +261,12 @@ void TUI::generalInfoHandler() {
     wattron(win, A_STANDOUT);
   }
 
-  printCpuLoad(win, cpu_load, mini_);
-  printMemLoad(win, free_ram, total_ram, mini_);
-  if (!mini_) {
+  printCpuLoad(win, cpu_load, params_.start_minimized);
+  printMemLoad(win, free_ram, total_ram, params_.start_minimized);
+  if (!params_.start_minimized) {
     printCpuFreq(win, cpu_ghz);
   }
-  printDiskSpace(win, free_hdd, last_gigas_, mini_);
+  printDiskSpace(win, free_hdd, last_gigas_, params_.start_minimized);
   last_gigas_ = free_hdd;
 
   wnoutrefresh(win);
@@ -407,7 +404,7 @@ void TUI::stringHandler() {
 
     wattron(win, COLOR_PAIR(tmp_color));
 
-    if (mini_) {
+    if (params_.start_minimized) {
       printCompressedLimitedString(win, (i) + 1, 1, tmp_display_string, 15);
     } else {
       printLimitedString(win, (i) + 1, 1, tmp_display_string, 30);
@@ -447,7 +444,7 @@ void TUI::genericTopicHandler() {
     for (size_t i = 0; i < custom_topic_vec.size(); i++) {
 
       wattron(win, COLOR_PAIR(custom_topic_vec[i].topic_color));
-      if (mini_) {
+      if (params_.start_minimized) {
         printCompressedLimitedString(win, 1 + i, 1, custom_topic_vec[i].topic_name, 4);
         printLimitedDouble(win, 1 + i, 5, "%3.0f", custom_topic_vec[i].topic_hz, 1000);
       } else {
@@ -579,12 +576,12 @@ void TUI::uavStateHandler() {
 
   wattron(win, COLOR_PAIR(color));
 
-  if (mini_) {
+  if (params_.start_minimized) {
     printLimitedDouble(win, 0, 1, "Odm %3.0f", avg_rate, 1000);
 
     if (avg_rate == 0) {
 
-      printNoData(win, 0, 1, mini_);
+      printNoData(win, 0, 1, params_.start_minimized);
 
     } else {
 
@@ -603,7 +600,7 @@ void TUI::uavStateHandler() {
 
     if (avg_rate == 0) {
 
-      printNoData(win, 0, 1, mini_);
+      printNoData(win, 0, 1, params_.start_minimized);
 
     } else {
 
@@ -736,12 +733,12 @@ void TUI::controlManagerHandler() {
 
   wattron(win, COLOR_PAIR(color));
 
-  if (mini_) {
+  if (params_.start_minimized) {
     printLimitedDouble(win, 0, 1, "Ctr %3.0f", rate, 1000);
 
     if (rate == 0.0) {
 
-      printNoData(win, 0, 1, mini_);
+      printNoData(win, 0, 1, params_.start_minimized);
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
       mvwprintw(win, 1, 1, "ERR");
       mvwprintw(win, 2, 1, "ERR");
@@ -791,7 +788,7 @@ void TUI::controlManagerHandler() {
 
     if (rate == 0.0) {
 
-      printNoData(win, 0, 1, mini_);
+      printNoData(win, 0, 1, params_.start_minimized);
 
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
       mvwprintw(win, 1, 1, "NO_CONTROLLER");
@@ -908,12 +905,12 @@ void TUI::hwApiStateHandler() {
 
   wattron(win, COLOR_PAIR(color));
 
-  if (mini_) {
+  if (params_.start_minimized) {
     printLimitedDouble(win, 0, 1, "Mav %3.0f", hw_api_rate, 1000);
     wattroff(win, COLOR_PAIR(color));
 
     if (hw_api_rate == 0) {
-      printNoData(win, 0, 1, mini_);
+      printNoData(win, 0, 1, params_.start_minimized);
     }
 
     if (state_rate == 0) {
@@ -1031,16 +1028,16 @@ void TUI::hwApiStateHandler() {
 
     if (hw_api_rate == 0) {
 
-      printNoData(win, 0, 1, mini_);
+      printNoData(win, 0, 1, params_.start_minimized);
     }
 
     if (state_rate == 0) {
 
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
       printLimitedString(win, 1, 1, "State: ", 15);
-      printNoData(win, 1, 9, mini_);
+      printNoData(win, 1, 9, params_.start_minimized);
       printLimitedString(win, 2, 1, "Mode: ", 15);
-      printNoData(win, 1, 9, mini_);
+      printNoData(win, 1, 9, params_.start_minimized);
       wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
 
     } else {
@@ -1066,7 +1063,7 @@ void TUI::hwApiStateHandler() {
 
     if (battery_rate == 0) {
 
-      printNoData(win, 4, 1, "Batt:  ", mini_);
+      printNoData(win, 4, 1, "Batt:  ", params_.start_minimized);
 
     } else {
 
@@ -1086,7 +1083,7 @@ void TUI::hwApiStateHandler() {
 
     if (mag_norm_rate == 0) {
 
-      printNoData(win, 3, 1, "Mag:  ", mini_);
+      printNoData(win, 3, 1, "Mag:  ", params_.start_minimized);
 
     } else {
 
@@ -1102,7 +1099,7 @@ void TUI::hwApiStateHandler() {
 
     if (cmd_rate == 0) {
 
-      printNoData(win, 5, 1, "Thrst: ", mini_);
+      printNoData(win, 5, 1, "Thrst: ", params_.start_minimized);
 
     } else {
 
@@ -1216,7 +1213,7 @@ void TUI::topLineHandler() {
   // If we haven't received data for a while, switch to the "no data" color scheme. If we start receiving data again, switch back to the normal color scheme.
   if (const bool nd = (since_data_s < 3.0); nd != have_data_) {
     have_data_ = nd;
-    _light_    = setupColors(have_data_, _colorscheme_, _colorblind_mode_);
+    _light_    = setupColors(have_data_, params_.colorscheme, params_.colorblind_mode);
   }
 
   since_data_short_s = std::min(since_data_short_s, 99.9);
@@ -1224,14 +1221,14 @@ void TUI::topLineHandler() {
 
   mvwprintw(win, 0, 10, " %s %s ", uav_name.c_str(), uav_type.c_str());
 
-  const int status_x = mini_ ? 27 : 26;
-  const int alert_x  = mini_ ? 22 : 26;
-  const int count_x  = mini_ ? 31 : 51;
-  const int uavs_x   = mini_ ? -1 : 45;
+  const int status_x = params_.start_minimized ? 27 : 26;
+  const int alert_x  = params_.start_minimized ? 22 : 26;
+  const int count_x  = params_.start_minimized ? 31 : 51;
+  const int uavs_x   = params_.start_minimized ? -1 : 45;
 
-  const char *disabled_text = mini_ ? "C/A" : "COL AVOID DISABLED";
-  const char *avoiding_text = mini_ ? "!AVOIDING!" : "!! AVOIDING COLLISION !!";
-  const char *enabled_text  = mini_ ? "C/A" : "COL AVOID ENABLED,";
+  const char *disabled_text = params_.start_minimized ? "C/A" : "COL AVOID DISABLED";
+  const char *avoiding_text = params_.start_minimized ? "!AVOIDING!" : "!! AVOIDING COLLISION !!";
+  const char *enabled_text  = params_.start_minimized ? "C/A" : "COL AVOID ENABLED,";
 
   if (!collision_avoidance_enabled) {
     wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
@@ -1247,7 +1244,7 @@ void TUI::topLineHandler() {
     wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
     mvwprintw(win, 0, status_x, "%s", enabled_text);
 
-    if (!mini_) {
+    if (!params_.start_minimized) {
       mvwprintw(win, 0, uavs_x, "UAVs: ");
     }
 
@@ -1613,7 +1610,7 @@ bool TUI::displayMenuHandler(int key_in) {
       selected_tmux_window_.push_back(result.selected_line);
     }
 
-    std::ofstream outputFile(_display_config_filename_, std::ofstream::out | std::ofstream::trunc);
+    std::ofstream outputFile(params_.display_config_filename, std::ofstream::out | std::ofstream::trunc);
 
     for (size_t i = 0; i < selected_tmux_window_.size(); i++) {
       outputFile << selected_tmux_window_[i] << '\n';
@@ -1626,13 +1623,13 @@ bool TUI::displayMenuHandler(int key_in) {
 }
 
 void TUI::loadDisplayConfig() {
-  if (!std::filesystem::exists(_display_config_filename_)) {
+  if (!std::filesystem::exists(params_.display_config_filename)) {
     return;
   }
 
   selected_tmux_window_.clear();
 
-  std::ifstream file(_display_config_filename_);
+  std::ifstream file(params_.display_config_filename);
   std::string   line;
 
   for (int i = 0; i < MAX_SELECTED_TMUX_WINDOWS; i++) {
@@ -1688,13 +1685,13 @@ void TUI::drawRemoteBanner(WINDOW *win) {
     wattron(win, A_STANDOUT);
   }
 
-  const int rem_x   = mini_ ? 33 : 55;
-  const int mode_x  = mini_ ? 37 : 75;
-  const int turbo_x = mini_ ? 39 : 67;
+  const int rem_x   = params_.start_minimized ? 33 : 55;
+  const int mode_x  = params_.start_minimized ? 37 : 75;
+  const int turbo_x = params_.start_minimized ? 39 : 67;
 
-  const char *rem_text   = mini_ ? "REM" : "REMOTE MODE";
-  const char *mode_text  = remote_global_ ? (mini_ ? "G" : "GLOBAL MODE") : (mini_ ? "L" : "LOCAL MODE");
-  const char *turbo_text = mini_ ? "!T!" : "!TURBO!";
+  const char *rem_text   = params_.start_minimized ? "REM" : "REMOTE MODE";
+  const char *mode_text  = remote_global_ ? (params_.start_minimized ? "G" : "GLOBAL MODE") : (params_.start_minimized ? "L" : "LOCAL MODE");
+  const char *turbo_text = params_.start_minimized ? "!T!" : "!TURBO!";
 
   wattron(win, A_BOLD);
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
@@ -1805,7 +1802,7 @@ void TUI::toggleTurboRemote() {
     old_constraints_ = uav_status_.constraints[0];
   }
   auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
-  request->value = _turbo_remote_constraints_;
+  request->value = params_.turbo_remote_constraints;
   auto response  = sc_set_constraints_.callSync(request);
   if (!response) {
     renderServiceResult(false, "service could not be called");
@@ -1962,7 +1959,7 @@ void TUI::renderTmuxOrHelp() {
   WINDOW *debug_window = debug_window_.get();
   WINDOW *sub1         = sub_tmux_window_1_.get();
   WINDOW *sub2         = sub_tmux_window_2_.get();
-  if (mini_) {
+  if (params_.start_minimized) {
     return;
   }
 

@@ -80,7 +80,18 @@ void Status::initialize() {
 
   const std::string display_config_filename = pwd + "/.mrs_status_display_config~";
 
-  tui_ = std::make_unique<tui::TUI>(node_, cbkgrp_sc_, colorscheme, colorblind_mode, start_minimized, display_config_filename, turbo_remote_constraints, service_list, goto_values);
+  const tui::TUI::TUIParams tui_params{
+      .uav_name                 = uav_name,
+      .colorscheme              = colorscheme,
+      .colorblind_mode          = colorblind_mode,
+      .start_minimized          = start_minimized,
+      .display_config_filename  = display_config_filename,
+      .turbo_remote_constraints = turbo_remote_constraints,
+      .service_list             = service_list,
+      .goto_values              = goto_values,
+  };
+
+  tui_ = std::make_unique<tui::TUI>(node_, cbkgrp_sc_, tui_params);
   tui_->updateTermSize();
   tui_->setupWindows();
   tui_->loadDisplayConfig();

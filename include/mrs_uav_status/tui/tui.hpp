@@ -34,9 +34,19 @@ namespace mrs_uav_status::tui
 
 class TUI {
 public:
-  TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const std::string &colorscheme, bool colorblind_mode, bool minimized_mode,
-      const std::string &display_config_filename, const std::string &turbo_remote_constraints, const std::vector<std::string> &service_list,
-      const std::vector<double> &goto_values);
+  struct TUIParams
+  {
+    std::string              uav_name;
+    std::string              colorscheme;
+    bool                     colorblind_mode;
+    bool                     start_minimized;
+    std::string              display_config_filename;
+    std::string              turbo_remote_constraints;
+    std::vector<std::string> service_list;
+    std::vector<double>      goto_values;
+  };
+
+  TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const TUI::TUIParams &params);
 
   // | --------------------- Data push (thread-safe) --------------------- |
   void onUavStatus(const mrs_msgs::msg::UavStatus &msg);
@@ -49,7 +59,7 @@ public:
   void toggleMini();
   void toggleHelp();
   bool isMini() const {
-    return mini_;
+    return params_.start_minimized;
   }
   bool isFlyingNormally();
   void refreshTopBar();
@@ -90,17 +100,10 @@ public:
   void enterRemoteMode();
 
 private:
-  std::string _colorscheme_;
-  std::string _display_config_filename_;
-  std::string _turbo_remote_constraints_;
-  bool        _colorblind_mode_;
-  bool        _light_      = false;
-  bool        mini_        = false;
-  bool        help_active_ = false;
-
   // | ------------------------- ROS Core ----------------------- |
   rclcpp::Node::SharedPtr  node_;
   rclcpp::Clock::SharedPtr clock_;
+
 
   mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>             ph_gimbal_state_;
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv> sc_goto_reference_;
@@ -135,6 +138,11 @@ private:
   defined as a std::function that takes no arguments and returns void, allowing for flexibility in the actions that can be performed when a menu entry is
   selected.
   */
+
+  TUIParams params_;
+  bool _light_ = false;
+  bool help_active_ = false;
+
   struct MenuRow
   {
     std::string           label;
