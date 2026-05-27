@@ -71,6 +71,7 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
 void TUI::onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
+    last_general_robot_info_                = msg;
     uav_status_.uav_name                    = msg.robot_name;
     uav_status_.uav_type                    = std::to_string(msg.robot_type);
     uav_status_.battery_volt                = msg.battery_state.voltage;
@@ -84,6 +85,7 @@ void TUI::onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg) {
 void TUI::onStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
+    last_state_estimation_info_      = msg;
     uav_status_.odom_x               = static_cast<float>(msg.local_pose.position.x);
     uav_status_.odom_y               = static_cast<float>(msg.local_pose.position.y);
     uav_status_.odom_z               = static_cast<float>(msg.local_pose.position.z);
@@ -102,6 +104,7 @@ void TUI::onStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo &msg) {
 void TUI::onControlInfo(const mrs_msgs::msg::ControlInfo &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
+    last_control_info_              = msg;
     uav_status_.controllers         = utils::withActiveFirst(msg.active_controller, msg.available_controllers);
     uav_status_.trackers            = utils::withActiveFirst(msg.active_tracker, msg.available_trackers);
     uav_status_.gains               = utils::withActiveFirst(msg.active_gains, msg.available_gains);
@@ -123,6 +126,7 @@ void TUI::onControlInfo(const mrs_msgs::msg::ControlInfo &msg) {
 void TUI::onCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
+    last_collision_avoidance_info_          = msg;
     uav_status_.collision_avoidance_enabled = msg.collision_avoidance_enabled;
     uav_status_.avoiding_collision          = msg.avoiding_collision;
     uav_status_.num_other_uavs              = static_cast<uint16_t>(msg.other_robots_visible.size());
@@ -133,6 +137,7 @@ void TUI::onCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo &
 void TUI::onUavInfo(const mrs_msgs::msg::UavInfo &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
+    last_uav_info_            = msg;
     uav_status_.hw_api_mode   = msg.flight_state;
     uav_status_.hw_api_armed  = msg.armed;
     uav_status_.mass_estimate = msg.mass_estimate;
@@ -145,7 +150,8 @@ void TUI::onUavInfo(const mrs_msgs::msg::UavInfo &msg) {
 void TUI::onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
-    const auto &oc = msg.onboard_computer_info;
+    last_system_health_info_ = msg;
+    const auto &oc           = msg.onboard_computer_info;
 
     uav_status_.cpu_load        = oc.cpu_load;
     uav_status_.cpu_ghz         = oc.cpu_ghz;
@@ -189,6 +195,7 @@ void TUI::onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg) {
 void TUI::onUavState(const mrs_msgs::msg::State &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
+    last_uav_state_     = msg;
     uav_status_.rc_mode = (msg.state == mrs_msgs::msg::State::STATE_RC_MODE);
   }
   last_time_got_data_ = clock_->now();
@@ -345,14 +352,15 @@ void TUI::generalInfoHandler() {
   int    free_hdd;
   {
     std::scoped_lock lock(mutex_status_msg_);
-    avoiding_collision = uav_status_.avoiding_collision;
-    can_takeoff        = uav_status_.automatic_start_can_takeoff;
-    null_tracker       = uav_status_.null_tracker;
-    cpu_load           = uav_status_.cpu_load;
-    cpu_ghz            = uav_status_.cpu_ghz;
-    free_ram           = uav_status_.free_ram;
-    total_ram          = uav_status_.total_ram;
-    free_hdd           = uav_status_.free_hdd;
+    const auto &oc     = last_system_health_info_.onboard_computer_info;
+    avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
+    can_takeoff        = last_general_robot_info_.ready_to_start;
+    null_tracker       = (last_control_info_.active_tracker == "NullTracker");
+    cpu_load           = oc.cpu_load;
+    cpu_ghz            = oc.cpu_ghz;
+    free_ram           = oc.free_ram;
+    total_ram          = oc.total_ram;
+    free_hdd           = oc.free_hdd;
   }
 
   printBox(win, avoiding_collision, can_takeoff, null_tracker);
@@ -376,19 +384,22 @@ void TUI::stringHandler() {
   WINDOW                  *win = string_window_.get();
   std::vector<std::string> string_vector;
   bool                     avoiding_collision, can_takeoff, null_tracker;
-  uint8_t                  gnss_fix_type, gnss_num_sats;
-  double                   gnss_pos_acc, gnss_status_rate;
+  uint8_t                  gnss_fix_type    = 0;
+  uint8_t                  gnss_num_sats    = 0;
+  double                   gnss_pos_acc     = 100.0;
+  double                   gnss_status_rate = 0.0;
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    string_vector      = uav_status_.custom_string_outputs;
-    avoiding_collision = uav_status_.avoiding_collision;
-    can_takeoff        = uav_status_.automatic_start_can_takeoff;
-    null_tracker       = uav_status_.null_tracker;
-    gnss_fix_type      = uav_status_.hw_api_gnss_fix_type;
-    gnss_num_sats      = uav_status_.hw_api_gnss_num_sats;
-    gnss_pos_acc       = uav_status_.hw_api_gnss_pos_acc;
-    gnss_status_rate   = uav_status_.hw_api_gnss_status_hz;
+    avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
+    can_takeoff        = last_general_robot_info_.ready_to_start;
+    null_tracker       = (last_control_info_.active_tracker == "NullTracker");
+    if (const auto *gps = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GPS); gps) {
+      gnss_fix_type    = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gps->details, "fix_type"), 0));
+      gnss_num_sats    = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gps->details, "num_sats"), 0));
+      gnss_pos_acc     = utils::parseDoubleOr(utils::lookupDetail(gps->details, "pos_acc"), 100.0);
+      gnss_status_rate = gps->rate;
+    }
   }
 
   if (gnss_status_rate > 0.0) {
@@ -562,18 +573,22 @@ void TUI::genericTopicHandler() {
 }
 
 void TUI::nodeStatsHandler() {
-  WINDOW                    *win = node_stats_window_.get();
-  mrs_msgs::msg::NodeCpuLoad node_cpu_load_vec;
-  double                     cpu_load_total;
-  bool                       avoiding_collision, can_takeoff, null_tracker;
+  WINDOW                              *win = node_stats_window_.get();
+  std::vector<mrs_msgs::msg::CpuLoad>  node_cpu_loads;
+  double                               cpu_load_total = 0.0;
+  bool                                 avoiding_collision, can_takeoff, null_tracker;
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    node_cpu_load_vec  = uav_status_.node_cpu_loads;
-    cpu_load_total     = uav_status_.cpu_load_total;
-    avoiding_collision = uav_status_.avoiding_collision;
-    can_takeoff        = uav_status_.automatic_start_can_takeoff;
-    null_tracker       = uav_status_.null_tracker;
+    node_cpu_loads     = last_system_health_info_.onboard_computer_info.node_cpu_loads;
+    avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
+    can_takeoff        = last_general_robot_info_.ready_to_start;
+    null_tracker       = (last_control_info_.active_tracker == "NullTracker");
+  }
+
+  // Sum up total CPU load across all nodes for display in the header. 
+  for (const auto &n : node_cpu_loads) {
+    cpu_load_total += n.cpu_load;
   }
 
   werase(win);
@@ -585,8 +600,8 @@ void TUI::nodeStatsHandler() {
     wattron(win, A_STANDOUT);
   }
 
-  if (!node_cpu_load_vec.node_names.empty()) {
-    size_t tmp_num_lines = node_cpu_load_vec.node_names.size();
+  if (!node_cpu_loads.empty()) {
+    size_t tmp_num_lines = node_cpu_loads.size();
     if (tmp_num_lines > 9) {
       tmp_num_lines = 9;
     }
@@ -599,17 +614,17 @@ void TUI::nodeStatsHandler() {
     printLimitedString(win, 0, 43, "CPU %%", 6);
     for (size_t i = 0; i < tmp_num_lines; i++) {
 
-      printLimitedString(win, 1 + i, 1, node_cpu_load_vec.node_names[i], 42);
+      printLimitedString(win, 1 + i, 1, node_cpu_loads[i].node_name, 42);
 
       short tmp_color = static_cast<int>(ColorPair::Green);
-      if (node_cpu_load_vec.cpu_loads[i] > 99.9) {
+      if (node_cpu_loads[i].cpu_load > 99.9) {
         tmp_color = static_cast<int>(ColorPair::Red);
-      } else if (node_cpu_load_vec.cpu_loads[i] > 49.9) {
+      } else if (node_cpu_loads[i].cpu_load > 49.9) {
         tmp_color = static_cast<int>(ColorPair::Yellow);
       }
 
       wattron(win, COLOR_PAIR(tmp_color));
-      printLimitedDouble(win, 1 + i, 43, "%5.1f", node_cpu_load_vec.cpu_loads[i], 9999);
+      printLimitedDouble(win, 1 + i, 43, "%5.1f", node_cpu_loads[i].cpu_load, 9999);
       wattroff(win, COLOR_PAIR(tmp_color));
     }
 
@@ -1278,11 +1293,20 @@ void TUI::hwApiStateHandler() {
 void TUI::topLineHandler() {
   WINDOW *win = top_bar_window_.get();
   werase(win);
-  int secs_flown;
+
+  std::string uav_name, uav_type;
+  bool        collision_avoidance_enabled, avoiding_collision;
+  uint16_t    num_other_uavs;
+  int         secs_flown;
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    secs_flown = uav_status_.secs_flown;
+    uav_name                    = last_general_robot_info_.robot_name;
+    uav_type                    = std::to_string(last_general_robot_info_.robot_type);
+    collision_avoidance_enabled = last_collision_avoidance_info_.collision_avoidance_enabled;
+    avoiding_collision          = last_collision_avoidance_info_.avoiding_collision;
+    num_other_uavs              = static_cast<uint16_t>(last_collision_avoidance_info_.other_robots_visible.size());
+    secs_flown                  = static_cast<int>(std::max(0.0f, last_uav_info_.flight_duration));
   }
 
   if (_light_) {
@@ -1291,19 +1315,6 @@ void TUI::topLineHandler() {
 
   wattron(win, A_BOLD);
   printLimitedInt(win, 0, 0, "ToF: %i", secs_flown, 1000);
-
-  std::string uav_name, uav_type;
-  bool        collision_avoidance_enabled, avoiding_collision;
-  uint16_t    num_other_uavs;
-
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    uav_name                    = uav_status_.uav_name;
-    uav_type                    = uav_status_.uav_type;
-    collision_avoidance_enabled = uav_status_.collision_avoidance_enabled;
-    avoiding_collision          = uav_status_.avoiding_collision;
-    num_other_uavs              = uav_status_.num_other_uavs;
-  }
 
   double since_data_s = (clock_->now() - last_time_got_data_).seconds();
 

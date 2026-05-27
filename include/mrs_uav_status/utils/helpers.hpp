@@ -1,10 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <exception>
 #include <string>
 #include <vector>
 
 #include <diagnostic_msgs/msg/key_value.hpp>
+#include <mrs_msgs/msg/sensor_status.hpp>
 
 namespace mrs_uav_status::utils
 {
@@ -45,6 +47,16 @@ inline std::vector<std::string> withActiveFirst(const std::string &active, const
     }
   }
   return out;
+}
+
+// Find the first SensorStatus of a given type. Returns nullptr if not present.
+inline const mrs_msgs::msg::SensorStatus *findSensor(const std::vector<mrs_msgs::msg::SensorStatus> &sensors, uint8_t type) {
+  for (const auto &s : sensors) {
+    if (s.type == type) {
+      return &s;
+    }
+  }
+  return nullptr;
 }
 
 // Look up a value in a KeyValue list. Returns fallback if the key isn't present.
