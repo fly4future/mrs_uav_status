@@ -196,4 +196,20 @@ inline void printTmuxDump(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2, cons
   wnoutrefresh(sub2);
 }
 
+// Map a measured Hz against an expected Hz to a ColorPair (Green ≥ 90% expected,
+// Yellow ≥ 50% expected, Red otherwise). Replaces the precomputed *_color fields
+// that the legacy UavStatus blob carried.
+inline int16_t rateColor(double rate, double expected) {
+  if (expected <= 0.0) {
+    return static_cast<int16_t>(ColorPair::Normal);
+  }
+  if (rate >= 0.9 * expected) {
+    return static_cast<int16_t>(ColorPair::Green);
+  }
+  if (rate >= 0.5 * expected) {
+    return static_cast<int16_t>(ColorPair::Yellow);
+  }
+  return static_cast<int16_t>(ColorPair::Red);
+}
+
 } // namespace mrs_uav_status::tui
