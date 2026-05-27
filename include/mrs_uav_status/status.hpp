@@ -5,8 +5,13 @@
 
 #include <mrs_uav_status/tui/tui.hpp>
 
-#include <mrs_msgs/msg/uav_status.hpp>
-#include <mrs_msgs/msg/uav_status_short.hpp>
+#include <mrs_msgs/msg/collision_avoidance_info.hpp>
+#include <mrs_msgs/msg/control_info.hpp>
+#include <mrs_msgs/msg/general_robot_info.hpp>
+#include <mrs_msgs/msg/state.hpp>
+#include <mrs_msgs/msg/state_estimation_info.hpp>
+#include <mrs_msgs/msg/system_health_info.hpp>
+#include <mrs_msgs/msg/uav_info.hpp>
 
 #include <mrs_lib/node.h>
 #include <mrs_lib/profiler.h>
@@ -50,8 +55,13 @@ private:
   rclcpp::CallbackGroup::SharedPtr cbkgrp_timers_;
   rclcpp::CallbackGroup::SharedPtr cbkgrp_sc_;
 
-  mrs_lib::SubscriberHandler<mrs_msgs::msg::UavStatus>      sh_uav_status_;
-  mrs_lib::SubscriberHandler<mrs_msgs::msg::UavStatusShort> sh_uav_status_short_;
+  mrs_lib::SubscriberHandler<mrs_msgs::msg::GeneralRobotInfo>      sh_general_robot_info_;
+  mrs_lib::SubscriberHandler<mrs_msgs::msg::StateEstimationInfo>   sh_state_estimation_info_;
+  mrs_lib::SubscriberHandler<mrs_msgs::msg::ControlInfo>           sh_control_info_;
+  mrs_lib::SubscriberHandler<mrs_msgs::msg::CollisionAvoidanceInfo> sh_collision_avoidance_info_;
+  mrs_lib::SubscriberHandler<mrs_msgs::msg::UavInfo>               sh_uav_info_;
+  mrs_lib::SubscriberHandler<mrs_msgs::msg::SystemHealthInfo>      sh_system_health_info_;
+  mrs_lib::SubscriberHandler<mrs_msgs::msg::State>                 sh_uav_state_;
 
   std::shared_ptr<TimerType> timer_status_fast_;
   std::shared_ptr<TimerType> timer_status_slow_;
@@ -60,8 +70,13 @@ private:
   void timerStatusFast();
   void timerStatusSlow();
   void timerResize();
-  void callbackUavStatus(const mrs_msgs::msg::UavStatus::ConstSharedPtr msg);
-  void callbackUavStatusShort(const mrs_msgs::msg::UavStatusShort::ConstSharedPtr msg);
+  void callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::ConstSharedPtr msg);
+  void callbackStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo::ConstSharedPtr msg);
+  void callbackControlInfo(const mrs_msgs::msg::ControlInfo::ConstSharedPtr msg);
+  void callbackCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo::ConstSharedPtr msg);
+  void callbackUavInfo(const mrs_msgs::msg::UavInfo::ConstSharedPtr msg);
+  void callbackSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo::ConstSharedPtr msg);
+  void callbackUavState(const mrs_msgs::msg::State::ConstSharedPtr msg);
 
   std::atomic<bool> initialized_ = false;
 

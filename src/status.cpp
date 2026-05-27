@@ -117,8 +117,17 @@ void Status::initialize() {
   shopts.autostart                           = true;
   shopts.subscription_options.callback_group = cbkgrp_subs_;
 
-  sh_uav_status_       = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavStatus>(shopts, "~/uav_status_in", &Status::callbackUavStatus, this);
-  sh_uav_status_short_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavStatusShort>(shopts, "~/uav_status_short_in", &Status::callbackUavStatusShort, this);
+  sh_general_robot_info_ =
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::GeneralRobotInfo>(shopts, "~/general_robot_info_in", &Status::callbackGeneralRobotInfo, this);
+  sh_state_estimation_info_ =
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::StateEstimationInfo>(shopts, "~/state_estimation_info_in", &Status::callbackStateEstimationInfo, this);
+  sh_control_info_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::ControlInfo>(shopts, "~/control_info_in", &Status::callbackControlInfo, this);
+  sh_collision_avoidance_info_ =
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::CollisionAvoidanceInfo>(shopts, "~/collision_avoidance_info_in", &Status::callbackCollisionAvoidanceInfo, this);
+  sh_uav_info_          = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavInfo>(shopts, "~/uav_info_in", &Status::callbackUavInfo, this);
+  sh_system_health_info_ =
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::SystemHealthInfo>(shopts, "~/system_health_info_in", &Status::callbackSystemHealthInfo, this);
+  sh_uav_state_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::State>(shopts, "~/uav_state_in", &Status::callbackUavState, this);
 
   profiler_ = mrs_lib::Profiler(node_, "Status", _profiler_enabled_);
 
@@ -320,18 +329,53 @@ void Status::timerStatusSlow() {
 
 /* callbacks //{ */
 
-void Status::callbackUavStatus(const mrs_msgs::msg::UavStatus::ConstSharedPtr msg) {
+void Status::callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::ConstSharedPtr msg) {
   if (!initialized_) {
     return;
   }
-  tui_->onUavStatus(*msg);
+  tui_->onGeneralRobotInfo(*msg);
 }
 
-void Status::callbackUavStatusShort(const mrs_msgs::msg::UavStatusShort::ConstSharedPtr msg) {
+void Status::callbackStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo::ConstSharedPtr msg) {
   if (!initialized_) {
     return;
   }
-  tui_->onUavStatusShort(*msg);
+  tui_->onStateEstimationInfo(*msg);
+}
+
+void Status::callbackControlInfo(const mrs_msgs::msg::ControlInfo::ConstSharedPtr msg) {
+  if (!initialized_) {
+    return;
+  }
+  tui_->onControlInfo(*msg);
+}
+
+void Status::callbackCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo::ConstSharedPtr msg) {
+  if (!initialized_) {
+    return;
+  }
+  tui_->onCollisionAvoidanceInfo(*msg);
+}
+
+void Status::callbackUavInfo(const mrs_msgs::msg::UavInfo::ConstSharedPtr msg) {
+  if (!initialized_) {
+    return;
+  }
+  tui_->onUavInfo(*msg);
+}
+
+void Status::callbackSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo::ConstSharedPtr msg) {
+  if (!initialized_) {
+    return;
+  }
+  tui_->onSystemHealthInfo(*msg);
+}
+
+void Status::callbackUavState(const mrs_msgs::msg::State::ConstSharedPtr msg) {
+  if (!initialized_) {
+    return;
+  }
+  tui_->onUavState(*msg);
 }
 
 //}

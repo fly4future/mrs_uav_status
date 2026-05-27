@@ -19,9 +19,15 @@
 
 #include <mrs_msgs/srv/string.hpp>
 #include <mrs_msgs/srv/reference_stamped_srv.hpp>
+#include <mrs_msgs/msg/collision_avoidance_info.hpp>
+#include <mrs_msgs/msg/control_info.hpp>
+#include <mrs_msgs/msg/general_robot_info.hpp>
 #include <mrs_msgs/msg/reference.hpp>
+#include <mrs_msgs/msg/state.hpp>
+#include <mrs_msgs/msg/state_estimation_info.hpp>
+#include <mrs_msgs/msg/system_health_info.hpp>
+#include <mrs_msgs/msg/uav_info.hpp>
 #include <mrs_msgs/msg/uav_status.hpp>
-#include <mrs_msgs/msg/uav_status_short.hpp>
 #include <mrs_msgs/msg/gimbal_state.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
@@ -49,8 +55,16 @@ public:
   TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const TUI::TUIParams &params);
 
   // | --------------------- Data push (thread-safe) --------------------- |
-  void onUavStatus(const mrs_msgs::msg::UavStatus &msg);
-  void onUavStatusShort(const mrs_msgs::msg::UavStatusShort &msg);
+  // Each on* method fills one slice of the internal uav_status_ blob from
+  // the corresponding state_monitor diagnostics topic. The blob will be
+  // removed in Phase 6 once handlers consume typed snapshots directly.
+  void onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg);
+  void onStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo &msg);
+  void onControlInfo(const mrs_msgs::msg::ControlInfo &msg);
+  void onCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo &msg);
+  void onUavInfo(const mrs_msgs::msg::UavInfo &msg);
+  void onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg);
+  void onUavState(const mrs_msgs::msg::State &msg);
 
   // | --------------------- Window lifecycle ------------------- |
   void setupWindows();
@@ -182,11 +196,9 @@ private:
 
   long         last_gigas_                = 0;
   bool         have_data_                 = false;
-  bool         have_short_data_           = false;
   int          estimator_display_counter_ = 0;
   bool         increment_counter_         = false;
   rclcpp::Time last_time_got_data_;
-  rclcpp::Time last_time_got_short_data_;
   rclcpp::Time bottom_window_clear_time_;
 
 

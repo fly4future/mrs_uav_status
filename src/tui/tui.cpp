@@ -24,7 +24,6 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
   prefillUavStatus();
 
   last_time_got_data_       = rclcpp::Time(0, 0, clock_->get_clock_type());
-  last_time_got_short_data_ = rclcpp::Time(0, 0, clock_->get_clock_type());
   bottom_window_clear_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
 
   goto_double_vec_   = params_.goto_values;
@@ -69,29 +68,130 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
   transformer_->retryLookupNewest(true);
 }
 
-void TUI::onUavStatus(const mrs_msgs::msg::UavStatus &msg) {
+void TUI::onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
-    uav_status_ = msg;
+    uav_status_.uav_name                    = msg.robot_name;
+    uav_status_.uav_type                    = std::to_string(msg.robot_type);
+    uav_status_.battery_volt                = msg.battery_state.voltage;
+    uav_status_.battery_curr                = msg.battery_state.current;
+    uav_status_.battery_wh_drained          = msg.battery_state.wh_drained;
+    uav_status_.automatic_start_can_takeoff = msg.ready_to_start;
   }
   last_time_got_data_ = clock_->now();
 }
 
-void TUI::onUavStatusShort(const mrs_msgs::msg::UavStatusShort &msg) {
+void TUI::onStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
-    uav_status_.odom_x     = msg.odom_x;
-    uav_status_.odom_y     = msg.odom_y;
-    uav_status_.odom_z     = msg.odom_z;
-    uav_status_.odom_hdg   = msg.odom_hdg;
-    uav_status_.odom_color = msg.odom_color;
-    uav_status_.odom_hz    = msg.odom_hz;
-    uav_status_.cmd_x      = msg.cmd_x;
-    uav_status_.cmd_y      = msg.cmd_y;
-    uav_status_.cmd_z      = msg.cmd_z;
-    uav_status_.cmd_hdg    = msg.cmd_hdg;
+    uav_status_.odom_x               = static_cast<float>(msg.local_pose.position.x);
+    uav_status_.odom_y               = static_cast<float>(msg.local_pose.position.y);
+    uav_status_.odom_z               = static_cast<float>(msg.local_pose.position.z);
+    uav_status_.odom_hdg             = static_cast<float>(msg.local_pose.heading);
+    uav_status_.odom_frame           = msg.header.frame_id;
+    uav_status_.odom_estimators      = utils::withActiveFirst(msg.current_estimator, msg.switchable_estimators);
+    uav_status_.horizontal_estimator = msg.horizontal_estimator;
+    uav_status_.vertical_estimator   = msg.vertical_estimator;
+    uav_status_.heading_estimator    = msg.heading_estimator;
+    uav_status_.agl_estimator        = msg.agl_estimator;
+    uav_status_.max_flight_z         = msg.max_flight_z;
   }
-  last_time_got_short_data_ = clock_->now();
+  last_time_got_data_ = clock_->now();
+}
+
+void TUI::onControlInfo(const mrs_msgs::msg::ControlInfo &msg) {
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    uav_status_.controllers         = utils::withActiveFirst(msg.active_controller, msg.available_controllers);
+    uav_status_.trackers            = utils::withActiveFirst(msg.active_tracker, msg.available_trackers);
+    uav_status_.gains               = utils::withActiveFirst(msg.active_gains, msg.available_gains);
+    uav_status_.constraints         = utils::withActiveFirst(msg.active_constraints, msg.available_constraints);
+    uav_status_.null_tracker        = (msg.active_tracker == "NullTracker");
+    uav_status_.thrust              = msg.thrust;
+    uav_status_.cmd_x               = static_cast<float>(msg.cmd_pose.position.x);
+    uav_status_.cmd_y               = static_cast<float>(msg.cmd_pose.position.y);
+    uav_status_.cmd_z               = static_cast<float>(msg.cmd_pose.position.z);
+    uav_status_.cmd_hdg             = static_cast<float>(msg.cmd_pose.heading);
+    uav_status_.flying_normally     = msg.flying_normally;
+    uav_status_.have_goal           = msg.have_goal;
+    uav_status_.tracking_trajectory = msg.tracking_trajectory;
+    uav_status_.callbacks_enabled   = msg.callbacks_enabled;
+  }
+  last_time_got_data_ = clock_->now();
+}
+
+void TUI::onCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo &msg) {
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    uav_status_.collision_avoidance_enabled = msg.collision_avoidance_enabled;
+    uav_status_.avoiding_collision          = msg.avoiding_collision;
+    uav_status_.num_other_uavs              = static_cast<uint16_t>(msg.other_robots_visible.size());
+  }
+  last_time_got_data_ = clock_->now();
+}
+
+void TUI::onUavInfo(const mrs_msgs::msg::UavInfo &msg) {
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    uav_status_.hw_api_mode   = msg.flight_state;
+    uav_status_.hw_api_armed  = msg.armed;
+    uav_status_.mass_estimate = msg.mass_estimate;
+    uav_status_.mass_set      = msg.mass_nominal;
+    uav_status_.secs_flown    = static_cast<uint32_t>(std::max(0.0f, msg.flight_duration));
+  }
+  last_time_got_data_ = clock_->now();
+}
+
+void TUI::onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg) {
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    const auto &oc = msg.onboard_computer_info;
+
+    uav_status_.cpu_load        = oc.cpu_load;
+    uav_status_.cpu_ghz         = oc.cpu_ghz;
+    uav_status_.cpu_temperature = oc.cpu_temperature;
+    uav_status_.free_ram        = oc.free_ram;
+    uav_status_.total_ram       = oc.total_ram;
+    uav_status_.free_hdd        = oc.free_hdd;
+
+    // Translate CpuLoad[] (struct-of-fields) into the legacy parallel-array NodeCpuLoad form.
+    uav_status_.node_cpu_loads.node_names.clear();
+    uav_status_.node_cpu_loads.cpu_loads.clear();
+    uav_status_.node_cpu_loads.node_names.reserve(oc.node_cpu_loads.size());
+    uav_status_.node_cpu_loads.cpu_loads.reserve(oc.node_cpu_loads.size());
+    for (const auto &n : oc.node_cpu_loads) {
+      uav_status_.node_cpu_loads.node_names.push_back(n.node_name);
+      uav_status_.node_cpu_loads.cpu_loads.push_back(n.cpu_load);
+    }
+
+    uav_status_.hw_api_hz              = msg.hw_api_rate;
+    uav_status_.control_manager_diag_hz = msg.control_manager_rate;
+    uav_status_.odom_hz                = msg.state_estimation_rate;
+
+    // Walk available_sensors and extract per-type fields from KeyValue details.
+    for (const auto &sensor : msg.available_sensors) {
+      if (sensor.type == mrs_msgs::msg::SensorStatus::TYPE_GPS) {
+        uav_status_.hw_api_gnss_fix_type = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(sensor.details, "fix_type"), 0));
+        uav_status_.hw_api_gnss_num_sats = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(sensor.details, "num_sats"), 0));
+        uav_status_.hw_api_gnss_pos_acc  = static_cast<float>(utils::parseDoubleOr(utils::lookupDetail(sensor.details, "pos_acc"), 100.0));
+        uav_status_.hw_api_gnss_qual     = static_cast<float>(utils::parseDoubleOr(utils::lookupDetail(sensor.details, "qual"), 0.0));
+        uav_status_.hw_api_gnss_status_hz = sensor.rate;
+        uav_status_.hw_api_gnss_ok        = (sensor.level == mrs_msgs::msg::SensorStatus::OK);
+      } else if (sensor.type == mrs_msgs::msg::SensorStatus::TYPE_MAGNETOMETER) {
+        uav_status_.mag_norm    = static_cast<float>(utils::parseDoubleOr(utils::lookupDetail(sensor.details, "norm_gauss"), 0.0));
+        uav_status_.mag_norm_hz = sensor.rate;
+      }
+    }
+  }
+  last_time_got_data_ = clock_->now();
+}
+
+void TUI::onUavState(const mrs_msgs::msg::State &msg) {
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    uav_status_.rc_mode = (msg.state == mrs_msgs::msg::State::STATE_RC_MODE);
+  }
+  last_time_got_data_ = clock_->now();
 }
 
 void TUI::tickSlowCounter() {
@@ -1205,10 +1305,7 @@ void TUI::topLineHandler() {
     num_other_uavs              = uav_status_.num_other_uavs;
   }
 
-  double since_data_s       = (clock_->now() - last_time_got_data_).seconds();
-  double since_data_short_s = (clock_->now() - last_time_got_short_data_).seconds();
-
-  have_short_data_ = (since_data_short_s < 3.0);
+  double since_data_s = (clock_->now() - last_time_got_data_).seconds();
 
   // If we haven't received data for a while, switch to the "no data" color scheme. If we start receiving data again, switch back to the normal color scheme.
   if (const bool nd = (since_data_s < 3.0); nd != have_data_) {
@@ -1216,8 +1313,7 @@ void TUI::topLineHandler() {
     _light_    = setupColors(have_data_, params_.colorscheme, params_.colorblind_mode);
   }
 
-  since_data_short_s = std::min(since_data_short_s, 99.9);
-  since_data_s       = std::min(since_data_s, 99.9);
+  since_data_s = std::min(since_data_s, 99.9);
 
   mvwprintw(win, 0, 10, " %s %s ", uav_name.c_str(), uav_type.c_str());
 
