@@ -122,6 +122,58 @@ void TUI::onUavState(const mrs_msgs::msg::State &msg) {
   last_time_got_data_ = clock_->now();
 }
 
+void TUI::onString(const std_msgs::msg::String &msg) {
+  // Parse leading flags ("-id <key>" optional dedupe key, "-p" mark persistent),
+  // rejoin remaining tokens as the display text, then dedupe-or-append in
+  // string_info_vec_. Mirrors the legacy data_acquisition.cpp::callbackString.
+  std::stringstream                  ss(msg.data);
+  std::istream_iterator<std::string> begin(ss);
+  std::istream_iterator<std::string> end;
+  std::vector<std::string>           tokens(begin, end);
+  if (tokens.empty()) {
+    return;
+  }
+
+  std::string id;
+  bool        persistent = false;
+  bool        flags_done = false;
+  size_t      i          = 0;
+  while (!flags_done && i < tokens.size()) {
+    if (tokens[i] == "-id" && i + 1 < tokens.size()) {
+      id = tokens[i + 1];
+      tokens.erase(tokens.begin() + i, tokens.begin() + i + 2);
+    } else if (tokens[i] == "-p") {
+      persistent = true;
+      tokens.erase(tokens.begin() + i);
+    } else if (!tokens[i].empty() && tokens[i].front() != '-') {
+      flags_done = true;
+    } else {
+      ++i;
+    }
+  }
+
+  std::string display;
+  for (size_t k = 0; k < tokens.size(); ++k) {
+    if (k > 0) {
+      display += ' ';
+    }
+    display += tokens[k];
+  }
+
+  std::scoped_lock lock(mutex_status_msg_);
+  const rclcpp::Time now = clock_->now();
+  // Dedupe by id (the legacy publisher_name was already lost from ROS1 → always empty).
+  for (auto &entry : string_info_vec_) {
+    if (entry.id == id) {
+      entry.display_string = display;
+      entry.persistent     = persistent;
+      entry.last_time      = now;
+      return;
+    }
+  }
+  string_info_vec_.emplace_back(now, std::string{}, display, id, persistent);
+}
+
 void TUI::tickSlowCounter() {
   increment_counter_ = !increment_counter_;
   estimator_display_counter_ += int(increment_counter_);
@@ -295,6 +347,18 @@ void TUI::stringHandler() {
       gnss_num_sats    = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gps->details, "num_satellites"), 0));
       gnss_pos_acc     = utils::parseDoubleOr(utils::lookupDetail(gps->details, "position_accuracy"), 100.0);
       gnss_status_rate = gps->rate;
+    }
+
+    // Custom strings from std_msgs/String topic: evict stale (>10 s, unless
+    // persistent) and collect the rest for rendering.
+    const rclcpp::Time now = clock_->now();
+    for (auto it = string_info_vec_.begin(); it != string_info_vec_.end();) {
+      if (!it->persistent && (now - it->last_time).seconds() > 10.0) {
+        it = string_info_vec_.erase(it);
+      } else {
+        string_vector.push_back(it->display_string);
+        ++it;
+      }
     }
   }
 

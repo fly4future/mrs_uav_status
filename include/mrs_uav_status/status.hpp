@@ -12,6 +12,7 @@
 #include <mrs_msgs/msg/state_estimation_info.hpp>
 #include <mrs_msgs/msg/system_health_info.hpp>
 #include <mrs_msgs/msg/uav_info.hpp>
+#include <std_msgs/msg/string.hpp>
 
 #include <mrs_lib/node.h>
 #include <mrs_lib/profiler.h>
@@ -62,6 +63,7 @@ private:
   mrs_lib::SubscriberHandler<mrs_msgs::msg::UavInfo>               sh_uav_info_;
   mrs_lib::SubscriberHandler<mrs_msgs::msg::SystemHealthInfo>      sh_system_health_info_;
   mrs_lib::SubscriberHandler<mrs_msgs::msg::State>                 sh_uav_state_;
+  mrs_lib::SubscriberHandler<std_msgs::msg::String>                sh_display_string_;
 
   std::shared_ptr<TimerType> timer_status_fast_;
   std::shared_ptr<TimerType> timer_status_slow_;
@@ -77,6 +79,7 @@ private:
   void callbackUavInfo(const mrs_msgs::msg::UavInfo::ConstSharedPtr msg);
   void callbackSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo::ConstSharedPtr msg);
   void callbackUavState(const mrs_msgs::msg::State::ConstSharedPtr msg);
+  void callbackDisplayString(const std_msgs::msg::String::ConstSharedPtr msg);
 
   std::atomic<bool> initialized_ = false;
 

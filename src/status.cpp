@@ -128,6 +128,9 @@ void Status::initialize() {
   sh_system_health_info_ =
       mrs_lib::SubscriberHandler<mrs_msgs::msg::SystemHealthInfo>(shopts, "~/system_health_info_in", &Status::callbackSystemHealthInfo, this);
   sh_uav_state_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::State>(shopts, "~/uav_state_in", &Status::callbackUavState, this);
+  // Custom-display string topic — anything published here lands in the TUI's
+  // Strings window. Supports "-id <key> -p <space-separated text>" preamble.
+  sh_display_string_ = mrs_lib::SubscriberHandler<std_msgs::msg::String>(shopts, "~/display_string_in", &Status::callbackDisplayString, this);
 
   profiler_ = mrs_lib::Profiler(node_, "Status", _profiler_enabled_);
 
@@ -376,6 +379,13 @@ void Status::callbackUavState(const mrs_msgs::msg::State::ConstSharedPtr msg) {
     return;
   }
   tui_->onUavState(*msg);
+}
+
+void Status::callbackDisplayString(const std_msgs::msg::String::ConstSharedPtr msg) {
+  if (!initialized_) {
+    return;
+  }
+  tui_->onString(*msg);
 }
 
 //}

@@ -26,6 +26,7 @@
 #endif
 
 #include <mrs_uav_status/utils/helpers.hpp>
+#include <mrs_uav_status/utils/string_info.hpp>
 #include <mrs_uav_status/utils/terminal.hpp>
 
 #include <mrs_msgs/srv/string.hpp>
@@ -40,6 +41,7 @@
 #include <mrs_msgs/msg/system_health_info.hpp>
 #include <mrs_msgs/msg/uav_info.hpp>
 #include <mrs_msgs/msg/gimbal_state.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
 #include <mrs_lib/publisher_handler.h>
@@ -73,6 +75,7 @@ public:
   void onUavInfo(const mrs_msgs::msg::UavInfo &msg);
   void onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg);
   void onUavState(const mrs_msgs::msg::State &msg);
+  void onString(const std_msgs::msg::String &msg);
 
   // | --------------------- Window lifecycle ------------------- |
   void setupWindows();
@@ -157,6 +160,11 @@ private:
   mrs_msgs::msg::UavInfo                last_uav_info_;
   mrs_msgs::msg::SystemHealthInfo       last_system_health_info_;
   mrs_msgs::msg::State                  last_uav_state_;
+
+  // Custom strings published via std_msgs/String. Each entry tracks its own
+  // freshness — entries older than 10 s are pruned in stringHandler unless
+  // marked persistent (`-p` flag). Deduped by id (parsed from `-id <key>`).
+  std::vector<utils::StringInfo> string_info_vec_;
 
   /** @brief struct to hold menu entries and their associated actions */
   /*
