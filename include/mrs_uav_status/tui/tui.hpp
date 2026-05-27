@@ -14,31 +14,31 @@
 #include <mrs_uav_status/tui/status_window.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
 #include <mrs_uav_status/tui/colors.hpp>
-#include <mrs_uav_status/utils/helpers.hpp>
-#include <mrs_uav_status/utils/terminal.hpp>
 
 // <curses.h> (transitively included above by the TUI helpers) defines OK and ERR
 // as preprocessor macros (0 and -1). The mrs_msgs/SensorStatus header below
-// declares static constexpr members with the same names — without these
-// undefs the message header fails to parse.
+// declares static constexpr members with the same names
 #ifdef OK
-#  undef OK
+#undef OK
 #endif
 #ifdef ERR
-#  undef ERR
+#undef ERR
 #endif
+
+#include <mrs_uav_status/utils/helpers.hpp>
+#include <mrs_uav_status/utils/terminal.hpp>
 
 #include <mrs_msgs/srv/string.hpp>
 #include <mrs_msgs/srv/reference_stamped_srv.hpp>
 #include <mrs_msgs/msg/collision_avoidance_info.hpp>
 #include <mrs_msgs/msg/control_info.hpp>
+#include <mrs_msgs/msg/custom_topic.hpp>
 #include <mrs_msgs/msg/general_robot_info.hpp>
 #include <mrs_msgs/msg/reference.hpp>
 #include <mrs_msgs/msg/state.hpp>
 #include <mrs_msgs/msg/state_estimation_info.hpp>
 #include <mrs_msgs/msg/system_health_info.hpp>
 #include <mrs_msgs/msg/uav_info.hpp>
-#include <mrs_msgs/msg/uav_status.hpp>
 #include <mrs_msgs/msg/gimbal_state.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
@@ -66,9 +66,6 @@ public:
   TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const TUI::TUIParams &params);
 
   // | --------------------- Data push (thread-safe) --------------------- |
-  // Each on* method fills one slice of the internal uav_status_ blob from
-  // the corresponding state_monitor diagnostics topic. The blob will be
-  // removed in Phase 6 once handlers consume typed snapshots directly.
   void onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg);
   void onStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo &msg);
   void onControlInfo(const mrs_msgs::msg::ControlInfo &msg);
@@ -151,8 +148,15 @@ private:
   std::unique_ptr<mrs_lib::Transformer> transformer_;
 
   // | ----------------------- UAV status snapshot --------------- |
-  std::mutex               mutex_status_msg_;
-  mrs_msgs::msg::UavStatus uav_status_;
+  // All last_*_ snapshots are guarded by this single mutex.
+  std::mutex                            mutex_status_msg_;
+  mrs_msgs::msg::GeneralRobotInfo       last_general_robot_info_;
+  mrs_msgs::msg::StateEstimationInfo    last_state_estimation_info_;
+  mrs_msgs::msg::ControlInfo            last_control_info_;
+  mrs_msgs::msg::CollisionAvoidanceInfo last_collision_avoidance_info_;
+  mrs_msgs::msg::UavInfo                last_uav_info_;
+  mrs_msgs::msg::SystemHealthInfo       last_system_health_info_;
+  mrs_msgs::msg::State                  last_uav_state_;
 
   /** @brief struct to hold menu entries and their associated actions */
   /*
@@ -165,8 +169,8 @@ private:
   */
 
   TUIParams params_;
-  bool _light_ = false;
-  bool help_active_ = false;
+  bool      _light_      = false;
+  bool      help_active_ = false;
 
   struct MenuRow
   {
@@ -202,7 +206,6 @@ private:
   int              terminal_cols_ = 0, terminal_lines_ = 0;
 
 
-  void prefillUavStatus();
   void setupDisplayText();
 
   long         last_gigas_                = 0;

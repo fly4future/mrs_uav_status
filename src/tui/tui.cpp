@@ -21,8 +21,6 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
 
   _light_ = (params_.colorscheme.find("COLORSCHEME_LIGHT") != std::string::npos);
 
-  prefillUavStatus();
-
   last_time_got_data_       = rclcpp::Time(0, 0, clock_->get_clock_type());
   bottom_window_clear_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
 
@@ -71,13 +69,7 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
 void TUI::onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
-    last_general_robot_info_                = msg;
-    uav_status_.uav_name                    = msg.robot_name;
-    uav_status_.uav_type                    = std::to_string(msg.robot_type);
-    uav_status_.battery_volt                = msg.battery_state.voltage;
-    uav_status_.battery_curr                = msg.battery_state.current;
-    uav_status_.battery_wh_drained          = msg.battery_state.wh_drained;
-    uav_status_.automatic_start_can_takeoff = msg.ready_to_start;
+    last_general_robot_info_ = msg;
   }
   last_time_got_data_ = clock_->now();
 }
@@ -85,18 +77,7 @@ void TUI::onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg) {
 void TUI::onStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
-    last_state_estimation_info_      = msg;
-    uav_status_.odom_x               = static_cast<float>(msg.local_pose.position.x);
-    uav_status_.odom_y               = static_cast<float>(msg.local_pose.position.y);
-    uav_status_.odom_z               = static_cast<float>(msg.local_pose.position.z);
-    uav_status_.odom_hdg             = static_cast<float>(msg.local_pose.heading);
-    uav_status_.odom_frame           = msg.header.frame_id;
-    uav_status_.odom_estimators      = utils::withActiveFirst(msg.current_estimator, msg.switchable_estimators);
-    uav_status_.horizontal_estimator = msg.horizontal_estimator;
-    uav_status_.vertical_estimator   = msg.vertical_estimator;
-    uav_status_.heading_estimator    = msg.heading_estimator;
-    uav_status_.agl_estimator        = msg.agl_estimator;
-    uav_status_.max_flight_z         = msg.max_flight_z;
+    last_state_estimation_info_ = msg;
   }
   last_time_got_data_ = clock_->now();
 }
@@ -104,21 +85,7 @@ void TUI::onStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo &msg) {
 void TUI::onControlInfo(const mrs_msgs::msg::ControlInfo &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
-    last_control_info_              = msg;
-    uav_status_.controllers         = utils::withActiveFirst(msg.active_controller, msg.available_controllers);
-    uav_status_.trackers            = utils::withActiveFirst(msg.active_tracker, msg.available_trackers);
-    uav_status_.gains               = utils::withActiveFirst(msg.active_gains, msg.available_gains);
-    uav_status_.constraints         = utils::withActiveFirst(msg.active_constraints, msg.available_constraints);
-    uav_status_.null_tracker        = (msg.active_tracker == "NullTracker");
-    uav_status_.thrust              = msg.thrust;
-    uav_status_.cmd_x               = static_cast<float>(msg.cmd_pose.position.x);
-    uav_status_.cmd_y               = static_cast<float>(msg.cmd_pose.position.y);
-    uav_status_.cmd_z               = static_cast<float>(msg.cmd_pose.position.z);
-    uav_status_.cmd_hdg             = static_cast<float>(msg.cmd_pose.heading);
-    uav_status_.flying_normally     = msg.flying_normally;
-    uav_status_.have_goal           = msg.have_goal;
-    uav_status_.tracking_trajectory = msg.tracking_trajectory;
-    uav_status_.callbacks_enabled   = msg.callbacks_enabled;
+    last_control_info_ = msg;
   }
   last_time_got_data_ = clock_->now();
 }
@@ -126,10 +93,7 @@ void TUI::onControlInfo(const mrs_msgs::msg::ControlInfo &msg) {
 void TUI::onCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
-    last_collision_avoidance_info_          = msg;
-    uav_status_.collision_avoidance_enabled = msg.collision_avoidance_enabled;
-    uav_status_.avoiding_collision          = msg.avoiding_collision;
-    uav_status_.num_other_uavs              = static_cast<uint16_t>(msg.other_robots_visible.size());
+    last_collision_avoidance_info_ = msg;
   }
   last_time_got_data_ = clock_->now();
 }
@@ -137,12 +101,7 @@ void TUI::onCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo &
 void TUI::onUavInfo(const mrs_msgs::msg::UavInfo &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
-    last_uav_info_            = msg;
-    uav_status_.hw_api_mode   = msg.flight_state;
-    uav_status_.hw_api_armed  = msg.armed;
-    uav_status_.mass_estimate = msg.mass_estimate;
-    uav_status_.mass_set      = msg.mass_nominal;
-    uav_status_.secs_flown    = static_cast<uint32_t>(std::max(0.0f, msg.flight_duration));
+    last_uav_info_ = msg;
   }
   last_time_got_data_ = clock_->now();
 }
@@ -151,43 +110,6 @@ void TUI::onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
     last_system_health_info_ = msg;
-    const auto &oc           = msg.onboard_computer_info;
-
-    uav_status_.cpu_load        = oc.cpu_load;
-    uav_status_.cpu_ghz         = oc.cpu_ghz;
-    uav_status_.cpu_temperature = oc.cpu_temperature;
-    uav_status_.free_ram        = oc.free_ram;
-    uav_status_.total_ram       = oc.total_ram;
-    uav_status_.free_hdd        = oc.free_hdd;
-
-    // Translate CpuLoad[] (struct-of-fields) into the legacy parallel-array NodeCpuLoad form.
-    uav_status_.node_cpu_loads.node_names.clear();
-    uav_status_.node_cpu_loads.cpu_loads.clear();
-    uav_status_.node_cpu_loads.node_names.reserve(oc.node_cpu_loads.size());
-    uav_status_.node_cpu_loads.cpu_loads.reserve(oc.node_cpu_loads.size());
-    for (const auto &n : oc.node_cpu_loads) {
-      uav_status_.node_cpu_loads.node_names.push_back(n.node_name);
-      uav_status_.node_cpu_loads.cpu_loads.push_back(n.cpu_load);
-    }
-
-    uav_status_.hw_api_hz              = msg.hw_api_rate;
-    uav_status_.control_manager_diag_hz = msg.control_manager_rate;
-    uav_status_.odom_hz                = msg.state_estimation_rate;
-
-    // Walk available_sensors and extract per-type fields from KeyValue details.
-    for (const auto &sensor : msg.available_sensors) {
-      if (sensor.type == mrs_msgs::msg::SensorStatus::TYPE_GPS) {
-        uav_status_.hw_api_gnss_fix_type = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(sensor.details, "fix_type"), 0));
-        uav_status_.hw_api_gnss_num_sats = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(sensor.details, "num_sats"), 0));
-        uav_status_.hw_api_gnss_pos_acc  = static_cast<float>(utils::parseDoubleOr(utils::lookupDetail(sensor.details, "pos_acc"), 100.0));
-        uav_status_.hw_api_gnss_qual     = static_cast<float>(utils::parseDoubleOr(utils::lookupDetail(sensor.details, "qual"), 0.0));
-        uav_status_.hw_api_gnss_status_hz = sensor.rate;
-        uav_status_.hw_api_gnss_ok        = (sensor.level == mrs_msgs::msg::SensorStatus::OK);
-      } else if (sensor.type == mrs_msgs::msg::SensorStatus::TYPE_MAGNETOMETER) {
-        uav_status_.mag_norm    = static_cast<float>(utils::parseDoubleOr(utils::lookupDetail(sensor.details, "norm_gauss"), 0.0));
-        uav_status_.mag_norm_hz = sensor.rate;
-      }
-    }
   }
   last_time_got_data_ = clock_->now();
 }
@@ -195,8 +117,7 @@ void TUI::onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg) {
 void TUI::onUavState(const mrs_msgs::msg::State &msg) {
   {
     std::scoped_lock lock(mutex_status_msg_);
-    last_uav_state_     = msg;
-    uav_status_.rc_mode = (msg.state == mrs_msgs::msg::State::STATE_RC_MODE);
+    last_uav_state_ = msg;
   }
   last_time_got_data_ = clock_->now();
 }
@@ -298,7 +219,7 @@ void TUI::toggleHelp() {
 
 bool TUI::isFlyingNormally() {
   std::scoped_lock lock(mutex_status_msg_);
-  return uav_status_.flying_normally;
+  return last_control_info_.flying_normally;
 }
 
 void TUI::refreshTopBar() {
@@ -312,31 +233,6 @@ void TUI::refreshBottomWindow() {
 void TUI::refreshAfterMenu() {
   wnoutrefresh(debug_window_.get());
   wnoutrefresh(bottom_window_.get());
-}
-
-void TUI::prefillUavStatus() {
-  std::scoped_lock lock(mutex_status_msg_);
-
-  uav_status_.uav_name                = "N/A";
-  uav_status_.uav_type                = "N/A";
-  uav_status_.uav_mass                = "N/A";
-  uav_status_.control_manager_diag_hz = 0.0;
-  uav_status_.controllers.clear();
-  uav_status_.gains.clear();
-  uav_status_.trackers.clear();
-  uav_status_.constraints.clear();
-  uav_status_.secs_flown = 0;
-  uav_status_.odom_hz    = 0.0;
-  uav_status_.odom_x     = 0.0;
-  uav_status_.odom_y     = 0.0;
-  uav_status_.odom_z     = 0.0;
-  uav_status_.odom_hdg   = 0.0;
-  uav_status_.odom_frame = "N/A";
-  uav_status_.odom_estimators.clear();
-  uav_status_.max_flight_z = 0.0;
-  uav_status_.cpu_load     = 0.0;
-  uav_status_.cpu_ghz      = 0.0;
-  uav_status_.free_ram     = 0.0;
 }
 
 void TUI::generalInfoHandler() {
@@ -530,16 +426,15 @@ void TUI::stringHandler() {
 }
 
 void TUI::genericTopicHandler() {
-  WINDOW                                 *win = generic_topic_window_.get();
+  WINDOW *win = generic_topic_window_.get();
   std::vector<mrs_msgs::msg::CustomTopic> custom_topic_vec;
   bool                                    avoiding_collision, can_takeoff, null_tracker;
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    custom_topic_vec   = uav_status_.custom_topics;
-    avoiding_collision = uav_status_.avoiding_collision;
-    can_takeoff        = uav_status_.automatic_start_can_takeoff;
-    null_tracker       = uav_status_.null_tracker;
+    avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
+    can_takeoff        = last_general_robot_info_.ready_to_start;
+    null_tracker       = (last_control_info_.active_tracker == "NullTracker");
   }
 
   werase(win);
@@ -648,31 +543,32 @@ void TUI::uavStateHandler() {
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    avg_rate   = uav_status_.odom_hz;
-    color      = uav_status_.odom_color;
-    heading    = uav_status_.odom_hdg;
-    state_x    = uav_status_.odom_x;
-    state_y    = uav_status_.odom_y;
-    state_z    = uav_status_.odom_z;
-    odom_frame = uav_status_.odom_frame;
+    const auto &est = last_state_estimation_info_;
+    avg_rate        = last_system_health_info_.state_estimation_rate;
+    heading         = est.local_pose.heading;
+    state_x         = est.local_pose.position.x;
+    state_y         = est.local_pose.position.y;
+    state_z         = est.local_pose.position.z;
+    odom_frame      = est.header.frame_id;
 
-    cmd_x   = uav_status_.cmd_x;
-    cmd_y   = uav_status_.cmd_y;
-    cmd_z   = uav_status_.cmd_z;
-    cmd_hdg = uav_status_.cmd_hdg;
+    cmd_x   = last_control_info_.cmd_pose.position.x;
+    cmd_y   = last_control_info_.cmd_pose.position.y;
+    cmd_z   = last_control_info_.cmd_pose.position.z;
+    cmd_hdg = last_control_info_.cmd_pose.heading;
 
-    uav_status_.odom_estimators.empty() ? main_estimator = "NONE" : main_estimator = uav_status_.odom_estimators[0];
+    main_estimator       = est.current_estimator.empty() ? std::string("NONE") : est.current_estimator;
+    horizontal_estimator = est.horizontal_estimator;
+    vertical_estimator   = est.vertical_estimator;
+    heading_estimator    = est.heading_estimator;
+    agl_estimator        = est.agl_estimator;
 
-    horizontal_estimator = uav_status_.horizontal_estimator;
-    vertical_estimator   = uav_status_.vertical_estimator;
-    heading_estimator    = uav_status_.heading_estimator;
-    agl_estimator        = uav_status_.agl_estimator;
-
-    max_flight_z       = uav_status_.max_flight_z;
-    null_tracker       = uav_status_.null_tracker;
-    avoiding_collision = uav_status_.avoiding_collision;
-    can_takeoff        = uav_status_.automatic_start_can_takeoff;
+    max_flight_z       = est.max_flight_z;
+    null_tracker       = (last_control_info_.active_tracker == "NullTracker");
+    avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
+    can_takeoff        = last_general_robot_info_.ready_to_start;
   }
+  // Nominal MRS estimation rate is 100 Hz; threshold the color band off that.
+  color = rateColor(avg_rate, 100.0);
 
   double cerr_x   = std::fabs(state_x - cmd_x);
   double cerr_y   = std::fabs(state_y - cmd_y);
@@ -820,22 +716,25 @@ void TUI::controlManagerHandler() {
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    rate  = uav_status_.control_manager_diag_hz;
-    color = uav_status_.control_manager_diag_color;
+    const auto &ci = last_control_info_;
 
-    uav_status_.controllers.empty() ? curr_controller = "NONE" : curr_controller = uav_status_.controllers[0];
-    uav_status_.trackers.empty() ? curr_tracker = "NONE" : curr_tracker = uav_status_.trackers[0];
-    uav_status_.gains.empty() ? curr_gains = "NONE" : curr_gains = uav_status_.gains[0];
-    uav_status_.constraints.empty() ? curr_constraints = "NONE" : curr_constraints = uav_status_.constraints[0];
+    rate = last_system_health_info_.control_manager_rate;
 
-    callbacks_enabled   = uav_status_.callbacks_enabled;
-    rc_mode             = uav_status_.rc_mode;
-    have_goal           = uav_status_.have_goal;
-    tracking_trajectory = uav_status_.tracking_trajectory;
-    null_tracker        = uav_status_.null_tracker;
-    avoiding_collision  = uav_status_.avoiding_collision;
-    can_takeoff         = uav_status_.automatic_start_can_takeoff;
+    curr_controller  = ci.active_controller.empty() ? std::string("NONE") : ci.active_controller;
+    curr_tracker     = ci.active_tracker.empty() ? std::string("NONE") : ci.active_tracker;
+    curr_gains       = ci.active_gains.empty() ? std::string("NONE") : ci.active_gains;
+    curr_constraints = ci.active_constraints.empty() ? std::string("NONE") : ci.active_constraints;
+
+    callbacks_enabled   = ci.callbacks_enabled;
+    rc_mode             = (last_uav_state_.state == mrs_msgs::msg::State::STATE_RC_MODE);
+    have_goal           = ci.have_goal;
+    tracking_trajectory = ci.tracking_trajectory;
+    null_tracker        = (ci.active_tracker == "NullTracker");
+    avoiding_collision  = last_collision_avoidance_info_.avoiding_collision;
+    can_takeoff         = last_general_robot_info_.ready_to_start;
   }
+  // Nominal MRS control_manager rate is 100 Hz.
+  color = rateColor(rate, 100.0);
 
   werase(win);
   wattron(win, A_BOLD);
@@ -984,27 +883,45 @@ void TUI::hwApiStateHandler() {
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    color              = uav_status_.hw_api_color;
-    hw_api_rate        = uav_status_.hw_api_hz;
-    state_rate         = uav_status_.hw_api_state_hz;
-    cmd_rate           = uav_status_.hw_api_cmd_hz;
-    battery_rate       = uav_status_.hw_api_battery_hz;
-    gnss_ok            = uav_status_.hw_api_gnss_ok;
-    armed              = uav_status_.hw_api_armed;
-    mode               = uav_status_.hw_api_mode;
-    battery_volt       = uav_status_.battery_volt;
-    battery_curr       = uav_status_.battery_curr;
-    battery_wh_drained = uav_status_.battery_wh_drained;
-    thrust             = uav_status_.thrust;
-    mass_estimate      = uav_status_.mass_estimate;
-    mass_set           = uav_status_.mass_set;
-    gnss_qual          = uav_status_.hw_api_gnss_qual;
-    mag_norm           = uav_status_.mag_norm;
-    mag_norm_rate      = uav_status_.mag_norm_hz;
-    avoiding_collision = uav_status_.avoiding_collision;
-    can_takeoff        = uav_status_.automatic_start_can_takeoff;
-    null_tracker       = uav_status_.null_tracker;
+    const auto &bat = last_general_robot_info_.battery_state;
+
+    hw_api_rate = last_system_health_info_.hw_api_rate;
+    // The legacy per-topic rates (state/cmd/battery) collapsed into a single
+    // hw_api_rate in SystemHealthInfo. Alias them so the existing zero-check UI
+    // logic still trips when hw_api stops publishing entirely.
+    state_rate   = hw_api_rate;
+    cmd_rate     = hw_api_rate;
+    battery_rate = hw_api_rate;
+
+    gnss_ok = false;
+    if (const auto *gps = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GPS); gps) {
+      gnss_ok   = (gps->level == mrs_msgs::msg::SensorStatus::OK);
+      gnss_qual = utils::parseDoubleOr(utils::lookupDetail(gps->details, "qual"), 0.0);
+    } else {
+      gnss_qual = 0.0;
+    }
+
+    mag_norm      = 0.0;
+    mag_norm_rate = 0.0;
+    if (const auto *mag = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_MAGNETOMETER); mag) {
+      mag_norm      = utils::parseDoubleOr(utils::lookupDetail(mag->details, "norm_gauss"), 0.0);
+      mag_norm_rate = mag->rate;
+    }
+
+    armed              = last_uav_info_.armed;
+    mode               = last_uav_info_.flight_state;
+    battery_volt       = bat.voltage;
+    battery_curr       = bat.current;
+    battery_wh_drained = bat.wh_drained;
+    thrust             = last_control_info_.thrust;
+    mass_estimate      = last_uav_info_.mass_estimate;
+    mass_set           = last_uav_info_.mass_nominal;
+    avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
+    can_takeoff        = last_general_robot_info_.ready_to_start;
+    null_tracker       = (last_control_info_.active_tracker == "NullTracker");
   }
+  // Nominal MRS hw_api rate is 100 Hz.
+  color = rateColor(hw_api_rate, 100.0);
 
   std::string tmp_string;
 
@@ -1471,7 +1388,7 @@ void TUI::setupMainMenu() {
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    null_tracker = uav_status_.null_tracker;
+    null_tracker = (last_control_info_.active_tracker == "NullTracker");
   }
 
   // Create menu entries for trigger services
@@ -1493,7 +1410,7 @@ void TUI::setupMainMenu() {
                                std::vector<std::string> constraints_text;
                                {
                                  std::scoped_lock lock(mutex_status_msg_);
-                                 constraints_text = uav_status_.constraints;
+                                 constraints_text = utils::withActiveFirst(last_control_info_.active_constraints, last_control_info_.available_constraints);
                                }
                                sub_menu_rows_.clear();
                                createSubMenu(constraints_text);
@@ -1504,7 +1421,7 @@ void TUI::setupMainMenu() {
                                std::vector<std::string> gains_text;
                                {
                                  std::scoped_lock lock(mutex_status_msg_);
-                                 gains_text = uav_status_.gains;
+                                 gains_text = utils::withActiveFirst(last_control_info_.active_gains, last_control_info_.available_gains);
                                }
                                createSubMenu(gains_text);
                                createSubMenuActions(gains_text, sc_set_gains_);
@@ -1514,7 +1431,7 @@ void TUI::setupMainMenu() {
                                std::vector<std::string> controllers_text;
                                {
                                  std::scoped_lock lock(mutex_status_msg_);
-                                 controllers_text = uav_status_.controllers;
+                                 controllers_text = utils::withActiveFirst(last_control_info_.active_controller, last_control_info_.available_controllers);
                                }
                                createSubMenu(controllers_text);
                                createSubMenuActions(controllers_text, sc_set_controller_);
@@ -1524,7 +1441,7 @@ void TUI::setupMainMenu() {
                                std::vector<std::string> trackers_text;
                                {
                                  std::scoped_lock lock(mutex_status_msg_);
-                                 trackers_text = uav_status_.trackers;
+                                 trackers_text = utils::withActiveFirst(last_control_info_.active_tracker, last_control_info_.available_trackers);
                                }
                                createSubMenu(trackers_text);
                                createSubMenuActions(trackers_text, sc_set_tracker_);
@@ -1534,7 +1451,8 @@ void TUI::setupMainMenu() {
                                std::vector<std::string> odometry_lat_sources_text;
                                {
                                  std::scoped_lock lock(mutex_status_msg_);
-                                 odometry_lat_sources_text = uav_status_.odom_estimators;
+                                 odometry_lat_sources_text =
+                                     utils::withActiveFirst(last_state_estimation_info_.current_estimator, last_state_estimation_info_.switchable_estimators);
                                }
                                createSubMenu(odometry_lat_sources_text);
                                createSubMenuActions(odometry_lat_sources_text, sc_set_estimator_);
@@ -1592,7 +1510,7 @@ void TUI::setupGotoMenu() {
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    odom_frame = uav_status_.odom_frame;
+    odom_frame = last_state_estimation_info_.header.frame_id;
   }
 
   goto_menu_inputs_.clear();
@@ -1637,7 +1555,7 @@ bool TUI::gotoMenuHandler(int key_in) {
 
     {
       std::scoped_lock lock(mutex_status_msg_);
-      request->header.frame_id = uav_status_.odom_frame;
+      request->header.frame_id = last_state_estimation_info_.header.frame_id;
     }
 
     auto response = sc_goto_reference_.callSync(request);
@@ -1778,7 +1696,7 @@ void TUI::remoteHandler(int key) {
 
   if (key == 'G') {
     std::scoped_lock lock(mutex_status_msg_);
-    if (uav_status_.flying_normally) {
+    if (last_control_info_.flying_normally) {
       remote_global_ = !remote_global_;
     }
     return;
@@ -1881,7 +1799,7 @@ void TUI::toggleTurboRemote() {
   bool is_flying_normally;
   {
     std::scoped_lock lock(mutex_status_msg_);
-    is_flying_normally = uav_status_.flying_normally;
+    is_flying_normally = last_control_info_.flying_normally;
   }
 
   if (!is_flying_normally) {
@@ -1906,7 +1824,7 @@ void TUI::toggleTurboRemote() {
   turbo_remote_ = true;
   {
     std::scoped_lock lock(mutex_status_msg_);
-    old_constraints_ = uav_status_.constraints[0];
+    old_constraints_ = last_control_info_.active_constraints;
   }
   auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
   request->value = params_.turbo_remote_constraints;
@@ -2000,11 +1918,11 @@ void TUI::remoteModeFly(const mrs_msgs::msg::Reference &ref_in) {
 
     {
       std::scoped_lock lock(mutex_status_msg_);
-      cmd_x      = uav_status_.cmd_x;
-      cmd_y      = uav_status_.cmd_y;
-      cmd_z      = uav_status_.cmd_z;
-      cmd_hdg    = uav_status_.cmd_hdg;
-      odom_frame = uav_status_.odom_frame;
+      cmd_x      = last_control_info_.cmd_pose.position.x;
+      cmd_y      = last_control_info_.cmd_pose.position.y;
+      cmd_z      = last_control_info_.cmd_pose.position.z;
+      cmd_hdg    = last_control_info_.cmd_pose.heading;
+      odom_frame = last_state_estimation_info_.header.frame_id;
     }
 
     request->reference.position.x = cmd_x + ref_in.position.x;
@@ -2022,12 +1940,12 @@ void TUI::remoteModeFly(const mrs_msgs::msg::Reference &ref_in) {
 
     {
       std::scoped_lock lock(mutex_status_msg_);
-      uav_name   = uav_status_.uav_name;
-      cmd_x      = uav_status_.cmd_x;
-      cmd_y      = uav_status_.cmd_y;
-      cmd_z      = uav_status_.cmd_z;
-      cmd_hdg    = uav_status_.cmd_hdg;
-      odom_frame = uav_status_.odom_frame;
+      uav_name   = last_general_robot_info_.robot_name;
+      cmd_x      = last_control_info_.cmd_pose.position.x;
+      cmd_y      = last_control_info_.cmd_pose.position.y;
+      cmd_z      = last_control_info_.cmd_pose.position.z;
+      cmd_hdg    = last_control_info_.cmd_pose.heading;
+      odom_frame = last_state_estimation_info_.header.frame_id;
     }
 
     mrs_msgs::msg::ReferenceStamped cmd_reference;
@@ -2074,9 +1992,9 @@ void TUI::renderTmuxOrHelp() {
     bool avoiding_collision, can_takeoff, null_tracker;
     {
       std::scoped_lock lock(mutex_status_msg_);
-      avoiding_collision = uav_status_.avoiding_collision;
-      can_takeoff        = uav_status_.automatic_start_can_takeoff;
-      null_tracker       = uav_status_.null_tracker;
+      avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
+      can_takeoff        = last_general_robot_info_.ready_to_start;
+      null_tracker       = (last_control_info_.active_tracker == "NullTracker");
     }
     printTmuxDump(debug_window, sub1, sub2, selected_tmux_window_, session_name_, display_menu_text_, MAX_SELECTED_TMUX_WINDOWS, avoiding_collision,
                   can_takeoff, null_tracker);
