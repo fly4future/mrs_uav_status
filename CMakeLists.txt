@@ -89,46 +89,6 @@ target_link_libraries(MrsUavStatus_Status
 
 target_compile_definitions(MrsUavStatus_Status PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
-# Data acquisition
-
-add_library(MrsUavStatus_Acquisition SHARED)
-
-target_sources(MrsUavStatus_Acquisition
-  PRIVATE
-    "src/data_acquisition.cpp"
-    "src/ros/topic_info.cpp"
-  PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
-  FILES
-    "include/mrs_uav_status/ros/topic_info.hpp"
-    "include/mrs_uav_status/ros/topic_status.hpp"
-    "include/mrs_uav_status/tui/control_bar.hpp"
-    "include/mrs_uav_status/tui/colors.hpp"
-    "include/mrs_uav_status/tui/system_info.hpp"
-    "include/mrs_uav_status/tui/print_helpers.hpp"
-    "include/mrs_uav_status/tui/status_window.hpp"
-    "include/mrs_uav_status/tui/constants.hpp"
-    "include/mrs_uav_status/utils/node_info.hpp"
-    "include/mrs_uav_status/utils/split.hpp"
-    "include/mrs_uav_status/utils/string_info.hpp"
-)
-
-target_link_libraries(MrsUavStatus_Acquisition
-  PRIVATE
-    rclcpp::rclcpp
-    rclcpp_components::component
-    mrs_lib::mrs_lib
-    Curses::Curses
-    ${std_msgs_TARGETS}
-    ${mrs_msgs_TARGETS}
-    ${nav_msgs_TARGETS}
-    ${geometry_msgs_TARGETS}
-    ${tf2_geometry_msgs_TARGETS}
-)
-
-target_compile_definitions(MrsUavStatus_Acquisition PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
-
-rclcpp_components_register_nodes(MrsUavStatus_Acquisition "mrs_uav_status::Acquisition")
-
 ## --------------------------------------------------------------
 ## |                           Testing                          |
 ## --------------------------------------------------------------
@@ -149,14 +109,6 @@ endif()
 ## --------------------------------------------------------------
 
 install(
-  TARGETS MrsUavStatus_Acquisition
-  EXPORT export_${PROJECT_NAME}
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin
-)
-
-install(
   TARGETS
     MrsUavStatus_Status
   DESTINATION lib/${PROJECT_NAME}
@@ -171,10 +123,6 @@ install(
   DIRECTORY scripts
   USE_SOURCE_PERMISSIONS
   DESTINATION lib/${PROJECT_NAME}
-)
-
-ament_export_targets(
-  export_${PROJECT_NAME} HAS_LIBRARY_TARGET
 )
 
 ament_package()
