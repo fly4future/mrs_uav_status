@@ -69,8 +69,8 @@ target_sources(MrsUavStatus_Status
     "include/mrs_uav_status/tui/print_helpers.hpp"
     "include/mrs_uav_status/tui/constants.hpp"
     "include/mrs_uav_status/tui/tui.hpp"
+    "include/mrs_uav_status/utils/helpers.hpp"
     "include/mrs_uav_status/utils/node_info.hpp"
-    "include/mrs_uav_status/utils/split.hpp"
     "include/mrs_uav_status/utils/string_info.hpp"
 )
 

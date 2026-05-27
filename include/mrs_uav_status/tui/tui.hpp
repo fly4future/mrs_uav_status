@@ -14,8 +14,19 @@
 #include <mrs_uav_status/tui/status_window.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
 #include <mrs_uav_status/tui/colors.hpp>
-#include <mrs_uav_status/utils/split.hpp>
+#include <mrs_uav_status/utils/helpers.hpp>
 #include <mrs_uav_status/utils/terminal.hpp>
+
+// <curses.h> (transitively included above by the TUI helpers) defines OK and ERR
+// as preprocessor macros (0 and -1). The mrs_msgs/SensorStatus header below
+// declares static constexpr members with the same names — without these
+// undefs the message header fails to parse.
+#ifdef OK
+#  undef OK
+#endif
+#ifdef ERR
+#  undef ERR
+#endif
 
 #include <mrs_msgs/srv/string.hpp>
 #include <mrs_msgs/srv/reference_stamped_srv.hpp>
