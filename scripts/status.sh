@@ -38,18 +38,23 @@ params=(
 )
 
 remaps=(
-  "$node_name/uav_status_in"            "uav_status_acquisition/uav_status"
-  "$node_name/uav_status_short_in"      "uav_status_acquisition/uav_status_short"
-  "$node_name/gimbal_command_out"       "tarot_gimbal/gimbal_command"
-  "$node_name/reference_out"            "control_manager/reference"
-  "$node_name/trajectory_reference_out" "control_manager/trajectory_reference"
-  "$node_name/set_constraints_out"      "constraint_manager/set_constraints"
-  "$node_name/set_estimator_out"        "estimation_manager/change_estimator"
-  "$node_name/set_gains_out"            "gain_manager/set_gains"
-  "$node_name/set_controller_out"       "control_manager/switch_controller"
-  "$node_name/set_tracker_out"          "control_manager/switch_tracker"
-  "$node_name/hover_out"                "control_manager/hover"
-  "$node_name/profiler"                 "profiler"
+  "$node_name/general_robot_info_in"       "state_monitor/general_robot_info"
+  "$node_name/state_estimation_info_in"    "state_monitor/state_estimation_info"
+  "$node_name/control_info_in"             "state_monitor/control_info"
+  "$node_name/collision_avoidance_info_in" "state_monitor/collision_avoidance_info"
+  "$node_name/uav_info_in"                 "state_monitor/uav_info"
+  "$node_name/system_health_info_in"       "state_monitor/system_health_info"
+  "$node_name/uav_state_in"                "state_monitor/uav_state"
+  "$node_name/gimbal_command_out"          "tarot_gimbal/gimbal_command"
+  "$node_name/reference_out"               "control_manager/reference"
+  "$node_name/trajectory_reference_out"    "control_manager/trajectory_reference"
+  "$node_name/set_constraints_out"         "constraint_manager/set_constraints"
+  "$node_name/set_estimator_out"           "estimation_manager/change_estimator"
+  "$node_name/set_gains_out"               "gain_manager/set_gains"
+  "$node_name/set_controller_out"          "control_manager/switch_controller"
+  "$node_name/set_tracker_out"             "control_manager/switch_tracker"
+  "$node_name/hover_out"                   "control_manager/hover"
+  "$node_name/profiler"                    "profiler"
 )
 
 ## --------------------------------------------------------------
