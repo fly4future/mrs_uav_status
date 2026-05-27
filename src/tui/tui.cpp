@@ -292,8 +292,8 @@ void TUI::stringHandler() {
     null_tracker       = (last_control_info_.active_tracker == "NullTracker");
     if (const auto *gps = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GPS); gps) {
       gnss_fix_type    = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gps->details, "fix_type"), 0));
-      gnss_num_sats    = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gps->details, "num_sats"), 0));
-      gnss_pos_acc     = utils::parseDoubleOr(utils::lookupDetail(gps->details, "pos_acc"), 100.0);
+      gnss_num_sats    = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gps->details, "num_satellites"), 0));
+      gnss_pos_acc     = utils::parseDoubleOr(utils::lookupDetail(gps->details, "position_accuracy"), 100.0);
       gnss_status_rate = gps->rate;
     }
   }
@@ -896,11 +896,9 @@ void TUI::hwApiStateHandler() {
     gnss_ok = false;
     if (const auto *gps = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GPS); gps) {
       gnss_ok   = (gps->level == mrs_msgs::msg::SensorStatus::OK);
-      gnss_qual = utils::parseDoubleOr(utils::lookupDetail(gps->details, "qual"), 0.0);
-    } else {
-      gnss_qual = 0.0;
-    }
-
+      gnss_qual = utils::parseDoubleOr(utils::lookupDetail(gps->details, "quality"), 0.0);
+    } 
+     
     mag_norm      = 0.0;
     mag_norm_rate = 0.0;
     if (const auto *mag = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_MAGNETOMETER); mag) {
