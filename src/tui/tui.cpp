@@ -230,6 +230,7 @@ void TUI::setupWindows() {
     generic_topic_window_.reset(newwin(10, 9, 1, 19));
     string_window_.reset(newwin(10, 15, 1, 28));
     bottom_window_.reset(newwin(1, 120, 11, 1));
+    errors_window_.reset();
 
   } else {
 
@@ -245,6 +246,10 @@ void TUI::setupWindows() {
     generic_topic_window_.reset(newwin(11, 25, 1, 52));
     string_window_.reset(newwin(11, 32, 1, 77));
     node_stats_window_.reset(newwin(11, 50, 1, 109));
+    // Errors / problems box spans the combined width of string + node_stats
+    // (cols 77..158), placed in the row below them.
+    errors_window_.reset(newwin(11, 82, 13, 77));
+    debug_window_.reset();
   }
 
   clear();
@@ -490,12 +495,13 @@ void TUI::stringHandler() {
 }
 
 void TUI::genericTopicHandler() {
-  WINDOW *win = generic_topic_window_.get();
+  WINDOW                                 *win = generic_topic_window_.get();
   std::vector<mrs_msgs::msg::CustomTopic> custom_topic_vec;
   bool                                    avoiding_collision, can_takeoff, null_tracker;
 
   {
     std::scoped_lock lock(mutex_status_msg_);
+    // custom_topics revival is deferred — render an empty box for now.
     avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
     can_takeoff        = last_general_robot_info_.ready_to_start;
     null_tracker       = (last_control_info_.active_tracker == "NullTracker");
@@ -512,7 +518,6 @@ void TUI::genericTopicHandler() {
 
   if (!custom_topic_vec.empty()) {
     for (size_t i = 0; i < custom_topic_vec.size(); i++) {
-
       wattron(win, COLOR_PAIR(custom_topic_vec[i].topic_color));
       if (params_.start_minimized) {
         printCompressedLimitedString(win, 1 + i, 1, custom_topic_vec[i].topic_name, 4);
@@ -526,6 +531,81 @@ void TUI::genericTopicHandler() {
   } else {
     werase(win);
   }
+
+  wattroff(win, A_BOLD);
+  wnoutrefresh(win);
+}
+
+void TUI::errorsHandler() {
+  // No layout slot in minimized mode — bail.
+  WINDOW *win = errors_window_.get();
+  if (!win) {
+    return;
+  }
+
+  std::vector<std::string> problems;
+  std::vector<std::string> errors;
+  bool                     avoiding_collision, can_takeoff, null_tracker;
+
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    problems           = last_general_robot_info_.problems_preventing_start;
+    errors             = last_general_robot_info_.errors;
+    avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
+    can_takeoff        = last_general_robot_info_.ready_to_start;
+    null_tracker       = (last_control_info_.active_tracker == "NullTracker");
+  }
+
+  werase(win);
+  wattron(win, A_BOLD);
+  wattroff(win, A_STANDOUT);
+  printBox(win, avoiding_collision, can_takeoff, null_tracker);
+
+  if (_light_) {
+    wattron(win, A_STANDOUT);
+  }
+
+  // Box is 11 rows × 82 cols → 9 usable rows, 80 usable cols inside the border.
+  constexpr int max_rows   = 9;
+  constexpr int text_width = 80;
+  int           row        = 1;
+
+  // --- Problems section ---
+  const auto problems_color = problems.empty() ? ColorPair::Green : ColorPair::Red;
+  wattron(win, COLOR_PAIR(static_cast<int>(problems_color)));
+  printLimitedString(win, row++, 1, "Problems: " + std::to_string(problems.size()), text_width);
+  wattroff(win, COLOR_PAIR(static_cast<int>(problems_color)));
+
+  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+  for (const auto &p : problems) {
+    if (row > max_rows) {
+      break;
+    }
+    printLimitedString(win, row++, 1, "- " + p, text_width);
+  }
+  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+
+  // Single blank row separator between sections (if there's space).
+  if (row <= max_rows) {
+    ++row;
+  }
+
+  // --- Errors section ---
+  if (row <= max_rows) {
+    const auto errors_color = errors.empty() ? ColorPair::Green : ColorPair::Red;
+    wattron(win, COLOR_PAIR(static_cast<int>(errors_color)));
+    printLimitedString(win, row++, 1, "Errors: " + std::to_string(errors.size()), text_width);
+    wattroff(win, COLOR_PAIR(static_cast<int>(errors_color)));
+  }
+
+  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+  for (const auto &e : errors) {
+    if (row > max_rows) {
+      break;
+    }
+    printLimitedString(win, row++, 1, "- " + e, text_width);
+  }
+  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
 
   wattroff(win, A_BOLD);
   wnoutrefresh(win);

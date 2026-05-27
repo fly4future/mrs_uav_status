@@ -314,6 +314,10 @@ void Status::timerStatusSlow() {
     mrs_lib::Routine profiler_routine = profiler_.createRoutine("genericTopicHandler");
     tui_->genericTopicHandler();
   }
+  {
+    mrs_lib::Routine profiler_routine = profiler_.createRoutine("errorsHandler");
+    tui_->errorsHandler();
+  }
   if (!tui_->isMini()) {
     mrs_lib::Routine profiler_routine = profiler_.createRoutine("nodeStatsHandler");
     tui_->nodeStatsHandler();

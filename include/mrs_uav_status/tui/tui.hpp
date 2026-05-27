@@ -96,6 +96,7 @@ public:
   void hwApiStateHandler();
   void generalInfoHandler();
   void genericTopicHandler();
+  void errorsHandler();
   void controlManagerHandler();
   void topLineHandler();
 
@@ -242,6 +243,7 @@ private:
   WindowPtr top_bar_window_;
   WindowPtr bottom_window_;
   WindowPtr generic_topic_window_;
+  WindowPtr errors_window_;
   WindowPtr node_stats_window_;
   WindowPtr general_info_window_;
   WindowPtr debug_window_;
