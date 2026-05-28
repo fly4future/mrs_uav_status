@@ -206,6 +206,22 @@ void Status::timerStatusFast() {
       tui_->toggleHelp();
       break;
 
+    case 'p':
+      tui_->cyclePanes();
+      break;
+
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+      tui_->selectPane(static_cast<size_t>(key_in - '1'));
+      break;
+
     case 'M':
       tui_->toggleMini();
       tui_->setupWindows();
@@ -314,17 +330,11 @@ void Status::timerStatusSlow() {
     mrs_lib::Routine profiler_routine = profiler_.createRoutine("genericTopicHandler");
     tui_->genericTopicHandler();
   }
+  // The cycleable preset panel (Node CPU / GPS / System detail / Problems) lives
+  // in the top-right slot; node-CPU and GPS-strings are now presets within it.
   {
-    mrs_lib::Routine profiler_routine = profiler_.createRoutine("errorsHandler");
-    tui_->errorsHandler();
-  }
-  if (!tui_->isMini()) {
-    mrs_lib::Routine profiler_routine = profiler_.createRoutine("nodeStatsHandler");
-    tui_->nodeStatsHandler();
-  }
-  {
-    mrs_lib::Routine profiler_routine = profiler_.createRoutine("stringHandler");
-    tui_->stringHandler();
+    mrs_lib::Routine profiler_routine = profiler_.createRoutine("presetPanelHandler");
+    tui_->paneHandler();
   }
   {
     mrs_lib::Routine profiler_routine = profiler_.createRoutine("generalInfoHandler");
