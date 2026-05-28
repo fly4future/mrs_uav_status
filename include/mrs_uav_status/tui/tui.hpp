@@ -39,6 +39,7 @@
 #include <mrs_msgs/msg/gimbal_state.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/trigger.hpp>
+#include <std_srvs/srv/set_bool.hpp>
 
 #include <mrs_lib/publisher_handler.h>
 #include <mrs_lib/service_client_handler.h>
@@ -139,6 +140,7 @@ private:
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>              sc_set_tracker_;
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>              sc_set_estimator_;
   mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>             sc_hover_;
+  mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>             sc_toggle_output_;
 
   /** @brief struct to hold service entries and their associated client handlers */
   struct ServiceEntry
@@ -230,6 +232,7 @@ private:
   void        createSubMenu(std::vector<std::string> &submenu_entries);
   void        createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<mrs_msgs::srv::String> &service_client);
   void        createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger> &service_client);
+  void        createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool> &service_client);
 
   // | ---------------------- TMUX & Misc ----------------------- |
   std::vector<int> selected_tmux_window_;

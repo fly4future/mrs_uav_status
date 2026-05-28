@@ -63,6 +63,7 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
   sc_set_tracker_     = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_tracker_out", cbkgrp_sc);
   sc_set_estimator_   = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_estimator_out", cbkgrp_sc);
   sc_hover_           = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, "~/hover_out", cbkgrp_sc);
+  sc_toggle_output_   = mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>(node_, "~/toggle_output_out", cbkgrp_sc);
 
   transformer_ = std::make_unique<mrs_lib::Transformer>(node_);
   transformer_->retryLookupNewest(true);
@@ -1634,6 +1635,26 @@ void TUI::createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_li
   }
 }
 
+void TUI::createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool> &service_client) {
+  sub_menu_rows_.clear();
+  for (const auto &entry : submenu_entries) {
+    if (entry == "CANCEL") {
+      sub_menu_rows_.push_back({"CANCEL", []() {}});
+      continue;
+    }
+    sub_menu_rows_.push_back({entry, [this, entry, &service_client]() {
+                                auto request  = std::make_shared<std_srvs::srv::SetBool::Request>();
+                                request->data = true; 
+                                auto response = service_client.callSync(request);
+                                if (!response) {
+                                  renderServiceResult(false, "service could not be called");
+                                } else {
+                                  renderServiceResult(response.value()->success, response.value()->message);
+                                }
+                              }});
+  }
+}
+
 // | --------------------- Main menu ----------------------- |
 
 void TUI::setupMainMenu() {
@@ -1660,6 +1681,13 @@ void TUI::setupMainMenu() {
                                  createSubMenuActions(menu_text, service.client);
                                }});
   }
+
+  // Toggle output service
+  main_menu_rows_.push_back({"Toggle Output", [this]() {
+                               std::vector<std::string> menu_text{"CANCEL", "Toggle Output"};
+                               createSubMenu(menu_text);
+                               createSubMenuActions(menu_text, sc_toggle_output_);
+                             }});
 
   // Create menu entries for setting controller, tracker, gains, constraints, estimator
   main_menu_rows_.push_back({"Set Constraints", [this]() {
