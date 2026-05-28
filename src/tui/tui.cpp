@@ -230,8 +230,7 @@ void TUI::setupWindows() {
     hw_api_state_window_.reset(newwin(6, 9, 5, 10));
     debug_window_.reset(newwin(terminal_lines_ - 15, terminal_cols_ - 1, 13, 1));
     generic_topic_window_.reset(newwin(10, 9, 1, 19));
-    // Pane window (cols 28, narrow). drawPaneChrome adapts content.
-    pane_window_.reset(newwin(10, 15, 1, 28));
+    pane_window_.reset();
     bottom_window_.reset(newwin(1, 120, 11, 1));
 
   } else {
@@ -252,6 +251,7 @@ void TUI::setupWindows() {
   }
 
   clear();
+  refresh();
   _light_ = tui::setupColors(have_data_, params_.colorscheme, params_.colorblind_mode);
 }
 
