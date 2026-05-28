@@ -55,6 +55,7 @@ remaps=(
   "$node_name/set_controller_out"          "control_manager/switch_controller"
   "$node_name/set_tracker_out"             "control_manager/switch_tracker"
   "$node_name/hover_out"                   "control_manager/hover"
+  "$node_name/toggle_output_out"           "control_manager/toggle_output"
   "$node_name/profiler"                    "profiler"
 )
 
@@ -101,4 +102,7 @@ for ((i=0; i < ${#REMAP_FROM[*]}; i++)); do
 
 done
 
-eval "$CMD"
+export RCUTILS_LOGGING_USE_STDOUT=0
+log_file="/tmp/mrs_uav_status_${uav_name}.log"
+
+eval "$CMD" 2>"$log_file"
