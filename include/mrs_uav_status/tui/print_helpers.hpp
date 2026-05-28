@@ -212,4 +212,24 @@ inline int16_t rateColor(double rate, double expected) {
   return static_cast<int16_t>(ColorPair::Red);
 }
 
+// btop-style hotkey hint: render @p word with its first character (the trigger
+// key) in red+bold and the remainder in the normal colour. Returns the column
+// just past the word (plus one space) so hints can be chained left-to-right.
+inline int printHotkey(WINDOW *win, int y, int x, const std::string &word) {
+  if (word.empty()) {
+    return x;
+  }
+  wattron(win, A_BOLD);
+  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+  mvwaddch(win, y, x, static_cast<chtype>(word.front()));
+  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+
+  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
+  mvwaddstr(win, y, x + 1, word.substr(1).c_str());
+  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
+  wattroff(win, A_BOLD);
+
+  return x + static_cast<int>(word.size()) + 1; // +1 for a single-space gap
+}
+
 } // namespace mrs_uav_status::tui
