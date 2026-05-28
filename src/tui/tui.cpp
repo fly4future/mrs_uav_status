@@ -21,6 +21,8 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
 
   _light_ = (params_.colorscheme.find("COLORSCHEME_LIGHT") != std::string::npos);
 
+  setupPanes();
+
   last_time_got_data_       = rclcpp::Time(0, 0, clock_->get_clock_type());
   bottom_window_clear_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
 
@@ -160,7 +162,7 @@ void TUI::onString(const std_msgs::msg::String &msg) {
     display += tokens[k];
   }
 
-  std::scoped_lock lock(mutex_status_msg_);
+  std::scoped_lock   lock(mutex_status_msg_);
   const rclcpp::Time now = clock_->now();
   // Dedupe by id (the legacy publisher_name was already lost from ROS1 → always empty).
   for (auto &entry : string_info_vec_) {
@@ -228,9 +230,9 @@ void TUI::setupWindows() {
     hw_api_state_window_.reset(newwin(6, 9, 5, 10));
     debug_window_.reset(newwin(terminal_lines_ - 15, terminal_cols_ - 1, 13, 1));
     generic_topic_window_.reset(newwin(10, 9, 1, 19));
-    string_window_.reset(newwin(10, 15, 1, 28));
+    // Pane window (cols 28, narrow). drawPaneChrome adapts content.
+    pane_window_.reset(newwin(10, 15, 1, 28));
     bottom_window_.reset(newwin(1, 120, 11, 1));
-    errors_window_.reset();
 
   } else {
 
@@ -240,16 +242,13 @@ void TUI::setupWindows() {
     general_info_window_.reset(newwin(4, 25, 1, 27));
     top_bar_window_.reset(newwin(1, 140, 0, 1));
     bottom_window_.reset(newwin(1, 120, 12, 1));
-    int half_lines = (terminal_lines_ - 18) / 2;
+    generic_topic_window_.reset(newwin(11, 25, 1, 52));
+    pane_window_.reset(newwin(11, 82, 1, 77));
+    const int debug_height = std::max(3, terminal_lines_ - 13);
+    debug_window_.reset(newwin(debug_height, terminal_cols_ - 1, 13, 1));
+    const int half_lines = std::max(1, (debug_height - 2) / 2);
     sub_tmux_window_1_.reset(derwin(debug_window_.get(), half_lines, terminal_cols_ - 3, 1, 1));
     sub_tmux_window_2_.reset(derwin(debug_window_.get(), half_lines, terminal_cols_ - 3, half_lines + 2, 1));
-    generic_topic_window_.reset(newwin(11, 25, 1, 52));
-    string_window_.reset(newwin(11, 32, 1, 77));
-    node_stats_window_.reset(newwin(11, 50, 1, 109));
-    // Errors / problems box spans the combined width of string + node_stats
-    // (cols 77..158), placed in the row below them.
-    errors_window_.reset(newwin(11, 82, 13, 77));
-    debug_window_.reset();
   }
 
   clear();
@@ -305,15 +304,15 @@ void TUI::generalInfoHandler() {
   int    free_hdd;
   {
     std::scoped_lock lock(mutex_status_msg_);
-    const auto &oc     = last_system_health_info_.onboard_computer_info;
-    avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
-    can_takeoff        = last_general_robot_info_.ready_to_start;
-    null_tracker       = (last_control_info_.active_tracker == "NullTracker");
-    cpu_load           = oc.cpu_load;
-    cpu_ghz            = oc.cpu_ghz;
-    free_ram           = oc.free_ram;
-    total_ram          = oc.total_ram;
-    free_hdd           = oc.free_hdd;
+    const auto      &oc = last_system_health_info_.onboard_computer_info;
+    avoiding_collision  = last_collision_avoidance_info_.avoiding_collision;
+    can_takeoff         = last_general_robot_info_.ready_to_start;
+    null_tracker        = (last_control_info_.active_tracker == "NullTracker");
+    cpu_load            = oc.cpu_load;
+    cpu_ghz             = oc.cpu_ghz;
+    free_ram            = oc.free_ram;
+    total_ram           = oc.total_ram;
+    free_hdd            = oc.free_hdd;
   }
 
   printBox(win, avoiding_collision, can_takeoff, null_tracker);
@@ -333,10 +332,10 @@ void TUI::generalInfoHandler() {
   wnoutrefresh(win);
 }
 
-void TUI::stringHandler() {
-  WINDOW                  *win = string_window_.get();
+void TUI::renderStringsGpsPane(WINDOW *win) {
+  int row = drawPaneChrome(win);
+
   std::vector<std::string> string_vector;
-  bool                     avoiding_collision, can_takeoff, null_tracker;
   uint8_t                  gnss_fix_type    = 0;
   uint8_t                  gnss_num_sats    = 0;
   double                   gnss_pos_acc     = 100.0;
@@ -344,9 +343,6 @@ void TUI::stringHandler() {
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
-    can_takeoff        = last_general_robot_info_.ready_to_start;
-    null_tracker       = (last_control_info_.active_tracker == "NullTracker");
     if (const auto *gps = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GPS); gps) {
       gnss_fix_type    = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gps->details, "fix_type"), 0));
       gnss_num_sats    = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gps->details, "num_satellites"), 0));
@@ -354,8 +350,7 @@ void TUI::stringHandler() {
       gnss_status_rate = gps->rate;
     }
 
-    // Custom strings from std_msgs/String topic: evict stale (>10 s, unless
-    // persistent) and collect the rest for rendering.
+    // Custom strings: evict stale (>10 s, unless persistent), collect the rest.
     const rclcpp::Time now = clock_->now();
     for (auto it = string_info_vec_.begin(); it != string_info_vec_.end();) {
       if (!it->persistent && (now - it->last_time).seconds() > 10.0) {
@@ -369,7 +364,6 @@ void TUI::stringHandler() {
 
   if (gnss_status_rate > 0.0) {
     std::string fix_string;
-
     if (gnss_fix_type < 1 || gnss_fix_type >= 8) {
       fix_string += "-r ";
     }
@@ -416,51 +410,39 @@ void TUI::stringHandler() {
       stream << std::fixed << std::setprecision(2) << gnss_pos_acc;
       gnss_acc_string = stream.str();
     }
-    std::string acc_string = "Num sats: " + std::to_string(gnss_num_sats) + " Acc: " + gnss_acc_string + " m";
-
     string_vector.push_back(fix_string);
-    string_vector.push_back(acc_string);
+    string_vector.push_back("Num sats: " + std::to_string(gnss_num_sats) + " Acc: " + gnss_acc_string + " m");
   }
 
   if (string_vector.empty()) {
-    werase(win);
-    wnoutrefresh(win);
-    return;
+    string_vector.push_back("-r no GPS / strings data");
   }
 
-  werase(win);
-  wattron(win, A_BOLD);
-  wattroff(win, A_STANDOUT);
-  printBox(win, avoiding_collision, can_takeoff, null_tracker);
+  constexpr int max_rows = 9;
+  for (const auto &raw : string_vector) {
+    if (row > max_rows) {
+      break;
+    }
 
-  if (_light_) {
-    wattron(win, A_STANDOUT);
-  }
+    int         tmp_color = static_cast<int>(ColorPair::Normal);
+    bool        blink     = false;
+    std::string display   = raw;
 
-  for (unsigned long i = 0; i < string_vector.size(); i++) {
-
-    int         tmp_color          = static_cast<int>(ColorPair::Normal);
-    bool        blink              = false;
-    std::string tmp_display_string = string_vector[i];
-
-    if (tmp_display_string.size() >= 3 && tmp_display_string[0] == '-') {
-      const char c = tmp_display_string[1];
-
-      switch (c) {
+    // In-band colour tag: leading "-R"/"-r"/"-Y"/"-y"/"-G"/"-g" (uppercase blinks).
+    if (display.size() >= 3 && display[0] == '-') {
+      switch (display[1]) {
       case 'R':
         blink = true;
         [[fallthrough]];
       case 'r':
         tmp_color = static_cast<int>(ColorPair::Red);
         break;
-
       case 'Y':
         blink = true;
         [[fallthrough]];
       case 'y':
         tmp_color = static_cast<int>(ColorPair::Yellow);
         break;
-
       case 'G':
         blink = true;
         [[fallthrough]];
@@ -468,24 +450,16 @@ void TUI::stringHandler() {
         tmp_color = static_cast<int>(ColorPair::Green);
         break;
       }
-
       if (tmp_color != static_cast<int>(ColorPair::Normal)) {
-        tmp_display_string.erase(0, 3);
+        display.erase(0, 3);
       }
     }
 
     if (blink) {
       wattron(win, A_BLINK);
     }
-
     wattron(win, COLOR_PAIR(tmp_color));
-
-    if (params_.start_minimized) {
-      printCompressedLimitedString(win, (i) + 1, 1, tmp_display_string, 15);
-    } else {
-      printLimitedString(win, (i) + 1, 1, tmp_display_string, 30);
-    }
-
+    printLimitedString(win, row++, 1, display, 80);
     wattroff(win, COLOR_PAIR(tmp_color));
     wattroff(win, A_BLINK);
   }
@@ -536,21 +510,67 @@ void TUI::genericTopicHandler() {
   wnoutrefresh(win);
 }
 
-void TUI::errorsHandler() {
-  // No layout slot in minimized mode — bail.
-  WINDOW *win = errors_window_.get();
-  if (!win) {
+void TUI::setupPanes() {
+  panes_.clear();
+
+  // Default pane: available sensors (dynamic, plugin-driven) — name/rate/status
+  panes_.push_back({"Sensors", [this](WINDOW *win) { renderSensorsPane(win); }, nullptr});
+  // ROS per-node CPU usage (was its own top-right box)
+  panes_.push_back({"ROS Node CPU", [this](WINDOW *win) { renderNodeCpuPane(win); }, nullptr});
+  // GPS fix + custom display strings
+  panes_.push_back({"GPS & strings", [this](WINDOW *win) { renderStringsGpsPane(win); }, nullptr});
+  // Problems + errors. Auto-focused when either becomes non-empty
+  panes_.push_back({"Problems & errors", [this](WINDOW *win) { renderProblemsPane(win); },
+                    [this]() {
+                      std::scoped_lock lock(mutex_status_msg_);
+                      return !last_general_robot_info_.problems_preventing_start.empty() || !last_general_robot_info_.errors.empty();
+                    }});
+
+  // To add a pane push another Pane with a
+  // title + render lambda; cycling, the title, and auto-focus pick it up.
+
+  pane_focus_prev_.assign(panes_.size(), false);
+  pane_idx_ = 0;
+}
+
+void TUI::cyclePanes() {
+  if (panes_.empty()) {
+    return;
+  }
+  pane_idx_ = (pane_idx_ + 1) % panes_.size();
+}
+
+void TUI::selectPane(std::size_t idx) {
+  if (idx < panes_.size()) {
+    pane_idx_ = idx;
+  }
+}
+
+void TUI::paneHandler() {
+  WINDOW *win = pane_window_.get();
+  if (!win || panes_.empty()) {
     return;
   }
 
-  std::vector<std::string> problems;
-  std::vector<std::string> errors;
-  bool                     avoiding_collision, can_takeoff, null_tracker;
+  // auto-focus: when a pane wants_focus switching to it
+  for (std::size_t i = 0; i < panes_.size(); ++i) {
+    const bool wants = panes_[i].wants_focus && panes_[i].wants_focus();
+    if (wants && !pane_focus_prev_[i]) {
+      pane_idx_ = i;
+    }
+    pane_focus_prev_[i] = wants;
+  }
 
+  panes_[pane_idx_].render(win);
+}
+
+// Shared chrome for every pane: clears the window, draws the box, and writes
+// the "<p>reset: <name> (i/N)" label into the top border (so all interior rows
+// stay available for content). Returns the first usable content row (1).
+int TUI::drawPaneChrome(WINDOW *win) {
+  bool avoiding_collision, can_takeoff, null_tracker;
   {
     std::scoped_lock lock(mutex_status_msg_);
-    problems           = last_general_robot_info_.problems_preventing_start;
-    errors             = last_general_robot_info_.errors;
     avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
     can_takeoff        = last_general_robot_info_.ready_to_start;
     null_tracker       = (last_control_info_.active_tracker == "NullTracker");
@@ -565,12 +585,46 @@ void TUI::errorsHandler() {
     wattron(win, A_STANDOUT);
   }
 
-  // Box is 11 rows × 82 cols → 9 usable rows, 80 usable cols inside the border.
+  // Tab bar in the top border (row 0): numbered tabs. The active tab shows its
+  // number + name in brackets (green); the others show just their number in red
+  // to signal they're switchable.
+  int x = 2;
+  for (std::size_t i = 0; i < panes_.size(); ++i) {
+    const bool        active = (i == pane_idx_);
+    const std::string num    = std::to_string(i + 1);
+
+    if (active) {
+      wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
+      const std::string tab = num + " [" + panes_[i].title + "]";
+      mvwaddstr(win, 0, x, tab.c_str());
+      x += static_cast<int>(tab.size());
+      wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
+    } else {
+      wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+      mvwaddstr(win, 0, x, num.c_str());
+      x += static_cast<int>(num.size());
+      wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+    }
+    x += 1; // single-space gap between tabs
+  }
+
+  return 1;
+}
+
+void TUI::renderProblemsPane(WINDOW *win) {
+  int row = drawPaneChrome(win);
+
+  std::vector<std::string> problems;
+  std::vector<std::string> errors;
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    problems = last_general_robot_info_.problems_preventing_start;
+    errors   = last_general_robot_info_.errors;
+  }
+
   constexpr int max_rows   = 9;
   constexpr int text_width = 80;
-  int           row        = 1;
 
-  // --- Problems section ---
   const auto problems_color = problems.empty() ? ColorPair::Green : ColorPair::Red;
   wattron(win, COLOR_PAIR(static_cast<int>(problems_color)));
   printLimitedString(win, row++, 1, "Problems: " + std::to_string(problems.size()), text_width);
@@ -585,12 +639,10 @@ void TUI::errorsHandler() {
   }
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
 
-  // Single blank row separator between sections (if there's space).
   if (row <= max_rows) {
-    ++row;
+    ++row; // blank separator
   }
 
-  // --- Errors section ---
   if (row <= max_rows) {
     const auto errors_color = errors.empty() ? ColorPair::Green : ColorPair::Red;
     wattron(win, COLOR_PAIR(static_cast<int>(errors_color)));
@@ -611,65 +663,113 @@ void TUI::errorsHandler() {
   wnoutrefresh(win);
 }
 
-void TUI::nodeStatsHandler() {
-  WINDOW                              *win = node_stats_window_.get();
-  std::vector<mrs_msgs::msg::CpuLoad>  node_cpu_loads;
-  double                               cpu_load_total = 0.0;
-  bool                                 avoiding_collision, can_takeoff, null_tracker;
+void TUI::renderSensorsPane(WINDOW *win) {
+  int row = drawPaneChrome(win);
 
+  std::vector<mrs_msgs::msg::SensorStatus> sensors;
   {
     std::scoped_lock lock(mutex_status_msg_);
-    node_cpu_loads     = last_system_health_info_.onboard_computer_info.node_cpu_loads;
-    avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
-    can_takeoff        = last_general_robot_info_.ready_to_start;
-    null_tracker       = (last_control_info_.active_tracker == "NullTracker");
+    sensors = last_system_health_info_.available_sensors;
   }
 
-  // Sum up total CPU load across all nodes for display in the header. 
+  // Column header.
+  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
+  printLimitedString(win, row, 1, "sensor", 36);
+  printLimitedString(win, row, 40, "rate", 8);
+  printLimitedString(win, row, 55, "status", 12);
+  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
+  ++row;
+
+  constexpr int max_rows = 9;
+  for (const auto &s : sensors) {
+    if (row > max_rows) {
+      break;
+    }
+
+    printLimitedString(win, row, 1, s.name, 36);
+    printLimitedDouble(win, row, 40, "%6.1f", s.rate, 100000);
+
+    // SensorStatus.level: 0=OK, 1=WARN, 2=ERROR, 3=STALE.
+    int         color = static_cast<int>(ColorPair::Normal);
+    std::string label = "?";
+    switch (s.level) {
+    case 0:
+      color = static_cast<int>(ColorPair::Green);
+      label = "OK";
+      break;
+    case 1:
+      color = static_cast<int>(ColorPair::Yellow);
+      label = "WARN";
+      break;
+    case 2:
+      color = static_cast<int>(ColorPair::Red);
+      label = "ERROR";
+      break;
+    case 3:
+      color = static_cast<int>(ColorPair::Yellow);
+      label = "STALE";
+      break;
+    default:
+      break;
+    }
+    wattron(win, COLOR_PAIR(color));
+    printLimitedString(win, row, 55, label, 12);
+    wattroff(win, COLOR_PAIR(color));
+    ++row;
+  }
+
+  if (sensors.empty()) {
+    printLimitedString(win, row, 1, "no sensors reported", 40);
+  }
+
+  wattroff(win, A_BOLD);
+  wnoutrefresh(win);
+}
+
+void TUI::renderNodeCpuPane(WINDOW *win) {
+  int row = drawPaneChrome(win);
+
+  std::vector<mrs_msgs::msg::CpuLoad> node_cpu_loads;
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    node_cpu_loads = last_system_health_info_.onboard_computer_info.node_cpu_loads;
+  }
+
+  // Aggregate (single-core %) total — OnboardComputerInfo doesn't expose it.
+  double cpu_load_total = 0.0;
   for (const auto &n : node_cpu_loads) {
     cpu_load_total += n.cpu_load;
   }
 
-  werase(win);
-  wattron(win, A_BOLD);
-  wattroff(win, A_STANDOUT);
-  printBox(win, avoiding_collision, can_takeoff, null_tracker);
+  constexpr int max_rows = 9;
 
-  if (_light_) {
-    wattron(win, A_STANDOUT);
-  }
+  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
+  printLimitedString(win, row, 1, "node", 40);
+  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
+  printLimitedDouble(win, row, 60, "%5.1f", cpu_load_total, 9999);
+  printLimitedString(win, row, 67, "CPU Load %%", 6);
+  ++row;
 
-  if (!node_cpu_loads.empty()) {
-    size_t tmp_num_lines = node_cpu_loads.size();
-    if (tmp_num_lines > 9) {
-      tmp_num_lines = 9;
+  // Sort by CPU load descending, then name ascending for tie-breaking.
+  std::sort(node_cpu_loads.begin(), node_cpu_loads.end(),
+            [](const auto &a, const auto &b) { return (a.cpu_load > b.cpu_load) || ((a.cpu_load == b.cpu_load) && (a.node_name < b.node_name)); });
+
+  for (const auto &n : node_cpu_loads) {
+    if (row > max_rows) {
+      break;
     }
+    printLimitedString(win, row, 1, n.node_name, 58);
 
-    wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
-    printLimitedString(win, 0, 1, "ROS Node CPU usage", 40);
-    wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
-
-    printLimitedDouble(win, 0, 37, "%5.1f", cpu_load_total, 9999);
-    printLimitedString(win, 0, 43, "CPU %%", 6);
-    for (size_t i = 0; i < tmp_num_lines; i++) {
-
-      printLimitedString(win, 1 + i, 1, node_cpu_loads[i].node_name, 42);
-
-      short tmp_color = static_cast<int>(ColorPair::Green);
-      if (node_cpu_loads[i].cpu_load > 99.9) {
-        tmp_color = static_cast<int>(ColorPair::Red);
-      } else if (node_cpu_loads[i].cpu_load > 49.9) {
-        tmp_color = static_cast<int>(ColorPair::Yellow);
-      }
-
-      wattron(win, COLOR_PAIR(tmp_color));
-      printLimitedDouble(win, 1 + i, 43, "%5.1f", node_cpu_loads[i].cpu_load, 9999);
-      wattroff(win, COLOR_PAIR(tmp_color));
+    short tmp_color = static_cast<int>(ColorPair::Green);
+    if (n.cpu_load > 99.9) {
+      tmp_color = static_cast<int>(ColorPair::Red);
+    } else if (n.cpu_load > 49.9) {
+      tmp_color = static_cast<int>(ColorPair::Yellow);
     }
-
-  } else {
-
-    werase(win);
+    wattron(win, COLOR_PAIR(tmp_color));
+    printLimitedDouble(win, row, 60, "%5.1f", n.cpu_load, 9999);
+    wattroff(win, COLOR_PAIR(tmp_color));
+    ++row;
   }
 
   wattroff(win, A_BOLD);
@@ -687,13 +787,13 @@ void TUI::uavStateHandler() {
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    const auto &est = last_state_estimation_info_;
-    avg_rate        = last_system_health_info_.state_estimation_rate;
-    heading         = est.local_pose.heading;
-    state_x         = est.local_pose.position.x;
-    state_y         = est.local_pose.position.y;
-    state_z         = est.local_pose.position.z;
-    odom_frame      = est.header.frame_id;
+    const auto      &est = last_state_estimation_info_;
+    avg_rate             = last_system_health_info_.state_estimation_rate;
+    heading              = est.local_pose.heading;
+    state_x              = est.local_pose.position.x;
+    state_y              = est.local_pose.position.y;
+    state_z              = est.local_pose.position.z;
+    odom_frame           = est.header.frame_id;
 
     cmd_x   = last_control_info_.cmd_pose.position.x;
     cmd_y   = last_control_info_.cmd_pose.position.y;
@@ -860,7 +960,7 @@ void TUI::controlManagerHandler() {
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    const auto &ci = last_control_info_;
+    const auto      &ci = last_control_info_;
 
     rate = last_system_health_info_.control_manager_rate;
 
@@ -1027,7 +1127,7 @@ void TUI::hwApiStateHandler() {
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    const auto &bat = last_general_robot_info_.battery_state;
+    const auto      &bat = last_general_robot_info_.battery_state;
 
     hw_api_rate = last_system_health_info_.hw_api_rate;
     // The legacy per-topic rates (state/cmd/battery) collapsed into a single
@@ -1041,8 +1141,8 @@ void TUI::hwApiStateHandler() {
     if (const auto *gps = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GPS); gps) {
       gnss_ok   = (gps->level == mrs_msgs::msg::SensorStatus::OK);
       gnss_qual = utils::parseDoubleOr(utils::lookupDetail(gps->details, "quality"), 0.0);
-    } 
-     
+    }
+
     mag_norm      = 0.0;
     mag_norm_rate = 0.0;
     if (const auto *mag = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_MAGNETOMETER); mag) {
@@ -1440,6 +1540,20 @@ void TUI::topLineHandler() {
 
   mvwprintw(win, 0, 0, "ToF: %i:%02i", mins, secs);
   wattroff(win, A_BOLD);
+
+  // btop-style hotkey hints on the right of the top bar — the trigger key (the
+  // red letter) maps directly to the STANDARD-mode key handler in status.cpp.
+  if (!params_.start_minimized) {
+    int hx = 62;
+    hx     = printHotkey(win, 0, hx, "menu");
+    hx     = printHotkey(win, 0, hx, "goto");
+    hx     = printHotkey(win, 0, hx, "Remote");
+    hx     = printHotkey(win, 0, hx, "Gimbal");
+    hx     = printHotkey(win, 0, hx, "Mini");
+    hx     = printHotkey(win, 0, hx, "Display");
+    hx     = printHotkey(win, 0, hx, "pane");
+    hx     = printHotkey(win, 0, hx, "help");
+  }
 
   wnoutrefresh(win);
 }
@@ -2123,13 +2237,16 @@ void TUI::remoteModeFly(const mrs_msgs::msg::Reference &ref_in) {
 }
 
 void TUI::renderTmuxOrHelp() {
-  WINDOW *debug_window = debug_window_.get();
-  WINDOW *sub1         = sub_tmux_window_1_.get();
-  WINDOW *sub2         = sub_tmux_window_2_.get();
   if (params_.start_minimized) {
     return;
   }
 
+  WINDOW *debug_window = debug_window_.get();
+  WINDOW *sub1         = sub_tmux_window_1_.get();
+  WINDOW *sub2         = sub_tmux_window_2_.get();
+
+  // The bottom region (y=13+) is now exclusively the help / tmux-dump overlay —
+  // the pane panel moved up into the top-right, so there's no contention.
   if (!selected_tmux_window_.empty()) {
     bool avoiding_collision, can_takeoff, null_tracker;
     {

@@ -15,14 +15,10 @@
 #include <mrs_uav_status/tui/constants.hpp>
 #include <mrs_uav_status/tui/colors.hpp>
 
-// <curses.h> (transitively included above by the TUI helpers) defines OK and ERR
-// as preprocessor macros (0 and -1). The mrs_msgs/SensorStatus header below
-// declares static constexpr members with the same names
+// <curses.h> (transitively included above by the TUI helpers) defines OK as a
+// preprocessor macro (0), colliding with mrs_msgs/SensorStatus::OK below.
 #ifdef OK
 #undef OK
-#endif
-#ifdef ERR
-#undef ERR
 #endif
 
 #include <mrs_uav_status/utils/helpers.hpp>
@@ -90,15 +86,19 @@ public:
   void refreshTopBar();
 
   // | --------------------- Window Handlers -------------------- |
-  void stringHandler();
   void uavStateHandler();
-  void nodeStatsHandler();
   void hwApiStateHandler();
   void generalInfoHandler();
   void genericTopicHandler();
-  void errorsHandler();
+  void paneHandler();
   void controlManagerHandler();
   void topLineHandler();
+
+  /** @brief Cycle the preset panel to the next preset (bound to the 'p' key). */
+  void cyclePanes();
+
+  /** @brief Jump the preset panel directly to preset @p idx (bound to number keys). No-op if out of range. */
+  void selectPane(std::size_t idx);
 
   void tickSlowCounter();
 
@@ -166,6 +166,29 @@ private:
   // freshness — entries older than 10 s are pruned in stringHandler unless
   // marked persistent (`-p` flag). Deduped by id (parsed from `-id <key>`).
   std::vector<utils::StringInfo> string_info_vec_;
+
+  // | -------------------- Panes ---------------- |
+  // The pane box cycles through pluggable panes ('p' key). To add a pane,
+  // push a Pane in setupPanes(): give it a title, a render
+  // callback that draws content rows (the dispatcher handles the box + title),
+  // and optionally wants_focus() to auto-switch to it when it has
+  // something important to show.
+  struct Pane
+  {
+    std::string                      title;
+    std::function<void(WINDOW *win)> render;
+    std::function<bool()>            wants_focus; // optional; may be nullptr
+  };
+  std::vector<Pane> panes_;
+  std::size_t       pane_idx_ = 0;
+  std::vector<bool> pane_focus_prev_; // per-preset wants_focus() last state
+
+  void setupPanes();
+  int  drawPaneChrome(WINDOW *win); // box + title-in-border; returns first content row
+  void renderProblemsPane(WINDOW *win);
+  void renderSensorsPane(WINDOW *win);
+  void renderNodeCpuPane(WINDOW *win);
+  void renderStringsGpsPane(WINDOW *win);
 
   /** @brief struct to hold menu entries and their associated actions */
   /*
@@ -243,13 +266,11 @@ private:
   WindowPtr top_bar_window_;
   WindowPtr bottom_window_;
   WindowPtr generic_topic_window_;
-  WindowPtr errors_window_;
-  WindowPtr node_stats_window_;
+  WindowPtr pane_window_; // cycleable panes (top-right): system detail / node CPU / GPS / problems
   WindowPtr general_info_window_;
   WindowPtr debug_window_;
   WindowPtr sub_tmux_window_1_;
   WindowPtr sub_tmux_window_2_;
-  WindowPtr string_window_;
 
   // | ----------------------- Data Storage --------------------- |
   std::vector<tui::StatusWindow> menu_vec_;
