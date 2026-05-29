@@ -14,16 +14,32 @@
 #include <mrs_uav_status/tui/status_window.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
 #include <mrs_uav_status/tui/colors.hpp>
-#include <mrs_uav_status/utils/split.hpp>
+
+// <curses.h> (transitively included above by the TUI helpers) defines OK as a
+// preprocessor macro (0), colliding with mrs_msgs/SensorStatus::OK below.
+#ifdef OK
+#undef OK
+#endif
+
+#include <mrs_uav_status/utils/helpers.hpp>
+#include <mrs_uav_status/utils/string_info.hpp>
 #include <mrs_uav_status/utils/terminal.hpp>
 
 #include <mrs_msgs/srv/string.hpp>
 #include <mrs_msgs/srv/reference_stamped_srv.hpp>
+#include <mrs_msgs/msg/collision_avoidance_info.hpp>
+#include <mrs_msgs/msg/control_info.hpp>
+#include <mrs_msgs/msg/custom_topic.hpp>
+#include <mrs_msgs/msg/general_robot_info.hpp>
 #include <mrs_msgs/msg/reference.hpp>
-#include <mrs_msgs/msg/uav_status.hpp>
-#include <mrs_msgs/msg/uav_status_short.hpp>
+#include <mrs_msgs/msg/state.hpp>
+#include <mrs_msgs/msg/state_estimation_info.hpp>
+#include <mrs_msgs/msg/system_health_info.hpp>
+#include <mrs_msgs/msg/uav_info.hpp>
 #include <mrs_msgs/msg/gimbal_state.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/trigger.hpp>
+#include <std_srvs/srv/set_bool.hpp>
 
 #include <mrs_lib/publisher_handler.h>
 #include <mrs_lib/service_client_handler.h>
@@ -34,13 +50,29 @@ namespace mrs_uav_status::tui
 
 class TUI {
 public:
-  TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const std::string &colorscheme, bool colorblind_mode, bool minimized_mode,
-      const std::string &display_config_filename, const std::string &turbo_remote_constraints, const std::vector<std::string> &service_list,
-      const std::vector<double> &goto_values);
+  struct TUIParams
+  {
+    std::string              uav_name;
+    std::string              colorscheme;
+    bool                     colorblind_mode;
+    bool                     start_minimized;
+    std::string              display_config_filename;
+    std::string              turbo_remote_constraints;
+    std::vector<std::string> service_list;
+    std::vector<double>      goto_values;
+  };
+
+  TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const TUI::TUIParams &params);
 
   // | --------------------- Data push (thread-safe) --------------------- |
-  void onUavStatus(const mrs_msgs::msg::UavStatus &msg);
-  void onUavStatusShort(const mrs_msgs::msg::UavStatusShort &msg);
+  void onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg);
+  void onStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo &msg);
+  void onControlInfo(const mrs_msgs::msg::ControlInfo &msg);
+  void onCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo &msg);
+  void onUavInfo(const mrs_msgs::msg::UavInfo &msg);
+  void onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg);
+  void onUavState(const mrs_msgs::msg::State &msg);
+  void onString(const std_msgs::msg::String &msg);
 
   // | --------------------- Window lifecycle ------------------- |
   void setupWindows();
@@ -49,20 +81,25 @@ public:
   void toggleMini();
   void toggleHelp();
   bool isMini() const {
-    return mini_;
+    return params_.start_minimized;
   }
   bool isFlyingNormally();
   void refreshTopBar();
 
   // | --------------------- Window Handlers -------------------- |
-  void stringHandler();
   void uavStateHandler();
-  void nodeStatsHandler();
   void hwApiStateHandler();
   void generalInfoHandler();
   void genericTopicHandler();
+  void paneHandler();
   void controlManagerHandler();
   void topLineHandler();
+
+  /** @brief Cycle the preset panel to the next preset (bound to the 'p' key). */
+  void cyclePanes();
+
+  /** @brief Jump the preset panel directly to preset @p idx (bound to number keys). No-op if out of range. */
+  void selectPane(std::size_t idx);
 
   void tickSlowCounter();
 
@@ -90,17 +127,10 @@ public:
   void enterRemoteMode();
 
 private:
-  std::string _colorscheme_;
-  std::string _display_config_filename_;
-  std::string _turbo_remote_constraints_;
-  bool        _colorblind_mode_;
-  bool        _light_      = false;
-  bool        mini_        = false;
-  bool        help_active_ = false;
-
   // | ------------------------- ROS Core ----------------------- |
   rclcpp::Node::SharedPtr  node_;
   rclcpp::Clock::SharedPtr clock_;
+
 
   mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>             ph_gimbal_state_;
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv> sc_goto_reference_;
@@ -110,12 +140,57 @@ private:
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>              sc_set_tracker_;
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>              sc_set_estimator_;
   mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>             sc_hover_;
+  mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>             sc_toggle_output_;
+
+  /** @brief struct to hold service entries and their associated client handlers */
+  struct ServiceEntry
+  {
+    std::string                                           display_name;
+    mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger> client;
+  };
+
+  std::vector<ServiceEntry> service_entries_;
 
   std::unique_ptr<mrs_lib::Transformer> transformer_;
 
   // | ----------------------- UAV status snapshot --------------- |
-  std::mutex               mutex_status_msg_;
-  mrs_msgs::msg::UavStatus uav_status_;
+  // All last_*_ snapshots are guarded by this single mutex.
+  std::mutex                            mutex_status_msg_;
+  mrs_msgs::msg::GeneralRobotInfo       last_general_robot_info_;
+  mrs_msgs::msg::StateEstimationInfo    last_state_estimation_info_;
+  mrs_msgs::msg::ControlInfo            last_control_info_;
+  mrs_msgs::msg::CollisionAvoidanceInfo last_collision_avoidance_info_;
+  mrs_msgs::msg::UavInfo                last_uav_info_;
+  mrs_msgs::msg::SystemHealthInfo       last_system_health_info_;
+  mrs_msgs::msg::State                  last_uav_state_;
+
+  // Custom strings published via std_msgs/String. Each entry tracks its own
+  // freshness — entries older than 10 s are pruned in stringHandler unless
+  // marked persistent (`-p` flag). Deduped by id (parsed from `-id <key>`).
+  std::vector<utils::StringInfo> string_info_vec_;
+
+  // | -------------------- Panes ---------------- |
+  // The pane box cycles through pluggable panes ('p' key). To add a pane,
+  // push a Pane in setupPanes(): give it a title, a render
+  // callback that draws content rows (the dispatcher handles the box + title),
+  // and optionally wants_focus() to auto-switch to it when it has
+  // something important to show.
+  struct Pane
+  {
+    std::string                      title;
+    std::function<void(WINDOW *win)> render;
+    std::function<bool()>            wants_focus; // optional; may be nullptr
+  };
+  std::vector<Pane> panes_;
+  std::size_t       pane_idx_ = 0;
+  std::vector<bool> pane_focus_prev_; // per-preset wants_focus() last state
+
+  void setupPanes();
+  int  drawPaneChrome(WINDOW *win); // box + title-in-border; returns first content row
+  void renderProblemsPane(WINDOW *win);
+  void renderSensorsPane(WINDOW *win);
+  void renderNodeCpuPane(WINDOW *win);
+  void renderStringsGpsPane(WINDOW *win);
 
   /** @brief struct to hold menu entries and their associated actions */
   /*
@@ -126,6 +201,11 @@ private:
   defined as a std::function that takes no arguments and returns void, allowing for flexibility in the actions that can be performed when a menu entry is
   selected.
   */
+
+  TUIParams params_;
+  bool      _light_      = false;
+  bool      help_active_ = false;
+
   struct MenuRow
   {
     std::string           label;
@@ -152,6 +232,7 @@ private:
   void        createSubMenu(std::vector<std::string> &submenu_entries);
   void        createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<mrs_msgs::srv::String> &service_client);
   void        createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger> &service_client);
+  void        createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool> &service_client);
 
   // | ---------------------- TMUX & Misc ----------------------- |
   std::vector<int> selected_tmux_window_;
@@ -160,16 +241,13 @@ private:
   int              terminal_cols_ = 0, terminal_lines_ = 0;
 
 
-  void prefillUavStatus();
   void setupDisplayText();
 
   long         last_gigas_                = 0;
   bool         have_data_                 = false;
-  bool         have_short_data_           = false;
   int          estimator_display_counter_ = 0;
   bool         increment_counter_         = false;
   rclcpp::Time last_time_got_data_;
-  rclcpp::Time last_time_got_short_data_;
   rclcpp::Time bottom_window_clear_time_;
 
 
@@ -191,12 +269,11 @@ private:
   WindowPtr top_bar_window_;
   WindowPtr bottom_window_;
   WindowPtr generic_topic_window_;
-  WindowPtr node_stats_window_;
+  WindowPtr pane_window_; // cycleable panes (top-right): system detail / node CPU / GPS / problems
   WindowPtr general_info_window_;
   WindowPtr debug_window_;
   WindowPtr sub_tmux_window_1_;
   WindowPtr sub_tmux_window_2_;
-  WindowPtr string_window_;
 
   // | ----------------------- Data Storage --------------------- |
   std::vector<tui::StatusWindow> menu_vec_;

@@ -52,14 +52,15 @@ void Status::initialize() {
 
   param_loader.addYamlFileFromParam("config_public");
 
-  std::string pwd, colorscheme, turbo_remote_constraints;
-  double      update_rate, update_rate_slow, resize_rate;
-  std::vector<double> goto_values; 
-  bool        colorblind_mode = false;
-  bool        start_minimized = false;
+  std::string         pwd, colorscheme, turbo_remote_constraints, uav_name;
+  double              update_rate, update_rate_slow, resize_rate;
+  std::vector<double> goto_values;
+  bool                colorblind_mode = false;
+  bool                start_minimized = false;
 
   param_loader.loadParam("pwd", pwd);
   param_loader.loadParam("colorscheme", colorscheme);
+  param_loader.loadParam("uav_name", uav_name);
   param_loader.loadParam("mrs_uav_status/update_rate", update_rate);
   param_loader.loadParam("mrs_uav_status/update_rate_slow", update_rate_slow);
   param_loader.loadParam("mrs_uav_status/resize_rate", resize_rate);
@@ -80,7 +81,18 @@ void Status::initialize() {
 
   const std::string display_config_filename = pwd + "/.mrs_status_display_config~";
 
-  tui_ = std::make_unique<tui::TUI>(node_, cbkgrp_sc_, colorscheme, colorblind_mode, start_minimized, display_config_filename, turbo_remote_constraints, service_list, goto_values);
+  const tui::TUI::TUIParams tui_params{
+      .uav_name                 = uav_name,
+      .colorscheme              = colorscheme,
+      .colorblind_mode          = colorblind_mode,
+      .start_minimized          = start_minimized,
+      .display_config_filename  = display_config_filename,
+      .turbo_remote_constraints = turbo_remote_constraints,
+      .service_list             = service_list,
+      .goto_values              = goto_values,
+  };
+
+  tui_ = std::make_unique<tui::TUI>(node_, cbkgrp_sc_, tui_params);
   tui_->updateTermSize();
   tui_->setupWindows();
   tui_->loadDisplayConfig();
@@ -105,8 +117,20 @@ void Status::initialize() {
   shopts.autostart                           = true;
   shopts.subscription_options.callback_group = cbkgrp_subs_;
 
-  sh_uav_status_       = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavStatus>(shopts, "~/uav_status_in", &Status::callbackUavStatus, this);
-  sh_uav_status_short_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavStatusShort>(shopts, "~/uav_status_short_in", &Status::callbackUavStatusShort, this);
+  sh_general_robot_info_ =
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::GeneralRobotInfo>(shopts, "~/general_robot_info_in", &Status::callbackGeneralRobotInfo, this);
+  sh_state_estimation_info_ =
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::StateEstimationInfo>(shopts, "~/state_estimation_info_in", &Status::callbackStateEstimationInfo, this);
+  sh_control_info_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::ControlInfo>(shopts, "~/control_info_in", &Status::callbackControlInfo, this);
+  sh_collision_avoidance_info_ =
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::CollisionAvoidanceInfo>(shopts, "~/collision_avoidance_info_in", &Status::callbackCollisionAvoidanceInfo, this);
+  sh_uav_info_          = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavInfo>(shopts, "~/uav_info_in", &Status::callbackUavInfo, this);
+  sh_system_health_info_ =
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::SystemHealthInfo>(shopts, "~/system_health_info_in", &Status::callbackSystemHealthInfo, this);
+  sh_uav_state_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::State>(shopts, "~/uav_state_in", &Status::callbackUavState, this);
+  // Custom-display string topic — anything published here lands in the TUI's
+  // Strings window. Supports "-id <key> -p <space-separated text>" preamble.
+  sh_display_string_ = mrs_lib::SubscriberHandler<std_msgs::msg::String>(shopts, "~/display_string_in", &Status::callbackDisplayString, this);
 
   profiler_ = mrs_lib::Profiler(node_, "Status", _profiler_enabled_);
 
@@ -180,6 +204,22 @@ void Status::timerStatusFast() {
 
     case 'h':
       tui_->toggleHelp();
+      break;
+
+    case 'p':
+      tui_->cyclePanes();
+      break;
+
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+      tui_->selectPane(static_cast<size_t>(key_in - '1'));
       break;
 
     case 'M':
@@ -290,13 +330,11 @@ void Status::timerStatusSlow() {
     mrs_lib::Routine profiler_routine = profiler_.createRoutine("genericTopicHandler");
     tui_->genericTopicHandler();
   }
-  if (!tui_->isMini()) {
-    mrs_lib::Routine profiler_routine = profiler_.createRoutine("nodeStatsHandler");
-    tui_->nodeStatsHandler();
-  }
+  // The cycleable preset panel (Node CPU / GPS / System detail / Problems) lives
+  // in the top-right slot; node-CPU and GPS-strings are now presets within it.
   {
-    mrs_lib::Routine profiler_routine = profiler_.createRoutine("stringHandler");
-    tui_->stringHandler();
+    mrs_lib::Routine profiler_routine = profiler_.createRoutine("presetPanelHandler");
+    tui_->paneHandler();
   }
   {
     mrs_lib::Routine profiler_routine = profiler_.createRoutine("generalInfoHandler");
@@ -308,18 +346,60 @@ void Status::timerStatusSlow() {
 
 /* callbacks //{ */
 
-void Status::callbackUavStatus(const mrs_msgs::msg::UavStatus::ConstSharedPtr msg) {
+void Status::callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::ConstSharedPtr msg) {
   if (!initialized_) {
     return;
   }
-  tui_->onUavStatus(*msg);
+  tui_->onGeneralRobotInfo(*msg);
 }
 
-void Status::callbackUavStatusShort(const mrs_msgs::msg::UavStatusShort::ConstSharedPtr msg) {
+void Status::callbackStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo::ConstSharedPtr msg) {
   if (!initialized_) {
     return;
   }
-  tui_->onUavStatusShort(*msg);
+  tui_->onStateEstimationInfo(*msg);
+}
+
+void Status::callbackControlInfo(const mrs_msgs::msg::ControlInfo::ConstSharedPtr msg) {
+  if (!initialized_) {
+    return;
+  }
+  tui_->onControlInfo(*msg);
+}
+
+void Status::callbackCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo::ConstSharedPtr msg) {
+  if (!initialized_) {
+    return;
+  }
+  tui_->onCollisionAvoidanceInfo(*msg);
+}
+
+void Status::callbackUavInfo(const mrs_msgs::msg::UavInfo::ConstSharedPtr msg) {
+  if (!initialized_) {
+    return;
+  }
+  tui_->onUavInfo(*msg);
+}
+
+void Status::callbackSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo::ConstSharedPtr msg) {
+  if (!initialized_) {
+    return;
+  }
+  tui_->onSystemHealthInfo(*msg);
+}
+
+void Status::callbackUavState(const mrs_msgs::msg::State::ConstSharedPtr msg) {
+  if (!initialized_) {
+    return;
+  }
+  tui_->onUavState(*msg);
+}
+
+void Status::callbackDisplayString(const std_msgs::msg::String::ConstSharedPtr msg) {
+  if (!initialized_) {
+    return;
+  }
+  tui_->onString(*msg);
 }
 
 //}

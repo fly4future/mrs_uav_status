@@ -147,7 +147,10 @@ inline void printHelp(WINDOW *win, bool help_active) {
     printLimitedString(win, 14, 0, "   topic: mrs_status/display_string (std_msgs::String)", 120);
     printLimitedString(win, 15, 0, "   - Publish any string to this topic and it will show up in mrs_status", 120);
     printLimitedString(win, 17, 0, "Press 'D' to display info from other panes of this tmux session, up to 2 panes can be viewed", 120);
-    printLimitedString(win, 19, 0, "Press 'h' to hide help", 120);
+    printLimitedString(win, 18, 0, "Press 'p' to cycle the top-right pane through various system info (problems, node CPU usage, GPS status, available sensors)", 120);
+    printLimitedString(win, 19, 0, "Press '1'-'9' to directly select a pane ", 120); 
+
+    printLimitedString(win, 21, 0, "Press 'h' to hide help", 120);
   } else {
     printLimitedString(win, 1, 0, "Press 'h' key for help", 120);
   }
@@ -194,6 +197,42 @@ inline void printTmuxDump(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2, cons
   touchwin(debug_window);
   wnoutrefresh(sub1);
   wnoutrefresh(sub2);
+}
+
+// Map a measured Hz against an expected Hz to a ColorPair (Green ≥ 90% expected,
+// Yellow ≥ 50% expected, Red otherwise). Replaces the precomputed *_color fields
+// that the legacy UavStatus blob carried.
+inline int16_t rateColor(double rate, double expected) {
+  if (expected <= 0.0) {
+    return static_cast<int16_t>(ColorPair::Normal);
+  }
+  if (rate >= 0.9 * expected) {
+    return static_cast<int16_t>(ColorPair::Green);
+  }
+  if (rate >= 0.5 * expected) {
+    return static_cast<int16_t>(ColorPair::Yellow);
+  }
+  return static_cast<int16_t>(ColorPair::Red);
+}
+
+// btop-style hotkey hint: render @p word with its first character (the trigger
+// key) in red+bold and the remainder in the normal colour. Returns the column
+// just past the word (plus one space) so hints can be chained left-to-right.
+inline int printHotkey(WINDOW *win, int y, int x, const std::string &word) {
+  if (word.empty()) {
+    return x;
+  }
+  wattron(win, A_BOLD);
+  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+  mvwaddch(win, y, x, static_cast<chtype>(word.front()));
+  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+
+  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
+  mvwaddstr(win, y, x + 1, word.substr(1).c_str());
+  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
+  wattroff(win, A_BOLD);
+
+  return x + static_cast<int>(word.size()) + 1; // +1 for a single-space gap
 }
 
 } // namespace mrs_uav_status::tui
