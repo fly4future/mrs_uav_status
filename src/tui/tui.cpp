@@ -978,8 +978,8 @@ void TUI::controlManagerHandler() {
     avoiding_collision  = last_collision_avoidance_info_.avoiding_collision;
     can_takeoff         = last_general_robot_info_.ready_to_start;
   }
-  // Nominal MRS control_manager rate is 100 Hz.
-  color = rateColor(rate, 100.0);
+  // Nominal MRS control_manager diagnostics rate is 10 Hz.
+  color = rateColor(rate, 10.0);
 
   werase(win);
   wattron(win, A_BOLD);
