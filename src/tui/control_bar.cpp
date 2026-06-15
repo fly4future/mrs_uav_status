@@ -20,7 +20,7 @@ ControlBar::ControlBar(unsigned long size, WINDOW *win, double initial_value) {
 
   ControlBar::cursor_ = (size_ / 2) - 2;
 
-  const int required_length = std::snprintf(nullptr, 0, "%6.2f", initial_value);
+  const int           required_length = std::snprintf(nullptr, 0, "%6.2f", initial_value);
   const unsigned long tmpbuffer_size =
       size_ + 1 > static_cast<unsigned long>(required_length + 1) ? size_ + 1 : static_cast<unsigned long>(required_length + 1);
   std::vector<char> tmpbuffer(tmpbuffer_size, '\0');

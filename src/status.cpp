@@ -124,7 +124,7 @@ void Status::initialize() {
   sh_control_info_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::ControlInfo>(shopts, "~/control_info_in", &Status::callbackControlInfo, this);
   sh_collision_avoidance_info_ =
       mrs_lib::SubscriberHandler<mrs_msgs::msg::CollisionAvoidanceInfo>(shopts, "~/collision_avoidance_info_in", &Status::callbackCollisionAvoidanceInfo, this);
-  sh_uav_info_          = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavInfo>(shopts, "~/uav_info_in", &Status::callbackUavInfo, this);
+  sh_uav_info_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavInfo>(shopts, "~/uav_info_in", &Status::callbackUavInfo, this);
   sh_system_health_info_ =
       mrs_lib::SubscriberHandler<mrs_msgs::msg::SystemHealthInfo>(shopts, "~/system_health_info_in", &Status::callbackSystemHealthInfo, this);
   sh_uav_state_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::State>(shopts, "~/uav_state_in", &Status::callbackUavState, this);

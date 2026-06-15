@@ -56,14 +56,14 @@ private:
   rclcpp::CallbackGroup::SharedPtr cbkgrp_timers_;
   rclcpp::CallbackGroup::SharedPtr cbkgrp_sc_;
 
-  mrs_lib::SubscriberHandler<mrs_msgs::msg::GeneralRobotInfo>      sh_general_robot_info_;
-  mrs_lib::SubscriberHandler<mrs_msgs::msg::StateEstimationInfo>   sh_state_estimation_info_;
-  mrs_lib::SubscriberHandler<mrs_msgs::msg::ControlInfo>           sh_control_info_;
+  mrs_lib::SubscriberHandler<mrs_msgs::msg::GeneralRobotInfo>       sh_general_robot_info_;
+  mrs_lib::SubscriberHandler<mrs_msgs::msg::StateEstimationInfo>    sh_state_estimation_info_;
+  mrs_lib::SubscriberHandler<mrs_msgs::msg::ControlInfo>            sh_control_info_;
   mrs_lib::SubscriberHandler<mrs_msgs::msg::CollisionAvoidanceInfo> sh_collision_avoidance_info_;
-  mrs_lib::SubscriberHandler<mrs_msgs::msg::UavInfo>               sh_uav_info_;
-  mrs_lib::SubscriberHandler<mrs_msgs::msg::SystemHealthInfo>      sh_system_health_info_;
-  mrs_lib::SubscriberHandler<mrs_msgs::msg::State>                 sh_uav_state_;
-  mrs_lib::SubscriberHandler<std_msgs::msg::String>                sh_display_string_;
+  mrs_lib::SubscriberHandler<mrs_msgs::msg::UavInfo>                sh_uav_info_;
+  mrs_lib::SubscriberHandler<mrs_msgs::msg::SystemHealthInfo>       sh_system_health_info_;
+  mrs_lib::SubscriberHandler<mrs_msgs::msg::State>                  sh_uav_state_;
+  mrs_lib::SubscriberHandler<std_msgs::msg::String>                 sh_display_string_;
 
   std::shared_ptr<TimerType> timer_status_fast_;
   std::shared_ptr<TimerType> timer_status_slow_;

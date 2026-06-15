@@ -21,4 +21,4 @@ struct StringInfo
   }
 };
 
-} // namespace mrs_uav_status
+} // namespace mrs_uav_status::utils

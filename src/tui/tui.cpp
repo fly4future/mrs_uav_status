@@ -1644,7 +1644,7 @@ void TUI::createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_li
     }
     sub_menu_rows_.push_back({entry, [this, entry, &service_client]() {
                                 auto request  = std::make_shared<std_srvs::srv::SetBool::Request>();
-                                request->data = true; 
+                                request->data = true;
                                 auto response = service_client.callSync(request);
                                 if (!response) {
                                   renderServiceResult(false, "service could not be called");

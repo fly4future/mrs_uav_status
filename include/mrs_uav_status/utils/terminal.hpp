@@ -25,4 +25,4 @@ inline std::string callTerminal(const char *cmd) {
   return result;
 }
 
-} // namespace mrs_uav_status
+} // namespace mrs_uav_status::utils

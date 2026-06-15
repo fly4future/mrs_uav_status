@@ -13,17 +13,17 @@ namespace mrs_uav_status
 class TopicInfo {
 public:
   TopicInfo() = default;
-  
-  TopicInfo(rclcpp::Node::SharedPtr node, double window_rate, int buffer_length, double desired_rate); 
-  
-  TopicInfo(rclcpp::Node::SharedPtr node, double window_rate, int buffer_length, double desired_rate, 
-            const std::string& topic_name, const std::string& topic_display_name);
+
+  TopicInfo(rclcpp::Node::SharedPtr node, double window_rate, int buffer_length, double desired_rate);
+
+  TopicInfo(rclcpp::Node::SharedPtr node, double window_rate, int buffer_length, double desired_rate, const std::string &topic_name,
+            const std::string &topic_display_name);
 
   std::string                 getTopicName() const;
   std::string                 getTopicDisplayName() const;
   std::tuple<double, int16_t> getHz();
-  
-  void                        count();
+
+  void count();
 
 private:
   rclcpp::Node::SharedPtr node_;

@@ -147,8 +147,9 @@ inline void printHelp(WINDOW *win, bool help_active) {
     printLimitedString(win, 14, 0, "   topic: mrs_status/display_string (std_msgs::String)", 120);
     printLimitedString(win, 15, 0, "   - Publish any string to this topic and it will show up in mrs_status", 120);
     printLimitedString(win, 17, 0, "Press 'D' to display info from other panes of this tmux session, up to 2 panes can be viewed", 120);
-    printLimitedString(win, 18, 0, "Press 'p' to cycle the top-right pane through various system info (problems, node CPU usage, GPS status, available sensors)", 120);
-    printLimitedString(win, 19, 0, "Press '1'-'9' to directly select a pane ", 120); 
+    printLimitedString(win, 18, 0,
+                       "Press 'p' to cycle the top-right pane through various system info (problems, node CPU usage, GPS status, available sensors)", 120);
+    printLimitedString(win, 19, 0, "Press '1'-'9' to directly select a pane ", 120);
 
     printLimitedString(win, 21, 0, "Press 'h' to hide help", 120);
   } else {
