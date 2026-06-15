@@ -47,7 +47,8 @@ remaps=(
   "$node_name/uav_state_in"                "state_monitor/uav_state"
   "$node_name/display_string_in"           "display_string"
   "$node_name/gimbal_command_out"          "tarot_gimbal/gimbal_command"
-  "$node_name/reference_out"               "control_manager/reference"
+  "$node_name/goto_reference_out"          "control_manager/reference"
+  "$node_name/velocity_reference_out"      "control_manager/velocity_reference"
   "$node_name/trajectory_reference_out"    "control_manager/trajectory_reference"
   "$node_name/set_constraints_out"         "constraint_manager/set_constraints"
   "$node_name/set_estimator_out"           "estimation_manager/change_estimator"
@@ -63,7 +64,11 @@ remaps=(
 ## |                     the automatic part                     |
 ## --------------------------------------------------------------
 
-CMD="ros2 run $package_name $binary __ns:=/$uav_name __node:=$node_name --ros-args"
+CMD_BASE="ros2 run $package_name $binary"
+ROS_ARGS=""
+
+ROS_ARGS="$ROS_ARGS --remap __ns:=/$uav_name"
+ROS_ARGS="$ROS_ARGS --remap __node:=$node_name"
 
 for ((i=0; i < ${#params[*]}; i++));
 do
@@ -76,15 +81,15 @@ for ((i=0; i < ${#PARAM_NAME[*]}; i++)); do
 
   if [ "${PARAM_TYPE[$i]}" == "string" ]; then
 
-    CMD="$CMD -p ${PARAM_NAME[$i]}:=\'${PARAM_VALUE[$i]}\'"
+    ROS_ARGS="$ROS_ARGS -p ${PARAM_NAME[$i]}:=\'${PARAM_VALUE[$i]}\'"
 
   elif [ "${PARAM_TYPE[$i]}" == "bool" ]; then
 
-    CMD="$CMD -p ${PARAM_NAME[$i]}:=${PARAM_VALUE[$i]}"
+    ROS_ARGS="$ROS_ARGS -p ${PARAM_NAME[$i]}:=${PARAM_VALUE[$i]}"
 
   else
 
-    CMD="$CMD -p ${PARAM_NAME[$i]}:=${PARAM_VALUE[$i]}"
+    ROS_ARGS="$ROS_ARGS -p ${PARAM_NAME[$i]}:=${PARAM_VALUE[$i]}"
 
   fi
 
@@ -98,9 +103,11 @@ done
 
 for ((i=0; i < ${#REMAP_FROM[*]}; i++)); do
 
-  CMD="$CMD -r ${REMAP_FROM[$i]}:=${REMAP_TO[$i]}"
+  ROS_ARGS="$ROS_ARGS --remap ${REMAP_FROM[$i]}:=${REMAP_TO[$i]}"
 
 done
+
+CMD="$CMD_BASE --ros-args $ROS_ARGS"
 
 export RCUTILS_LOGGING_USE_STDOUT=0
 log_file="/tmp/mrs_uav_status_${uav_name}.log"
