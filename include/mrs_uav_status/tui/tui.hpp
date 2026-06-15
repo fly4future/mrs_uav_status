@@ -27,6 +27,7 @@
 
 #include <mrs_msgs/srv/string.hpp>
 #include <mrs_msgs/srv/reference_stamped_srv.hpp>
+#include <mrs_msgs/srv/velocity_reference_stamped_srv.hpp>
 #include <mrs_msgs/msg/collision_avoidance_info.hpp>
 #include <mrs_msgs/msg/control_info.hpp>
 #include <mrs_msgs/msg/custom_topic.hpp>
@@ -132,15 +133,16 @@ private:
   rclcpp::Clock::SharedPtr clock_;
 
 
-  mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>             ph_gimbal_state_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv> sc_goto_reference_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>              sc_set_constraints_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>              sc_set_gains_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>              sc_set_controller_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>              sc_set_tracker_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>              sc_set_estimator_;
-  mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>             sc_hover_;
-  mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>             sc_toggle_output_;
+  mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>                     ph_gimbal_state_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>         sc_goto_reference_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::VelocityReferenceStampedSrv> sc_velocity_reference_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_constraints_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_gains_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_controller_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_tracker_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_estimator_;
+  mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>                     sc_hover_;
+  mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>                     sc_toggle_output_;
 
   /** @brief struct to hold service entries and their associated client handlers */
   struct ServiceEntry
@@ -216,7 +218,7 @@ private:
   std::vector<MenuRow> sub_menu_rows_;
 
   // | -------------------- Remote (private helpers) ------------ |
-  void remoteModeFly(const mrs_msgs::msg::Reference &ref_in);
+  void remoteModeFly(const mrs_msgs::msg::VelocityReference &ref_in);
   void drawRemoteBanner(WINDOW *win);
   void handleRemoteMotion(int key);
   void toggleTurboRemote();

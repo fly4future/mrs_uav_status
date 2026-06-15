@@ -55,15 +55,16 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
     service_entries_.emplace_back(service_display_name, mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, service_name, cbkgrp_sc));
   }
 
-  ph_gimbal_state_    = mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>(node_, "~/gimbal_command_out");
-  sc_goto_reference_  = mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>(node_, "~/reference_out", cbkgrp_sc);
-  sc_set_constraints_ = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_constraints_out", cbkgrp_sc);
-  sc_set_gains_       = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_gains_out", cbkgrp_sc);
-  sc_set_controller_  = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_controller_out", cbkgrp_sc);
-  sc_set_tracker_     = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_tracker_out", cbkgrp_sc);
-  sc_set_estimator_   = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_estimator_out", cbkgrp_sc);
-  sc_hover_           = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, "~/hover_out", cbkgrp_sc);
-  sc_toggle_output_   = mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>(node_, "~/toggle_output_out", cbkgrp_sc);
+  ph_gimbal_state_       = mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>(node_, "~/gimbal_command_out");
+  sc_goto_reference_     = mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>(node_, "~/goto_reference_out", cbkgrp_sc);
+  sc_velocity_reference_ = mrs_lib::ServiceClientHandler<mrs_msgs::srv::VelocityReferenceStampedSrv>(node_, "~/velocity_reference_out", cbkgrp_sc);
+  sc_set_constraints_    = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_constraints_out", cbkgrp_sc);
+  sc_set_gains_          = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_gains_out", cbkgrp_sc);
+  sc_set_controller_     = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_controller_out", cbkgrp_sc);
+  sc_set_tracker_        = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_tracker_out", cbkgrp_sc);
+  sc_set_estimator_      = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_estimator_out", cbkgrp_sc);
+  sc_hover_              = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, "~/hover_out", cbkgrp_sc);
+  sc_toggle_output_      = mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>(node_, "~/toggle_output_out", cbkgrp_sc);
 
   transformer_ = std::make_unique<mrs_lib::Transformer>(node_);
   transformer_->retryLookupNewest(true);
@@ -2023,12 +2024,13 @@ void TUI::handleRemoteMotion(int key) {
   const double z_step   = turbo_remote_ ? 2.0 : 1.0;
   const double hdg_step = turbo_remote_ ? 1.0 : 0.5;
 
-  auto fly = [&](double dx, double dy, double dz, double dhdg) {
-    mrs_msgs::msg::Reference reference{};
-    reference.position.x = dx;
-    reference.position.y = dy;
-    reference.position.z = dz;
-    reference.heading    = dhdg;
+  auto fly = [&](double vx, double vy, double vz, double vhdg) {
+    mrs_msgs::msg::VelocityReference reference{};
+    reference.velocity.x = vx;
+    reference.velocity.y = vy;
+    reference.velocity.z = vz;
+    reference.heading_rate    = vhdg;
+    reference.use_heading_rate    = true;
     remoteModeFly(reference);
     remote_hover_ = true;
   };
@@ -2192,76 +2194,30 @@ void TUI::gimbalHandler(int key) {
   wattroff(win, A_BOLD);
 }
 
-void TUI::remoteModeFly(const mrs_msgs::msg::Reference &ref_in) {
-  auto request = std::make_shared<mrs_msgs::srv::ReferenceStampedSrv::Request>();
+void TUI::remoteModeFly(const mrs_msgs::msg::VelocityReference &ref_in) {
+  auto request = std::make_shared<mrs_msgs::srv::VelocityReferenceStampedSrv::Request>();
+
+  request->reference.reference = ref_in;
+
+  std::string uav_name;
+
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    uav_name   = last_general_robot_info_.robot_name;
+  }
 
   if (remote_global_) {
 
-    double      cmd_x, cmd_y, cmd_z, cmd_hdg;
-    std::string odom_frame;
-
-    {
-      std::scoped_lock lock(mutex_status_msg_);
-      cmd_x      = last_control_info_.cmd_pose.position.x;
-      cmd_y      = last_control_info_.cmd_pose.position.y;
-      cmd_z      = last_control_info_.cmd_pose.position.z;
-      cmd_hdg    = last_control_info_.cmd_pose.heading;
-      odom_frame = last_state_estimation_info_.header.frame_id;
-    }
-
-    request->reference.position.x = cmd_x + ref_in.position.x;
-    request->reference.position.y = cmd_y + ref_in.position.y;
-    request->reference.position.z = cmd_z + ref_in.position.z;
-    request->reference.heading    = cmd_hdg + ref_in.heading;
-    request->header.frame_id      = odom_frame;
+    request->reference.header.frame_id = uav_name + "/world_origin";
 
   } else {
 
-    request->reference = ref_in;
-
-    std::string uav_name, odom_frame;
-    double      cmd_x, cmd_y, cmd_z, cmd_hdg;
-
-    {
-      std::scoped_lock lock(mutex_status_msg_);
-      uav_name   = last_general_robot_info_.robot_name;
-      cmd_x      = last_control_info_.cmd_pose.position.x;
-      cmd_y      = last_control_info_.cmd_pose.position.y;
-      cmd_z      = last_control_info_.cmd_pose.position.z;
-      cmd_hdg    = last_control_info_.cmd_pose.heading;
-      odom_frame = last_state_estimation_info_.header.frame_id;
-    }
-
-    mrs_msgs::msg::ReferenceStamped cmd_reference;
-
-    cmd_reference.reference.position.x = cmd_x;
-    cmd_reference.reference.position.y = cmd_y;
-    cmd_reference.reference.position.z = cmd_z;
-    cmd_reference.reference.heading    = cmd_hdg;
-    cmd_reference.header.frame_id      = odom_frame;
-
-    request->header.frame_id = uav_name + "/fcu_untilted";
-    request->header.stamp    = clock_->now();
-
-    auto response = transformer_->transformSingle(cmd_reference, request->header.frame_id);
-    if (response) {
-      cmd_reference = response.value();
-    } else {
-      RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "Transform failed when transforming cmd_reference.");
-      return;
-    }
-
-    request->reference = cmd_reference.reference;
-    request->reference.position.x += ref_in.position.x;
-    request->reference.position.y += ref_in.position.y;
-    request->reference.position.z += ref_in.position.z;
-    request->reference.heading += ref_in.heading;
-    request->header.frame_id = cmd_reference.header.frame_id;
+    request->reference.header.frame_id = uav_name + "/fcu_untilted";
   }
 
-  request->header.stamp = clock_->now();
+  request->reference.header.stamp = clock_->now();
 
-  auto response = sc_goto_reference_.callSync(request);
+  auto response = sc_velocity_reference_.callSync(request);
 }
 
 void TUI::renderTmuxOrHelp() {
