@@ -1157,7 +1157,7 @@ void TUI::hwApiStateHandler() {
     battery_volt       = bat.voltage;
     battery_curr       = bat.current;
     battery_wh_drained = bat.wh_drained;
-    thrust             = last_control_info_.thrust;
+    thrust             = last_control_info_.thrust / 100.0;
     mass_estimate      = last_uav_info_.mass_estimate;
     mass_set           = last_uav_info_.mass_nominal;
     avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
@@ -1354,7 +1354,7 @@ void TUI::hwApiStateHandler() {
       }
       printLimitedDouble(win, 4, 1, "%4.2fV ", battery_volt, 10);
       printLimitedDouble(win, 4, 8, "%5.2fA", battery_curr, 100);
-      printLimitedDouble(win, 4, 15, " %4.1f Wh", battery_wh_drained, 100);
+      printLimitedDouble(win, 4, 15, " %6.1f h", battery_wh_drained, 9999.9);
     }
 
     if (mag_norm_rate == 0) {
@@ -1375,7 +1375,7 @@ void TUI::hwApiStateHandler() {
 
     if (cmd_rate == 0) {
 
-      printNoData(win, 5, 1, "Thrst: ", params_.start_minimized);
+      printNoData(win, 5, 1, "Thrust: ", params_.start_minimized);
 
     } else {
 
@@ -1386,7 +1386,7 @@ void TUI::hwApiStateHandler() {
       } else if (thrust > 0.65 && color != static_cast<int>(ColorPair::Red)) {
         wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Yellow)));
       }
-      printLimitedDouble(win, 5, 1, "Thrst: %4.2f", thrust, 1.01);
+      printLimitedDouble(win, 5, 1, "Thrust: %4.2f", thrust, 1.01);
       wattron(win, COLOR_PAIR(color));
 
       color            = static_cast<int>(ColorPair::Green);
