@@ -333,7 +333,7 @@ void TUI::generalInfoHandler() {
   wnoutrefresh(win);
 }
 
-void TUI::renderStringsGpsPane(WINDOW *win) {
+void TUI::renderStringsGnssPane(WINDOW *win) {
   int row = drawPaneChrome(win);
 
   std::vector<std::string> string_vector;
@@ -344,11 +344,11 @@ void TUI::renderStringsGpsPane(WINDOW *win) {
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    if (const auto *gps = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GPS); gps) {
-      gnss_fix_type    = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gps->details, "fix_type"), 0));
-      gnss_num_sats    = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gps->details, "num_satellites"), 0));
-      gnss_pos_acc     = utils::parseDoubleOr(utils::lookupDetail(gps->details, "position_accuracy"), 100.0);
-      gnss_status_rate = gps->rate;
+    if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GNSS); gnss) {
+      gnss_fix_type    = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gnss->details, "fix_type"), 0));
+      gnss_num_sats    = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gnss->details, "num_satellites"), 0));
+      gnss_pos_acc     = utils::parseDoubleOr(utils::lookupDetail(gnss->details, "position_accuracy"), 100.0);
+      gnss_status_rate = gnss->rate;
     }
 
     // Custom strings: evict stale (>10 s, unless persistent), collect the rest.
@@ -372,7 +372,7 @@ void TUI::renderStringsGpsPane(WINDOW *win) {
 
     switch (gnss_fix_type) {
     case 0:
-      fix_string += "NO GPS";
+      fix_string += "NO GNSS";
       break;
     case 1:
       fix_string += "NO FIX";
@@ -416,7 +416,7 @@ void TUI::renderStringsGpsPane(WINDOW *win) {
   }
 
   if (string_vector.empty()) {
-    string_vector.push_back("-r no GPS / strings data");
+    string_vector.push_back("-r no GNSS / strings data");
   }
 
   constexpr int max_rows = 9;
@@ -518,8 +518,8 @@ void TUI::setupPanes() {
   panes_.push_back({"Sensors", [this](WINDOW *win) { renderSensorsPane(win); }, nullptr});
   // ROS per-node CPU usage (was its own top-right box)
   panes_.push_back({"ROS Node CPU", [this](WINDOW *win) { renderNodeCpuPane(win); }, nullptr});
-  // GPS fix + custom display strings
-  panes_.push_back({"GPS & strings", [this](WINDOW *win) { renderStringsGpsPane(win); }, nullptr});
+  // GNSS fix + custom display strings
+  panes_.push_back({"GNSS & strings", [this](WINDOW *win) { renderStringsGnssPane(win); }, nullptr});
   // Problems + errors. Auto-focused when either becomes non-empty
   panes_.push_back({"Problems & errors", [this](WINDOW *win) { renderProblemsPane(win); },
                     [this]() {
@@ -1139,9 +1139,9 @@ void TUI::hwApiStateHandler() {
     battery_rate = hw_api_rate;
 
     gnss_ok = false;
-    if (const auto *gps = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GPS); gps) {
-      gnss_ok   = (gps->level == mrs_msgs::msg::SensorStatus::OK);
-      gnss_qual = utils::parseDoubleOr(utils::lookupDetail(gps->details, "quality"), 0.0);
+    if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GNSS); gnss) {
+      gnss_ok   = (gnss->level == mrs_msgs::msg::SensorStatus::OK);
+      gnss_qual = utils::parseDoubleOr(utils::lookupDetail(gnss->details, "quality"), 0.0);
     }
 
     mag_norm      = 0.0;
@@ -1267,13 +1267,13 @@ void TUI::hwApiStateHandler() {
     if (!gnss_ok) {
 
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-      printLimitedString(win, 1, 5, "GPS", 6);
+      printLimitedString(win, 1, 5, "GNSS", 6);
       wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
 
     } else {
 
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
-      printLimitedString(win, 1, 5, "GPS", 6);
+      printLimitedString(win, 1, 5, "GNSS", 6);
       wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
 
       color = static_cast<int>(ColorPair::Red);
@@ -1421,13 +1421,13 @@ void TUI::hwApiStateHandler() {
     if (!gnss_ok) {
 
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-      printLimitedString(win, 1, 18, "NO_GPS", 6);
+      printLimitedString(win, 1, 18, "NO_GNSS", 6);
       wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
 
     } else {
 
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
-      printLimitedString(win, 1, 18, "GPS_OK", 6);
+      printLimitedString(win, 1, 18, "GNSS_OK", 6);
       wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
 
       color = static_cast<int>(ColorPair::Red);

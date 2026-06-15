@@ -190,7 +190,7 @@ private:
   void renderProblemsPane(WINDOW *win);
   void renderSensorsPane(WINDOW *win);
   void renderNodeCpuPane(WINDOW *win);
-  void renderStringsGpsPane(WINDOW *win);
+  void renderStringsGnssPane(WINDOW *win);
 
   /** @brief struct to hold menu entries and their associated actions */
   /*
@@ -269,7 +269,7 @@ private:
   WindowPtr top_bar_window_;
   WindowPtr bottom_window_;
   WindowPtr generic_topic_window_;
-  WindowPtr pane_window_; // cycleable panes (top-right): system detail / node CPU / GPS / problems
+  WindowPtr pane_window_; // cycleable panes (top-right): system detail / node CPU / GNSS / problems
   WindowPtr general_info_window_;
   WindowPtr debug_window_;
   WindowPtr sub_tmux_window_1_;
