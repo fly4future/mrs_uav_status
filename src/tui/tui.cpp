@@ -275,6 +275,10 @@ void TUI::toggleHelp() {
   help_active_ = !help_active_;
 }
 
+void TUI::setRemoteMode(bool in_remote_mode) {
+  in_remote_mode_ = in_remote_mode;
+}
+
 bool TUI::isFlyingNormally() {
   std::scoped_lock lock(mutex_status_msg_);
   return last_control_info_.flying_normally;
@@ -1354,7 +1358,7 @@ void TUI::hwApiStateHandler() {
       }
       printLimitedDouble(win, 4, 1, "%4.2fV ", battery_volt, 10);
       printLimitedDouble(win, 4, 8, "%5.2fA", battery_curr, 100);
-      printLimitedDouble(win, 4, 15, " %6.1f h", battery_wh_drained, 9999.9);
+      printLimitedDouble(win, 4, 16, "%6.1fWh", battery_wh_drained, 9999.9);
     }
 
     if (mag_norm_rate == 0) {
@@ -1422,13 +1426,13 @@ void TUI::hwApiStateHandler() {
     if (!gnss_ok) {
 
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-      printLimitedString(win, 1, 18, "NO_GNSS", 6);
+      printLimitedString(win, 1, 17, "NO_GNSS", 7);
       wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
 
     } else {
 
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
-      printLimitedString(win, 1, 18, "GNSS_OK", 6);
+      printLimitedString(win, 1, 17, "GNSS_OK", 7);
       wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
 
       color = static_cast<int>(ColorPair::Red);
@@ -1545,7 +1549,7 @@ void TUI::topLineHandler() {
 
   // btop-style hotkey hints on the right of the top bar — the trigger key (the
   // red letter) maps directly to the STANDARD-mode key handler in status.cpp.
-  if (!params_.start_minimized) {
+  if (!params_.start_minimized && !in_remote_mode_) {
     int hx = 62;
     hx     = printHotkey(win, 0, hx, "menu");
     hx     = printHotkey(win, 0, hx, "goto");
@@ -1995,9 +1999,9 @@ void TUI::drawRemoteBanner(WINDOW *win) {
     wattron(win, A_STANDOUT);
   }
 
-  const int rem_x   = params_.start_minimized ? 33 : 55;
-  const int mode_x  = params_.start_minimized ? 37 : 75;
-  const int turbo_x = params_.start_minimized ? 39 : 67;
+  const int rem_x   = params_.start_minimized ? 33 : 62;
+  const int mode_x  = params_.start_minimized ? 37 : 82;
+  const int turbo_x = params_.start_minimized ? 39 : 74;
 
   const char *rem_text   = params_.start_minimized ? "REM" : "REMOTE MODE";
   const char *mode_text  = remote_global_ ? (params_.start_minimized ? "G" : "GLOBAL MODE") : (params_.start_minimized ? "L" : "LOCAL MODE");

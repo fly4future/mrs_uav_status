@@ -190,6 +190,7 @@ void Status::timerStatusFast() {
     case 'R': {
       if (tui_->isFlyingNormally()) {
         tui_->enterRemoteMode();
+        tui_->setRemoteMode(true);
         state_ = StatusState::REMOTE;
       }
       break;
@@ -255,6 +256,7 @@ void Status::timerStatusFast() {
     flushinp();
     tui_->remoteHandler(key_in);
     if (key_in == 'R' || key_in == static_cast<int>(mrs_uav_status::tui::Key::Escape)) {
+      tui_->setRemoteMode(false);
       state_ = StatusState::STANDARD;
     }
     break;
