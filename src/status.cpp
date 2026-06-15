@@ -25,6 +25,14 @@ Status::Status() : Node("mrs_status_menu") {
 
 //}
 
+/* ~Status() //{ */
+
+Status::~Status() {
+  endwin();
+}
+
+//}
+
 /* initialize() //{ */
 
 void Status::initialize() {

@@ -32,6 +32,7 @@ class Status : public mrs_lib::Node {
 
 public:
   Status();
+  ~Status();
 
 private:
   void initialize();
