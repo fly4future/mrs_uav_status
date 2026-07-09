@@ -231,7 +231,6 @@ void TUI::setupWindows() {
     general_info_window_.reset(newwin(4, 9, 1, 10));
     hw_api_state_window_.reset(newwin(6, 9, 5, 10));
     debug_window_.reset(newwin(terminal_lines_ - 15, terminal_cols_ - 1, 13, 1));
-    generic_topic_window_.reset(newwin(10, 9, 1, 19));
     pane_window_.reset();
     bottom_window_.reset(newwin(1, 120, 11, 1));
 
@@ -243,8 +242,7 @@ void TUI::setupWindows() {
     general_info_window_.reset(newwin(4, 25, 1, 27));
     top_bar_window_.reset(newwin(1, 140, 0, 1));
     bottom_window_.reset(newwin(1, 120, 12, 1));
-    generic_topic_window_.reset(newwin(11, 25, 1, 52));
-    pane_window_.reset(newwin(11, 82, 1, 77));
+    pane_window_.reset(newwin(11, 82, 1, 52));
     const int debug_height = std::max(3, terminal_lines_ - 13);
     debug_window_.reset(newwin(debug_height, terminal_cols_ - 1, 13, 1));
     const int half_lines = std::max(1, (debug_height - 2) / 2);
@@ -342,18 +340,21 @@ void TUI::renderStringsGnssPane(WINDOW *win) {
   int row = drawPaneChrome(win);
 
   std::vector<std::string> string_vector;
-  uint8_t                  gnss_fix_type    = 0;
-  uint8_t                  gnss_num_sats    = 0;
-  double                   gnss_pos_acc     = 100.0;
-  double                   gnss_status_rate = 0.0;
+  uint8_t                  gnss_fix_type      = 0;
+  uint8_t                  gnss_num_sats      = 0;
+  double                   gnss_pos_acc       = 100.0;
+  double                   gnss_status_rate   = 0.0;
+  bool                     gnss_status_msg_ok = false;
 
   {
     std::scoped_lock lock(mutex_status_msg_);
     if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GNSS); gnss) {
-      gnss_fix_type    = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gnss->details, "fix_type"), 0));
-      gnss_num_sats    = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gnss->details, "num_satellites"), 0));
-      gnss_pos_acc     = utils::parseDoubleOr(utils::lookupDetail(gnss->details, "position_accuracy"), 100.0);
-      gnss_status_rate = gnss->rate;
+      const std::string fix_type_raw = utils::lookupDetail(gnss->details, "fix_type");
+      gnss_status_msg_ok             = (fix_type_raw != "nan");
+      gnss_fix_type                  = static_cast<uint8_t>(utils::parseLongOr(fix_type_raw, 0));
+      gnss_num_sats                  = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gnss->details, "num_satellites"), 0));
+      gnss_pos_acc                   = utils::parseDoubleOr(utils::lookupDetail(gnss->details, "position_accuracy"), 100.0);
+      gnss_status_rate               = gnss->rate;
     }
 
     // Custom strings: evict stale (>10 s, unless persistent), collect the rest.
@@ -368,7 +369,7 @@ void TUI::renderStringsGnssPane(WINDOW *win) {
     }
   }
 
-  if (gnss_status_rate > 0.0) {
+  if (gnss_status_rate > 0.0 && gnss_status_msg_ok) {
     std::string fix_string;
     if (gnss_fix_type < 1 || gnss_fix_type >= 8) {
       fix_string += "-r ";
@@ -421,7 +422,7 @@ void TUI::renderStringsGnssPane(WINDOW *win) {
   }
 
   if (string_vector.empty()) {
-    string_vector.push_back("-r no GNSS / strings data");
+    string_vector.push_back("-y no GNSS / strings data");
   }
 
   constexpr int max_rows = 9;
@@ -468,48 +469,6 @@ void TUI::renderStringsGnssPane(WINDOW *win) {
     printLimitedString(win, row++, 1, display, 80);
     wattroff(win, COLOR_PAIR(tmp_color));
     wattroff(win, A_BLINK);
-  }
-
-  wattroff(win, A_BOLD);
-  wnoutrefresh(win);
-}
-
-void TUI::genericTopicHandler() {
-  WINDOW                                 *win = generic_topic_window_.get();
-  std::vector<mrs_msgs::msg::CustomTopic> custom_topic_vec;
-  bool                                    avoiding_collision, can_takeoff, null_tracker;
-
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    // custom_topics revival is deferred — render an empty box for now.
-    avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
-    can_takeoff        = last_general_robot_info_.ready_to_start;
-    null_tracker       = (last_control_info_.active_tracker == "NullTracker");
-  }
-
-  werase(win);
-  wattron(win, A_BOLD);
-  wattroff(win, A_STANDOUT);
-  printBox(win, avoiding_collision, can_takeoff, null_tracker);
-
-  if (_light_) {
-    wattron(win, A_STANDOUT);
-  }
-
-  if (!custom_topic_vec.empty()) {
-    for (size_t i = 0; i < custom_topic_vec.size(); i++) {
-      wattron(win, COLOR_PAIR(custom_topic_vec[i].topic_color));
-      if (params_.start_minimized) {
-        printCompressedLimitedString(win, 1 + i, 1, custom_topic_vec[i].topic_name, 4);
-        printLimitedDouble(win, 1 + i, 5, "%3.0f", custom_topic_vec[i].topic_hz, 1000);
-      } else {
-        printLimitedString(win, 1 + i, 1, custom_topic_vec[i].topic_name, 15);
-        printLimitedDouble(win, 1 + i, 16, "%5.1f Hz", custom_topic_vec[i].topic_hz, 1000);
-      }
-      wattroff(win, COLOR_PAIR(custom_topic_vec[i].topic_color));
-    }
-  } else {
-    werase(win);
   }
 
   wattroff(win, A_BOLD);
@@ -681,7 +640,7 @@ void TUI::renderSensorsPane(WINDOW *win) {
   // Column header.
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
   printLimitedString(win, row, 1, "sensor", 36);
-  printLimitedString(win, row, 40, "rate", 8);
+  printLimitedString(win, row, 42, "rate", 8);
   printLimitedString(win, row, 55, "status", 12);
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
   ++row;
@@ -747,13 +706,19 @@ void TUI::renderNodeCpuPane(WINDOW *win) {
     cpu_load_total += n.cpu_load;
   }
 
-  constexpr int max_rows = 9;
+  constexpr int max_node_row = 9;
 
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
-  printLimitedString(win, row, 1, "node", 40);
+  printLimitedString(win, row, 42, "Total CPU", 20);
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
-  printLimitedDouble(win, row, 60, "%5.1f", cpu_load_total, 9999);
-  printLimitedString(win, row, 67, "CPU Load %%", 6);
+  printLimitedDouble(win, row, 55, "%5.1f", cpu_load_total, 9999);
+  printLimitedString(win, row, 61, "%", 5);
+  ++row;
+
+  mvwhline(win, row, 55, ACS_HLINE, 7);
+  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
+  printLimitedString(win, row, 1, "node", 36);
+  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
   ++row;
 
   // Sort by CPU load descending, then name ascending for tie-breaking.
@@ -761,10 +726,10 @@ void TUI::renderNodeCpuPane(WINDOW *win) {
             [](const auto &a, const auto &b) { return (a.cpu_load > b.cpu_load) || ((a.cpu_load == b.cpu_load) && (a.node_name < b.node_name)); });
 
   for (const auto &n : node_cpu_loads) {
-    if (row > max_rows) {
+    if (row > max_node_row) {
       break;
     }
-    printLimitedString(win, row, 1, n.node_name, 58);
+    printLimitedString(win, row, 1, n.node_name, 36);
 
     short tmp_color = static_cast<int>(ColorPair::Green);
     if (n.cpu_load > 99.9) {
@@ -773,7 +738,7 @@ void TUI::renderNodeCpuPane(WINDOW *win) {
       tmp_color = static_cast<int>(ColorPair::Yellow);
     }
     wattron(win, COLOR_PAIR(tmp_color));
-    printLimitedDouble(win, row, 60, "%5.1f", n.cpu_load, 9999);
+    printLimitedDouble(win, row, 55, "%5.1f", n.cpu_load, 9999);
     wattroff(win, COLOR_PAIR(tmp_color));
     ++row;
   }

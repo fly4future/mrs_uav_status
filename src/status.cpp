@@ -336,10 +336,6 @@ void Status::timerStatusSlow() {
     mrs_lib::Routine profiler_routine = profiler_.createRoutine("controlManagerHandler");
     tui_->controlManagerHandler();
   }
-  {
-    mrs_lib::Routine profiler_routine = profiler_.createRoutine("genericTopicHandler");
-    tui_->genericTopicHandler();
-  }
   // The cycleable preset panel (Node CPU / GPS / System detail / Problems) lives
   // in the top-right slot; node-CPU and GPS-strings are now presets within it.
   {

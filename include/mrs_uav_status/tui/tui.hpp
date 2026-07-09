@@ -30,7 +30,6 @@
 #include <mrs_msgs/srv/velocity_reference_stamped_srv.hpp>
 #include <mrs_msgs/msg/collision_avoidance_info.hpp>
 #include <mrs_msgs/msg/control_info.hpp>
-#include <mrs_msgs/msg/custom_topic.hpp>
 #include <mrs_msgs/msg/general_robot_info.hpp>
 #include <mrs_msgs/msg/reference.hpp>
 #include <mrs_msgs/msg/state.hpp>
@@ -92,7 +91,6 @@ public:
   void uavStateHandler();
   void hwApiStateHandler();
   void generalInfoHandler();
-  void genericTopicHandler();
   void paneHandler();
   void controlManagerHandler();
   void topLineHandler();
@@ -272,7 +270,6 @@ private:
   WindowPtr hw_api_state_window_;
   WindowPtr top_bar_window_;
   WindowPtr bottom_window_;
-  WindowPtr generic_topic_window_;
   WindowPtr pane_window_; // cycleable panes (top-right): system detail / node CPU / GNSS / problems
   WindowPtr general_info_window_;
   WindowPtr debug_window_;
