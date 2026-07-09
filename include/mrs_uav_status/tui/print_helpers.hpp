@@ -84,8 +84,8 @@ inline void printNoData(WINDOW *win, int y, int x, const std::string &text, bool
   printNoData(win, y, x + static_cast<int>(text.length()), mini);
 }
 
-inline void printBox(WINDOW *win, bool avoiding_collision, bool can_takeoff, bool null_tracker) {
-  if (avoiding_collision) {
+inline void printBox(WINDOW *win, bool avoiding_collision, bool bumper_active, bool can_takeoff, bool null_tracker) {
+  if (avoiding_collision || bumper_active) {
     wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
     wattron(win, A_BLINK);
     wattron(win, A_STANDOUT);
@@ -159,9 +159,10 @@ inline void printHelp(WINDOW *win, bool help_active) {
 }
 
 inline void printTmuxDump(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2, const std::vector<int> &selected, const std::string &session_name,
-                          const std::vector<std::string> &display_menu_text, int max_windows, bool avoiding_collision, bool can_takeoff, bool null_tracker) {
+                          const std::vector<std::string> &display_menu_text, int max_windows, bool avoiding_collision, bool bumper_active, bool can_takeoff,
+                          bool null_tracker) {
   werase(debug_window);
-  printBox(debug_window, avoiding_collision, can_takeoff, null_tracker);
+  printBox(debug_window, avoiding_collision, bumper_active, can_takeoff, null_tracker);
 
   if (static_cast<int>(selected.size()) > max_windows) {
     return;

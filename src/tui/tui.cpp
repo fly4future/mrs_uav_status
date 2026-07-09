@@ -303,13 +303,14 @@ void TUI::generalInfoHandler() {
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
   wattroff(win, A_STANDOUT);
 
-  bool   avoiding_collision, can_takeoff, null_tracker;
+  bool   avoiding_collision, bumper_active, can_takeoff, null_tracker;
   double cpu_load, cpu_ghz, free_ram, total_ram;
   int    free_hdd;
   {
     std::scoped_lock lock(mutex_status_msg_);
     const auto      &oc = last_system_health_info_.onboard_computer_info;
     avoiding_collision  = last_collision_avoidance_info_.avoiding_collision;
+    bumper_active       = last_collision_avoidance_info_.bumper_active;
     can_takeoff         = last_general_robot_info_.ready_to_start;
     null_tracker        = (last_control_info_.active_tracker == "NullTracker");
     cpu_load            = oc.cpu_load;
@@ -319,7 +320,7 @@ void TUI::generalInfoHandler() {
     free_hdd            = oc.free_hdd;
   }
 
-  printBox(win, avoiding_collision, can_takeoff, null_tracker);
+  printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
 
   if (_light_) {
     wattron(win, A_STANDOUT);
@@ -533,10 +534,11 @@ void TUI::paneHandler() {
 // the "<p>reset: <name> (i/N)" label into the top border (so all interior rows
 // stay available for content). Returns the first usable content row (1).
 int TUI::drawPaneChrome(WINDOW *win) {
-  bool avoiding_collision, can_takeoff, null_tracker;
+  bool avoiding_collision, bumper_active, can_takeoff, null_tracker;
   {
     std::scoped_lock lock(mutex_status_msg_);
     avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
+    bumper_active      = last_collision_avoidance_info_.bumper_active;
     can_takeoff        = last_general_robot_info_.ready_to_start;
     null_tracker       = (last_control_info_.active_tracker == "NullTracker");
   }
@@ -544,7 +546,7 @@ int TUI::drawPaneChrome(WINDOW *win) {
   werase(win);
   wattron(win, A_BOLD);
   wattroff(win, A_STANDOUT);
-  printBox(win, avoiding_collision, can_takeoff, null_tracker);
+  printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
 
   if (_light_) {
     wattron(win, A_STANDOUT);
@@ -754,7 +756,7 @@ void TUI::uavStateHandler() {
   double      cmd_x, cmd_y, cmd_z, cmd_hdg;
   std::string odom_frame, main_estimator, horizontal_estimator, vertical_estimator, heading_estimator, agl_estimator;
   double      max_flight_z;
-  bool        null_tracker, avoiding_collision, can_takeoff;
+  bool        null_tracker, avoiding_collision, bumper_active, can_takeoff;
 
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -780,6 +782,7 @@ void TUI::uavStateHandler() {
     max_flight_z       = est.max_flight_z;
     null_tracker       = (last_control_info_.active_tracker == "NullTracker");
     avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
+    bumper_active      = last_collision_avoidance_info_.bumper_active;
     can_takeoff        = last_general_robot_info_.ready_to_start;
   }
   // Nominal MRS estimation rate is 100 Hz; threshold the color band off that.
@@ -793,7 +796,7 @@ void TUI::uavStateHandler() {
   werase(win);
   wattron(win, A_BOLD);
   wattroff(win, A_STANDOUT);
-  printBox(win, avoiding_collision, can_takeoff, null_tracker);
+  printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
 
   if (_light_) {
     wattron(win, A_STANDOUT);
@@ -924,7 +927,7 @@ void TUI::controlManagerHandler() {
   WINDOW *win = control_manager_window_.get();
 
   int16_t     color;
-  bool        null_tracker, avoiding_collision, can_takeoff;
+  bool        null_tracker, avoiding_collision, bumper_active, can_takeoff;
   double      rate;
   std::string curr_controller, curr_tracker, curr_gains, curr_constraints;
   bool        callbacks_enabled, rc_mode, have_goal, tracking_trajectory;
@@ -946,6 +949,7 @@ void TUI::controlManagerHandler() {
     tracking_trajectory = ci.tracking_trajectory;
     null_tracker        = (ci.active_tracker == "NullTracker");
     avoiding_collision  = last_collision_avoidance_info_.avoiding_collision;
+    bumper_active       = last_collision_avoidance_info_.bumper_active;
     can_takeoff         = last_general_robot_info_.ready_to_start;
   }
   // Nominal MRS control_manager diagnostics rate is 10 Hz.
@@ -954,7 +958,7 @@ void TUI::controlManagerHandler() {
   werase(win);
   wattron(win, A_BOLD);
   wattroff(win, A_STANDOUT);
-  printBox(win, avoiding_collision, can_takeoff, null_tracker);
+  printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
 
   if (_light_) {
     wattron(win, A_STANDOUT);
@@ -1094,7 +1098,7 @@ void TUI::hwApiStateHandler() {
   std::string mode;
   double      battery_volt, battery_curr, battery_wh_drained;
   double      thrust, mass_estimate, mass_set, gnss_qual, mag_norm, mag_norm_rate;
-  bool        avoiding_collision, can_takeoff, null_tracker;
+  bool        avoiding_collision, bumper_active, can_takeoff, null_tracker;
 
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -1130,6 +1134,7 @@ void TUI::hwApiStateHandler() {
     mass_estimate      = last_uav_info_.mass_estimate;
     mass_set           = last_uav_info_.mass_nominal;
     avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
+    bumper_active      = last_collision_avoidance_info_.bumper_active;
     can_takeoff        = last_general_robot_info_.ready_to_start;
     null_tracker       = (last_control_info_.active_tracker == "NullTracker");
   }
@@ -1141,7 +1146,7 @@ void TUI::hwApiStateHandler() {
   werase(win);
   wattron(win, A_BOLD);
   wattroff(win, A_STANDOUT);
-  printBox(win, avoiding_collision, can_takeoff, null_tracker);
+  printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
 
   if (_light_) {
     wattron(win, A_STANDOUT);
@@ -1425,7 +1430,7 @@ void TUI::topLineHandler() {
   werase(win);
 
   std::string uav_name, uav_type;
-  bool        collision_avoidance_enabled, avoiding_collision;
+  bool        collision_avoidance_enabled, avoiding_collision, bumper_active;
   uint16_t    num_other_uavs;
   int         secs_flown;
 
@@ -1435,6 +1440,7 @@ void TUI::topLineHandler() {
     uav_type                    = std::to_string(last_general_robot_info_.robot_type);
     collision_avoidance_enabled = last_collision_avoidance_info_.collision_avoidance_enabled;
     avoiding_collision          = last_collision_avoidance_info_.avoiding_collision;
+    bumper_active               = last_collision_avoidance_info_.bumper_active;
     num_other_uavs              = static_cast<uint16_t>(last_collision_avoidance_info_.other_robots_visible.size());
     secs_flown                  = static_cast<int>(std::max(0.0f, last_uav_info_.flight_duration));
   }
@@ -1465,18 +1471,28 @@ void TUI::topLineHandler() {
 
   const char *disabled_text = params_.start_minimized ? "C/A" : "COL AVOID DISABLED";
   const char *avoiding_text = params_.start_minimized ? "!AVOIDING!" : "!! AVOIDING COLLISION !!";
+  const char *bumper_text   = params_.start_minimized ? "!BUMPER!" : "!! BUMPER ACTIVE !!";
   const char *enabled_text  = params_.start_minimized ? "C/A" : "COL AVOID ENABLED,";
 
   if (!collision_avoidance_enabled) {
     wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
     mvwprintw(win, 0, status_x, "%s", disabled_text);
     wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+
+  } else if (bumper_active) {
+    wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+    wattron(win, A_BLINK);
+    mvwprintw(win, 0, alert_x, "%s", bumper_text);
+    wattroff(win, A_BLINK);
+    wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+
   } else if (avoiding_collision) {
     wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
     wattron(win, A_BLINK);
     mvwprintw(win, 0, alert_x, "%s", avoiding_text);
     wattroff(win, A_BLINK);
     wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+
   } else {
     wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
     mvwprintw(win, 0, status_x, "%s", enabled_text);
@@ -2201,15 +2217,16 @@ void TUI::renderTmuxOrHelp() {
   // The bottom region (y=13+) is now exclusively the help / tmux-dump overlay —
   // the pane panel moved up into the top-right, so there's no contention.
   if (!selected_tmux_window_.empty()) {
-    bool avoiding_collision, can_takeoff, null_tracker;
+    bool avoiding_collision, bumper_active, can_takeoff, null_tracker;
     {
       std::scoped_lock lock(mutex_status_msg_);
       avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
+      bumper_active      = last_collision_avoidance_info_.bumper_active;
       can_takeoff        = last_general_robot_info_.ready_to_start;
       null_tracker       = (last_control_info_.active_tracker == "NullTracker");
     }
     printTmuxDump(debug_window, sub1, sub2, selected_tmux_window_, session_name_, display_menu_text_, MAX_SELECTED_TMUX_WINDOWS, avoiding_collision,
-                  can_takeoff, null_tracker);
+                  bumper_active, can_takeoff, null_tracker);
   } else {
     printHelp(debug_window, help_active_);
   }
