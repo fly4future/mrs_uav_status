@@ -55,7 +55,6 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
     service_entries_.emplace_back(service_display_name, mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, service_name, cbkgrp_sc));
   }
 
-  ph_gimbal_state_       = mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>(node_, "~/gimbal_command_out");
   sc_goto_reference_     = mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>(node_, "~/goto_reference_out", cbkgrp_sc);
   sc_velocity_reference_ = mrs_lib::ServiceClientHandler<mrs_msgs::srv::VelocityReferenceStampedSrv>(node_, "~/velocity_reference_out", cbkgrp_sc);
   sc_set_constraints_    = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_constraints_out", cbkgrp_sc);
@@ -1535,7 +1534,6 @@ void TUI::topLineHandler() {
     hx     = printHotkey(win, 0, hx, "menu");
     hx     = printHotkey(win, 0, hx, "goto");
     hx     = printHotkey(win, 0, hx, "Remote");
-    hx     = printHotkey(win, 0, hx, "Gimbal");
     hx     = printHotkey(win, 0, hx, "Mini");
     hx     = printHotkey(win, 0, hx, "Display");
     hx     = printHotkey(win, 0, hx, "pane");
@@ -1943,17 +1941,10 @@ void TUI::loadDisplayConfig() {
 
 // | --------------------- Tmux/help rendering --------------- |
 
-// | -------------------- Remote / Gimbal --------------------- |
+// | -------------------------- Remote -------------------------- |
 
 void TUI::enterRemoteMode() {
   remote_hover_ = false;
-}
-
-void TUI::resetGimbalCommand() {
-  gimbal_command_.fpv_mode    = true;
-  gimbal_command_.is_on       = true;
-  gimbal_command_.gimbal_pan  = 1500;
-  gimbal_command_.gimbal_tilt = 1500;
 }
 
 void TUI::remoteHandler(int key) {
@@ -2105,78 +2096,6 @@ void TUI::toggleTurboRemote() {
     return;
   }
   renderServiceResult(response.value()->success, response.value()->message);
-}
-
-void TUI::gimbalHandler(int key) {
-  WINDOW *win = top_bar_window_.get();
-  if (_light_) {
-    wattron(win, A_STANDOUT);
-  }
-
-  wattron(win, A_BOLD);
-  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-  mvwprintw(win, 0, 43, "GIMBAL      MODE IS ACTIVE");
-
-  if (gimbal_command_.fpv_mode) {
-    mvwprintw(win, 0, 50, "FPV");
-  } else {
-    mvwprintw(win, 0, 50, "P-T");
-  }
-
-  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-
-  const uint16_t gimbal_max       = 2000;
-  const uint16_t gimbal_min       = 1000;
-  const uint16_t gimbal_increment = 10;
-
-  switch (key) {
-  case 'w':
-  case 'k':
-  case KEY_UP:
-    gimbal_command_.gimbal_tilt -= gimbal_increment;
-    break;
-  case 's':
-  case 'j':
-  case KEY_DOWN:
-    gimbal_command_.gimbal_tilt += gimbal_increment;
-    break;
-  case 'a':
-  case 'h':
-  case KEY_LEFT:
-    gimbal_command_.gimbal_pan -= gimbal_increment;
-    break;
-  case 'd':
-  case 'l':
-  case KEY_RIGHT:
-    gimbal_command_.gimbal_pan += gimbal_increment;
-    break;
-  case 'm':
-    gimbal_command_.fpv_mode = !gimbal_command_.fpv_mode;
-    break;
-  case 'o':
-    gimbal_command_.is_on = !gimbal_command_.is_on;
-    break;
-  case 'r':
-    resetGimbalCommand();
-    break;
-  }
-
-  if (gimbal_command_.gimbal_pan > gimbal_max) {
-    gimbal_command_.gimbal_pan = gimbal_max;
-  }
-  if (gimbal_command_.gimbal_tilt > gimbal_max) {
-    gimbal_command_.gimbal_tilt = gimbal_max;
-  }
-  if (gimbal_command_.gimbal_pan < gimbal_min) {
-    gimbal_command_.gimbal_pan = gimbal_min;
-  }
-  if (gimbal_command_.gimbal_tilt < gimbal_min) {
-    gimbal_command_.gimbal_tilt = gimbal_min;
-  }
-
-  ph_gimbal_state_.publish(gimbal_command_);
-
-  wattroff(win, A_BOLD);
 }
 
 void TUI::remoteModeFly(const mrs_msgs::msg::VelocityReference &ref_in) {

@@ -46,7 +46,6 @@ remaps=(
   "$node_name/system_health_info_in"       "state_monitor/system_health_info"
   "$node_name/uav_state_in"                "state_monitor/uav_state"
   "$node_name/display_string_in"           "display_string"
-  "$node_name/gimbal_command_out"          "tarot_gimbal/gimbal_command"
   "$node_name/goto_reference_out"          "control_manager/reference"
   "$node_name/velocity_reference_out"      "control_manager/velocity_reference"
   "$node_name/trajectory_reference_out"    "control_manager/trajectory_reference"

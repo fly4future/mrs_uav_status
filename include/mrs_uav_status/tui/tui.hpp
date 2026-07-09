@@ -36,7 +36,6 @@
 #include <mrs_msgs/msg/state_estimation_info.hpp>
 #include <mrs_msgs/msg/system_health_info.hpp>
 #include <mrs_msgs/msg/uav_info.hpp>
-#include <mrs_msgs/msg/gimbal_state.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/trigger.hpp>
 #include <std_srvs/srv/set_bool.hpp>
@@ -120,10 +119,8 @@ public:
   void renderTmuxOrHelp();
   void refreshAfterMenu();
 
-  // | -------------------- Remote & Gimbal --------------------- |
+  // | -------------------------- Remote -------------------------- |
   void remoteHandler(int key);
-  void gimbalHandler(int key);
-  void resetGimbalCommand();
   void enterRemoteMode();
 
 private:
@@ -132,7 +129,6 @@ private:
   rclcpp::Clock::SharedPtr clock_;
 
 
-  mrs_lib::PublisherHandler<mrs_msgs::msg::GimbalState>                     ph_gimbal_state_;
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>         sc_goto_reference_;
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::VelocityReferenceStampedSrv> sc_velocity_reference_;
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_constraints_;
@@ -223,11 +219,10 @@ private:
   void handleRemoteMotion(int key);
   void toggleTurboRemote();
 
-  bool                       remote_hover_  = false;
-  bool                       turbo_remote_  = false;
-  bool                       remote_global_ = false;
-  std::string                old_constraints_;
-  mrs_msgs::msg::GimbalState gimbal_command_;
+  bool        remote_hover_  = false;
+  bool        turbo_remote_  = false;
+  bool        remote_global_ = false;
+  std::string old_constraints_;
 
   // | ------------------- Menu (private helpers) --------------- |
   static bool isValidMenuIndex(int index, size_t container_size);

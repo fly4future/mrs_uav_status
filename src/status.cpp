@@ -196,11 +196,6 @@ void Status::timerStatusFast() {
       break;
     }
 
-    case 'G':
-      tui_->resetGimbalCommand();
-      state_ = StatusState::GIMBAL;
-      break;
-
     case 'm':
       tui_->setupMainMenu();
       state_ = StatusState::MAIN_MENU;
@@ -257,17 +252,6 @@ void Status::timerStatusFast() {
     tui_->remoteHandler(key_in);
     if (key_in == 'R' || key_in == static_cast<int>(mrs_uav_status::tui::Key::Escape)) {
       tui_->setRemoteMode(false);
-      state_ = StatusState::STANDARD;
-    }
-    break;
-  }
-    //}
-
-    /* GIMBAL //{ */
-  case StatusState::GIMBAL: {
-    flushinp();
-    tui_->gimbalHandler(key_in);
-    if (key_in == 'G' || key_in == static_cast<int>(mrs_uav_status::tui::Key::Escape)) {
       state_ = StatusState::STANDARD;
     }
     break;

@@ -43,7 +43,6 @@ private:
   {
     STANDARD,
     REMOTE,
-    GIMBAL,
     MAIN_MENU,
     GOTO_MENU,
     DISPLAY_MENU
