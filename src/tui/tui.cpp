@@ -1528,12 +1528,12 @@ void TUI::topLineHandler() {
   const int count_x  = params_.start_minimized ? 31 : 51;
   const int uavs_x   = params_.start_minimized ? -1 : 45;
 
-  // x=13 clears "ToF: NO DATA"; truncated to status_x/alert_x so a long name/type can't run into them.
+  // x=10 fits the common case ("uav1 - DRONE") without truncation; still capped against status_x.
   if (have_general_robot_info) {
     const std::string name_type = " " + uav_name + " - " + uav_type + " ";
-    printLimitedString(win, 0, 13, name_type, static_cast<unsigned long>(std::min(status_x, alert_x) - 14));
+    printLimitedString(win, 0, 10, name_type, static_cast<unsigned long>(std::min(status_x, alert_x) - 11));
   } else {
-    printNoData(win, 0, 13, params_.start_minimized);
+    printNoData(win, 0, 10, params_.start_minimized);
   }
 
   const char *disabled_text = params_.start_minimized ? "C/A" : "COL AVOID DISABLED";
