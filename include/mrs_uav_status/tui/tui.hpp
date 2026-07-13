@@ -247,6 +247,14 @@ private:
   rclcpp::Time last_time_got_data_;
   rclcpp::Time bottom_window_clear_time_;
 
+  // Per-topic "ever received" timestamps (zero until the first message arrives).
+  // last_time_got_data_ above is a global heartbeat fed by every subscribed topic, so it
+  // stays fresh even if one specific topic has never published — these track that case for
+  // topics whose default-constructed message body is otherwise indistinguishable from real data.
+  rclcpp::Time last_time_got_general_robot_info_;
+  rclcpp::Time last_time_got_collision_avoidance_info_;
+  rclcpp::Time last_time_got_uav_info_;
+
 
   // | ---------------------- Window Pointers ------------------- |
   // RAII wrapper for ncurses windows — delwin() called on destruction.

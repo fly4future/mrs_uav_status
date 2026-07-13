@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <diagnostic_msgs/msg/key_value.hpp>
+#include <mrs_msgs/msg/general_robot_info.hpp>
 #include <mrs_msgs/msg/sensor_status.hpp>
 
 namespace mrs_uav_status::utils
@@ -47,6 +48,21 @@ inline std::vector<std::string> withActiveFirst(const std::string &active, const
     }
   }
   return out;
+}
+
+// Decodes GeneralRobotInfo::robot_type. The enum has no UNKNOWN sentinel (0 == DRONE), so
+// callers must gate on message freshness themselves before trusting this string.
+inline std::string robotTypeToString(uint8_t robot_type) {
+  switch (robot_type) {
+    case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_DRONE:
+      return "DRONE";
+    case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_BOAT:
+      return "BOAT";
+    case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_GROUND_ROBOT:
+      return "UGV";
+    default:
+      return "UNKNOWN";
+  }
 }
 
 // Find the first SensorStatus of a given type. Returns nullptr if not present.

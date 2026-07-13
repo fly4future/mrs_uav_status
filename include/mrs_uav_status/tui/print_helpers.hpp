@@ -66,14 +66,10 @@ inline void printCompressedLimitedString(WINDOW *win, int y, int x, const std::s
   mvwprintw(win, y, x, "%s", compressed.c_str());
 }
 
-inline void printNoData(WINDOW *win, int y, int x, bool mini) {
+inline void printNoData(WINDOW *win, int y, int x, [[maybe_unused]] bool mini) {
   wattron(win, A_BLINK);
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-  if (mini) {
-    mvwprintw(win, y, x, "NO DATA");
-  } else {
-    mvwprintw(win, y, x, "!NO DATA!");
-  }
+  mvwprintw(win, y, x, "NO DATA");
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   wattroff(win, A_BLINK);
 }

@@ -26,6 +26,10 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
   last_time_got_data_       = rclcpp::Time(0, 0, clock_->get_clock_type());
   bottom_window_clear_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
 
+  last_time_got_general_robot_info_       = rclcpp::Time(0, 0, clock_->get_clock_type());
+  last_time_got_collision_avoidance_info_ = rclcpp::Time(0, 0, clock_->get_clock_type());
+  last_time_got_uav_info_                 = rclcpp::Time(0, 0, clock_->get_clock_type());
+
   goto_double_vec_   = params_.goto_values;
   service_input_vec_ = params_.service_list;
 
@@ -74,7 +78,8 @@ void TUI::onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg) {
     std::scoped_lock lock(mutex_status_msg_);
     last_general_robot_info_ = msg;
   }
-  last_time_got_data_ = clock_->now();
+  last_time_got_data_               = clock_->now();
+  last_time_got_general_robot_info_ = clock_->now();
 }
 
 void TUI::onStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo &msg) {
@@ -98,7 +103,8 @@ void TUI::onCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo &
     std::scoped_lock lock(mutex_status_msg_);
     last_collision_avoidance_info_ = msg;
   }
-  last_time_got_data_ = clock_->now();
+  last_time_got_data_                     = clock_->now();
+  last_time_got_collision_avoidance_info_ = clock_->now();
 }
 
 void TUI::onUavInfo(const mrs_msgs::msg::UavInfo &msg) {
@@ -106,7 +112,8 @@ void TUI::onUavInfo(const mrs_msgs::msg::UavInfo &msg) {
     std::scoped_lock lock(mutex_status_msg_);
     last_uav_info_ = msg;
   }
-  last_time_got_data_ = clock_->now();
+  last_time_got_data_     = clock_->now();
+  last_time_got_uav_info_ = clock_->now();
 }
 
 void TUI::onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg) {
@@ -1436,13 +1443,17 @@ void TUI::topLineHandler() {
   {
     std::scoped_lock lock(mutex_status_msg_);
     uav_name                    = last_general_robot_info_.robot_name;
-    uav_type                    = std::to_string(last_general_robot_info_.robot_type);
+    uav_type                    = utils::robotTypeToString(last_general_robot_info_.robot_type);
     collision_avoidance_enabled = last_collision_avoidance_info_.collision_avoidance_enabled;
     avoiding_collision          = last_collision_avoidance_info_.avoiding_collision;
     bumper_active               = last_collision_avoidance_info_.bumper_active;
     num_other_uavs              = static_cast<uint16_t>(last_collision_avoidance_info_.other_robots_visible.size());
     secs_flown                  = static_cast<int>(std::max(0.0f, last_uav_info_.flight_duration));
   }
+
+  const bool have_general_robot_info       = last_time_got_general_robot_info_.nanoseconds() != 0;
+  const bool have_collision_avoidance_info = last_time_got_collision_avoidance_info_.nanoseconds() != 0;
+  const bool have_uav_info                 = last_time_got_uav_info_.nanoseconds() != 0;
 
   if (_light_) {
     wattron(win, A_STANDOUT);
@@ -1461,7 +1472,11 @@ void TUI::topLineHandler() {
 
   since_data_s = std::min(since_data_s, 99.9);
 
-  mvwprintw(win, 0, 10, " %s %s ", uav_name.c_str(), uav_type.c_str());
+  if (have_general_robot_info) {
+    mvwprintw(win, 0, 10, " %s - %s ", uav_name.c_str(), uav_type.c_str());
+  } else {
+    printNoData(win, 0, 10, params_.start_minimized);
+  }
 
   const int status_x = params_.start_minimized ? 27 : 26;
   const int alert_x  = params_.start_minimized ? 22 : 26;
@@ -1473,7 +1488,10 @@ void TUI::topLineHandler() {
   const char *bumper_text   = params_.start_minimized ? "!BUMPER!" : "!! BUMPER ACTIVE !!";
   const char *enabled_text  = params_.start_minimized ? "C/A" : "COL AVOID ENABLED,";
 
-  if (!collision_avoidance_enabled) {
+  if (!have_collision_avoidance_info) {
+    printNoData(win, 0, status_x, params_.start_minimized ? "C/A " : "COL AVOID ", params_.start_minimized);
+
+  } else if (!collision_avoidance_enabled) {
     wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
     mvwprintw(win, 0, status_x, "%s", disabled_text);
     wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
@@ -1524,7 +1542,11 @@ void TUI::topLineHandler() {
   int mins = secs_flown / 60;
   int secs = secs_flown % 60;
 
-  mvwprintw(win, 0, 0, "ToF: %i:%02i", mins, secs);
+  if (have_uav_info) {
+    mvwprintw(win, 0, 0, "ToF: %i:%02i", mins, secs);
+  } else {
+    printNoData(win, 0, 0, "ToF: ", params_.start_minimized);
+  }
   wattroff(win, A_BOLD);
 
   // btop-style hotkey hints on the right of the top bar — the trigger key (the
