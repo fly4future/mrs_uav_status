@@ -604,6 +604,14 @@ void TUI::renderProblemsPane(WINDOW *win) {
     errors   = last_general_robot_info_.errors;
   }
 
+  // Empty vectors are indistinguishable from "genuinely zero problems" without this check.
+  if (last_time_got_general_robot_info_.nanoseconds() == 0) {
+    printNoData(win, row, 1, false);
+    wattroff(win, A_BOLD);
+    wnoutrefresh(win);
+    return;
+  }
+
   constexpr int max_rows   = 9;
   constexpr int text_width = 80;
 
