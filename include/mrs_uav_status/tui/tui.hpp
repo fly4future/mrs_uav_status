@@ -75,7 +75,7 @@ public:
 
   // | --------------------- Window lifecycle ------------------- |
   void setupWindows();
-  void resize();
+  bool resize();
   bool updateTermSize();
   void toggleMini();
   void toggleHelp();
@@ -87,6 +87,8 @@ public:
   void setRemoteMode(bool in_remote_mode);
 
   // | --------------------- Window Handlers -------------------- |
+  void renderFast();
+  void renderSlow();
   void uavStateHandler();
   void hwApiStateHandler();
   void generalInfoHandler();

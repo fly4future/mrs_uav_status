@@ -65,13 +65,14 @@ private:
   mrs_lib::SubscriberHandler<mrs_msgs::msg::State>                  sh_uav_state_;
   mrs_lib::SubscriberHandler<std_msgs::msg::String>                 sh_display_string_;
 
-  std::shared_ptr<TimerType> timer_status_fast_;
-  std::shared_ptr<TimerType> timer_status_slow_;
-  std::shared_ptr<TimerType> timer_resize_;
+  std::shared_ptr<TimerType> timer_render_;
 
-  void timerStatusFast();
-  void timerStatusSlow();
-  void timerResize();
+  rclcpp::Duration slow_period_{0, 0};
+  rclcpp::Duration resize_period_{0, 0};
+  rclcpp::Time     last_slow_run_;
+  rclcpp::Time     last_resize_check_;
+
+  void timerRender();
   void callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::ConstSharedPtr msg);
   void callbackStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo::ConstSharedPtr msg);
   void callbackControlInfo(const mrs_msgs::msg::ControlInfo::ConstSharedPtr msg);

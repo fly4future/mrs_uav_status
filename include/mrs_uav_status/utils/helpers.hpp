@@ -53,14 +53,14 @@ inline std::vector<std::string> withActiveFirst(const std::string &active, const
 // No UNKNOWN sentinel in the enum (0 == DRONE) — caller must check message freshness separately.
 inline std::string robotTypeToString(uint8_t robot_type) {
   switch (robot_type) {
-    case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_DRONE:
-      return "DRONE";
-    case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_BOAT:
-      return "BOAT";
-    case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_GROUND_ROBOT:
-      return "UGV";
-    default:
-      return "UNKNOWN";
+  case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_DRONE:
+    return "DRONE";
+  case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_BOAT:
+    return "BOAT";
+  case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_GROUND_ROBOT:
+    return "UGV";
+  default:
+    return "UNKNOWN";
   }
 }
 

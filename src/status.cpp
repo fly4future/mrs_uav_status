@@ -28,6 +28,7 @@ Status::Status() : Node("mrs_status_menu") {
 /* ~Status() //{ */
 
 Status::~Status() {
+  timer_render_.reset();
   endwin();
 }
 
@@ -112,9 +113,12 @@ void Status::initialize() {
   timer_opts_start.autostart      = true;
   timer_opts_start.callback_group = cbkgrp_timers_;
 
-  timer_status_fast_ = std::make_shared<TimerType>(timer_opts_start, rclcpp::Rate(update_rate, clock_), std::bind(&Status::timerStatusFast, this));
-  timer_status_slow_ = std::make_shared<TimerType>(timer_opts_start, rclcpp::Rate(update_rate_slow, clock_), std::bind(&Status::timerStatusSlow, this));
-  timer_resize_      = std::make_shared<TimerType>(timer_opts_start, rclcpp::Rate(resize_rate, clock_), std::bind(&Status::timerResize, this));
+  timer_render_ = std::make_shared<TimerType>(timer_opts_start, rclcpp::Rate(update_rate, clock_), std::bind(&Status::timerRender, this));
+
+  slow_period_       = rclcpp::Duration::from_seconds(1.0 / update_rate_slow);
+  resize_period_     = rclcpp::Duration::from_seconds(1.0 / resize_rate);
+  last_slow_run_     = rclcpp::Time(0, 0, clock_->get_clock_type());
+  last_resize_check_ = rclcpp::Time(0, 0, clock_->get_clock_type());
 
   // | ------------------------ Subscribers ------------------------ |
 
@@ -149,31 +153,31 @@ void Status::initialize() {
 
 //}
 
-/* timerResize() //{ */
+/* timerRender() //{ */
 
-void Status::timerResize() {
-  if (!initialized_) {
-    return;
-  }
-  tui_->resize();
-}
-
-//}
-
-/* timerStatusFast() //{ */
-
-void Status::timerStatusFast() {
+void Status::timerRender() {
 
   if (!initialized_) {
     return;
   }
 
-  tui_->topLineHandler();
-  tui_->renderTmuxOrHelp();
+  // Resize before anything else draws; force a slow redraw right after so it isn't left blank.
+  const rclcpp::Time now     = clock_->now();
+  bool               resized = false;
+  if (now - last_resize_check_ >= resize_period_) {
+    last_resize_check_                = now;
+    mrs_lib::Routine profiler_routine = profiler_.createRoutine("resize");
+    resized                           = tui_->resize();
+  }
+  if (resized || now - last_slow_run_ >= slow_period_) {
+    last_slow_run_                    = now;
+    mrs_lib::Routine profiler_routine = profiler_.createRoutine("renderSlow");
+    tui_->renderSlow();
+  }
 
   {
-    mrs_lib::Routine profiler_routine = profiler_.createRoutine("uavStateHandler");
-    tui_->uavStateHandler();
+    mrs_lib::Routine profiler_routine = profiler_.createRoutine("renderFast");
+    tui_->renderFast();
   }
 
   tui_->blankBottomWindow();
@@ -229,8 +233,8 @@ void Status::timerStatusFast() {
     case 'M':
       tui_->toggleMini();
       tui_->setupWindows();
-      timerStatusFast();
-      timerStatusSlow();
+      tui_->renderFast();
+      tui_->renderSlow();
       break;
 
     case 'D':
@@ -298,38 +302,6 @@ void Status::timerStatusFast() {
   }
   tui_->refreshTopBar();
   doupdate();
-}
-
-//}
-
-/* timerStatusSlow() //{ */
-
-void Status::timerStatusSlow() {
-
-  if (!initialized_) {
-    return;
-  }
-
-  tui_->tickSlowCounter();
-
-  {
-    mrs_lib::Routine profiler_routine = profiler_.createRoutine("hwApiStateHandler");
-    tui_->hwApiStateHandler();
-  }
-  {
-    mrs_lib::Routine profiler_routine = profiler_.createRoutine("controlManagerHandler");
-    tui_->controlManagerHandler();
-  }
-  // The cycleable preset panel (Node CPU / GPS / System detail / Problems) lives
-  // in the top-right slot; node-CPU and GPS-strings are now presets within it.
-  {
-    mrs_lib::Routine profiler_routine = profiler_.createRoutine("presetPanelHandler");
-    tui_->paneHandler();
-  }
-  {
-    mrs_lib::Routine profiler_routine = profiler_.createRoutine("generalInfoHandler");
-    tui_->generalInfoHandler();
-  }
 }
 
 //}

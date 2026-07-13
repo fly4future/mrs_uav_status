@@ -75,62 +75,48 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
 }
 
 void TUI::onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg) {
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    last_general_robot_info_ = msg;
-  }
+  std::scoped_lock lock(mutex_status_msg_);
+  last_general_robot_info_          = msg;
   last_time_got_data_               = clock_->now();
-  last_time_got_general_robot_info_ = clock_->now();
+  last_time_got_general_robot_info_ = last_time_got_data_;
 }
 
 void TUI::onStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo &msg) {
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    last_state_estimation_info_ = msg;
-  }
-  last_time_got_data_ = clock_->now();
+  std::scoped_lock lock(mutex_status_msg_);
+  last_state_estimation_info_ = msg;
+  last_time_got_data_         = clock_->now();
 }
 
 void TUI::onControlInfo(const mrs_msgs::msg::ControlInfo &msg) {
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    last_control_info_ = msg;
-  }
+  std::scoped_lock lock(mutex_status_msg_);
+  last_control_info_  = msg;
   last_time_got_data_ = clock_->now();
 }
 
 void TUI::onCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo &msg) {
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    last_collision_avoidance_info_ = msg;
-  }
+  std::scoped_lock lock(mutex_status_msg_);
+  last_collision_avoidance_info_          = msg;
   last_time_got_data_                     = clock_->now();
-  last_time_got_collision_avoidance_info_ = clock_->now();
+  last_time_got_collision_avoidance_info_ = last_time_got_data_;
 }
 
 void TUI::onUavInfo(const mrs_msgs::msg::UavInfo &msg) {
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    last_uav_info_ = msg;
-  }
+  std::scoped_lock lock(mutex_status_msg_);
+  last_uav_info_          = msg;
   last_time_got_data_     = clock_->now();
-  last_time_got_uav_info_ = clock_->now();
+  last_time_got_uav_info_ = last_time_got_data_;
 }
 
 void TUI::onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg) {
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    last_system_health_info_ = msg;
-  }
+  std::scoped_lock lock(mutex_status_msg_);
+  last_system_health_info_          = msg;
   last_time_got_data_               = clock_->now();
-  last_time_got_system_health_info_ = clock_->now();
+  last_time_got_system_health_info_ = last_time_got_data_;
 }
 
 void TUI::onUavState(const mrs_msgs::msg::State &msg) {
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    last_uav_state_ = msg;
-  }
+  std::scoped_lock lock(mutex_status_msg_);
+  last_uav_state_     = msg;
   last_time_got_data_ = clock_->now();
 }
 
@@ -263,14 +249,16 @@ void TUI::setupWindows() {
   _light_ = tui::setupColors(have_data_, params_.colorscheme, params_.colorblind_mode);
 }
 
-void TUI::resize() {
+bool TUI::resize() {
   if (!updateTermSize()) {
-    return;
+    return false;
   }
   if (terminal_cols_ > 30) {
     resize_term(terminal_lines_, terminal_cols_);
     setupWindows();
+    return true;
   }
+  return false;
 }
 
 void TUI::toggleMini() {
@@ -303,6 +291,20 @@ void TUI::refreshAfterMenu() {
   wnoutrefresh(bottom_window_.get());
 }
 
+void TUI::renderFast() {
+  topLineHandler();
+  renderTmuxOrHelp();
+  uavStateHandler();
+}
+
+void TUI::renderSlow() {
+  tickSlowCounter();
+  hwApiStateHandler();
+  controlManagerHandler();
+  paneHandler();
+  generalInfoHandler();
+}
+
 void TUI::generalInfoHandler() {
   WINDOW *win = general_info_window_.get();
   werase(win);
@@ -314,21 +316,21 @@ void TUI::generalInfoHandler() {
   bool   avoiding_collision, bumper_active, can_takeoff, null_tracker;
   double cpu_load, cpu_ghz, free_ram, total_ram;
   int    free_hdd;
+  bool   have_system_health_info;
   {
     std::scoped_lock lock(mutex_status_msg_);
-    const auto      &oc = last_system_health_info_.onboard_computer_info;
-    avoiding_collision  = last_collision_avoidance_info_.avoiding_collision;
-    bumper_active       = last_collision_avoidance_info_.bumper_active;
-    can_takeoff         = last_general_robot_info_.ready_to_start;
-    null_tracker        = (last_control_info_.active_tracker == "NullTracker");
-    cpu_load            = oc.cpu_load;
-    cpu_ghz             = oc.cpu_ghz;
-    free_ram            = oc.free_ram;
-    total_ram           = oc.total_ram;
-    free_hdd            = oc.free_hdd;
+    const auto      &oc     = last_system_health_info_.onboard_computer_info;
+    avoiding_collision      = last_collision_avoidance_info_.avoiding_collision;
+    bumper_active           = last_collision_avoidance_info_.bumper_active;
+    can_takeoff             = last_general_robot_info_.ready_to_start;
+    null_tracker            = (last_control_info_.active_tracker == "NullTracker");
+    cpu_load                = oc.cpu_load;
+    cpu_ghz                 = oc.cpu_ghz;
+    free_ram                = oc.free_ram;
+    total_ram               = oc.total_ram;
+    free_hdd                = oc.free_hdd;
+    have_system_health_info = last_time_got_system_health_info_.nanoseconds() != 0;
   }
-
-  const bool have_system_health_info = last_time_got_system_health_info_.nanoseconds() != 0;
 
   printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
 
@@ -598,14 +600,16 @@ void TUI::renderProblemsPane(WINDOW *win) {
 
   std::vector<std::string> problems;
   std::vector<std::string> errors;
+  bool                     have_general_robot_info;
   {
     std::scoped_lock lock(mutex_status_msg_);
-    problems = last_general_robot_info_.problems_preventing_start;
-    errors   = last_general_robot_info_.errors;
+    problems                = last_general_robot_info_.problems_preventing_start;
+    errors                  = last_general_robot_info_.errors;
+    have_general_robot_info = last_time_got_general_robot_info_.nanoseconds() != 0;
   }
 
   // Empty vectors are indistinguishable from "genuinely zero problems" without this check.
-  if (last_time_got_general_robot_info_.nanoseconds() == 0) {
+  if (!have_general_robot_info) {
     printNoData(win, row, 1, false);
     wattroff(win, A_BOLD);
     wnoutrefresh(win);
@@ -802,8 +806,8 @@ void TUI::uavStateHandler() {
     heading_estimator    = est.heading_estimator;
     agl_estimator        = est.agl_estimator;
 
-    max_flight_z       = est.max_flight_z;
-    null_tracker       = (last_control_info_.active_tracker == "NullTracker");
+    max_flight_z = est.max_flight_z;
+    null_tracker = (last_control_info_.active_tracker == "NullTracker");
     // "unknown" means no TrackerCommand yet, so cmd_pose is still (0,0,0).
     have_control_info  = (last_control_info_.active_tracker != "unknown");
     avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
@@ -1480,25 +1484,27 @@ void TUI::topLineHandler() {
   WINDOW *win = top_bar_window_.get();
   werase(win);
 
-  std::string uav_name, uav_type;
-  bool        collision_avoidance_enabled, avoiding_collision, bumper_active;
-  uint16_t    num_other_uavs;
-  int         secs_flown;
+  std::string  uav_name, uav_type;
+  bool         collision_avoidance_enabled, avoiding_collision, bumper_active;
+  uint16_t     num_other_uavs;
+  int          secs_flown;
+  bool         have_general_robot_info, have_collision_avoidance_info, have_uav_info;
+  rclcpp::Time last_time_got_data;
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    uav_name                    = last_general_robot_info_.robot_name;
-    uav_type                    = utils::robotTypeToString(last_general_robot_info_.robot_type);
-    collision_avoidance_enabled = last_collision_avoidance_info_.collision_avoidance_enabled;
-    avoiding_collision          = last_collision_avoidance_info_.avoiding_collision;
-    bumper_active               = last_collision_avoidance_info_.bumper_active;
-    num_other_uavs              = static_cast<uint16_t>(last_collision_avoidance_info_.other_robots_visible.size());
-    secs_flown                  = static_cast<int>(std::max(0.0f, last_uav_info_.flight_duration));
+    uav_name                      = last_general_robot_info_.robot_name;
+    uav_type                      = utils::robotTypeToString(last_general_robot_info_.robot_type);
+    collision_avoidance_enabled   = last_collision_avoidance_info_.collision_avoidance_enabled;
+    avoiding_collision            = last_collision_avoidance_info_.avoiding_collision;
+    bumper_active                 = last_collision_avoidance_info_.bumper_active;
+    num_other_uavs                = static_cast<uint16_t>(last_collision_avoidance_info_.other_robots_visible.size());
+    secs_flown                    = static_cast<int>(std::max(0.0f, last_uav_info_.flight_duration));
+    have_general_robot_info       = last_time_got_general_robot_info_.nanoseconds() != 0;
+    have_collision_avoidance_info = last_time_got_collision_avoidance_info_.nanoseconds() != 0;
+    have_uav_info                 = last_time_got_uav_info_.nanoseconds() != 0;
+    last_time_got_data            = last_time_got_data_;
   }
-
-  const bool have_general_robot_info       = last_time_got_general_robot_info_.nanoseconds() != 0;
-  const bool have_collision_avoidance_info = last_time_got_collision_avoidance_info_.nanoseconds() != 0;
-  const bool have_uav_info                 = last_time_got_uav_info_.nanoseconds() != 0;
 
   if (_light_) {
     wattron(win, A_STANDOUT);
@@ -1507,7 +1513,7 @@ void TUI::topLineHandler() {
   wattron(win, A_BOLD);
   printLimitedInt(win, 0, 0, "ToF: %i", secs_flown, 1000);
 
-  double since_data_s = (clock_->now() - last_time_got_data_).seconds();
+  double since_data_s = (clock_->now() - last_time_got_data).seconds();
 
   // If we haven't received data for a while, switch to the "no data" color scheme. If we start receiving data again, switch back to the normal color scheme.
   if (const bool nd = (since_data_s < 3.0); nd != have_data_) {
@@ -2071,11 +2077,11 @@ void TUI::handleRemoteMotion(int key) {
 
   auto fly = [&](double vx, double vy, double vz, double vhdg) {
     mrs_msgs::msg::VelocityReference reference{};
-    reference.velocity.x = vx;
-    reference.velocity.y = vy;
-    reference.velocity.z = vz;
-    reference.heading_rate    = vhdg;
-    reference.use_heading_rate    = true;
+    reference.velocity.x       = vx;
+    reference.velocity.y       = vy;
+    reference.velocity.z       = vz;
+    reference.heading_rate     = vhdg;
+    reference.use_heading_rate = true;
     remoteModeFly(reference);
     remote_hover_ = true;
   };
@@ -2176,7 +2182,7 @@ void TUI::remoteModeFly(const mrs_msgs::msg::VelocityReference &ref_in) {
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    uav_name   = last_general_robot_info_.robot_name;
+    uav_name = last_general_robot_info_.robot_name;
   }
 
   if (remote_global_) {
