@@ -762,7 +762,7 @@ void TUI::uavStateHandler() {
   double      cmd_x, cmd_y, cmd_z, cmd_hdg;
   std::string odom_frame, main_estimator, horizontal_estimator, vertical_estimator, heading_estimator, agl_estimator;
   double      max_flight_z;
-  bool        null_tracker, avoiding_collision, bumper_active, can_takeoff;
+  bool        null_tracker, have_control_info, avoiding_collision, bumper_active, can_takeoff;
 
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -787,6 +787,8 @@ void TUI::uavStateHandler() {
 
     max_flight_z       = est.max_flight_z;
     null_tracker       = (last_control_info_.active_tracker == "NullTracker");
+    // "unknown" means no TrackerCommand yet, so cmd_pose is still (0,0,0).
+    have_control_info  = (last_control_info_.active_tracker != "unknown");
     avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
     bumper_active      = last_collision_avoidance_info_.bumper_active;
     can_takeoff        = last_general_robot_info_.ready_to_start;
@@ -844,7 +846,7 @@ void TUI::uavStateHandler() {
       printLimitedDouble(win, 3, 1, "Z %7.2f", state_z, 1000);
       printLimitedDouble(win, 4, 1, "hdg %5.2f", heading, 1000);
 
-      if (!null_tracker) {
+      if (!null_tracker && have_control_info) {
         wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
         mvwprintw(win, 5, 1, "C/E");
 
@@ -905,21 +907,27 @@ void TUI::uavStateHandler() {
 
       printLimitedString(win, 4, 11, "ag: " + agl_estimator, 14);
 
-      double dist_to_max_z = max_flight_z - state_z;
-      if (dist_to_max_z < 0.0) {
-        wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-        wattron(win, A_BLINK);
-      } else if (dist_to_max_z < 0.3) {
-        wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-      } else if (dist_to_max_z < 1.0) {
-        wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Yellow)));
-      } else {
-        wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
-      }
+      if (max_flight_z < 0.0) {
+        // Negative means EstimationDiagnostics was never received, not that we're near the ceiling.
+        printNoData(win, 3, 11, "Max: ", params_.start_minimized);
 
-      printLimitedDouble(win, 3, 11, "Max: %5.1f", max_flight_z, 1000);
-      wattron(win, COLOR_PAIR(color));
-      wattroff(win, A_BLINK);
+      } else {
+        double dist_to_max_z = max_flight_z - state_z;
+        if (dist_to_max_z < 0.0) {
+          wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+          wattron(win, A_BLINK);
+        } else if (dist_to_max_z < 0.3) {
+          wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+        } else if (dist_to_max_z < 1.0) {
+          wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Yellow)));
+        } else {
+          wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
+        }
+
+        printLimitedDouble(win, 3, 11, "Max: %5.1f", max_flight_z, 1000);
+        wattron(win, COLOR_PAIR(color));
+        wattroff(win, A_BLINK);
+      }
     }
   }
 
@@ -944,10 +952,11 @@ void TUI::controlManagerHandler() {
 
     rate = last_system_health_info_.control_manager_rate;
 
-    curr_controller  = ci.active_controller.empty() ? std::string("NONE") : ci.active_controller;
-    curr_tracker     = ci.active_tracker.empty() ? std::string("NONE") : ci.active_tracker;
-    curr_gains       = ci.active_gains.empty() ? std::string("NONE") : ci.active_gains;
-    curr_constraints = ci.active_constraints.empty() ? std::string("NONE") : ci.active_constraints;
+    // "unknown" is ControlInfo's not-yet-received sentinel; .empty() alone never actually catches it.
+    curr_controller  = (ci.active_controller.empty() || ci.active_controller == "unknown") ? std::string("NO DATA") : ci.active_controller;
+    curr_tracker     = (ci.active_tracker.empty() || ci.active_tracker == "unknown") ? std::string("NO DATA") : ci.active_tracker;
+    curr_gains       = (ci.active_gains.empty() || ci.active_gains == "unknown") ? std::string("NO DATA") : ci.active_gains;
+    curr_constraints = (ci.active_constraints.empty() || ci.active_constraints == "unknown") ? std::string("NO DATA") : ci.active_constraints;
 
     callbacks_enabled   = ci.callbacks_enabled;
     rc_mode             = (last_uav_state_.state == mrs_msgs::msg::State::STATE_RC_MODE);
@@ -1197,7 +1206,8 @@ void TUI::hwApiStateHandler() {
       wattron(win, COLOR_PAIR(color));
     }
 
-    if (battery_rate == 0) {
+    // battery_rate is aliased to hw_api_rate, so battery_volt < 0 catches BatteryState never arriving.
+    if (battery_rate == 0 || battery_volt < 0.0) {
 
       printLimitedString(win, 3, 1, "ERR", 3);
 
@@ -1216,7 +1226,7 @@ void TUI::hwApiStateHandler() {
     }
 
 
-    if (cmd_rate == 0) {
+    if (cmd_rate == 0 || thrust < 0.0) {
 
       printLimitedString(win, 3, 5, "ERR", 3);
 
@@ -1229,8 +1239,17 @@ void TUI::hwApiStateHandler() {
       }
       printLimitedDouble(win, 3, 5, ".%2.0f", thrust * 100, 100);
       wattron(win, COLOR_PAIR(color));
+    }
 
-      color            = static_cast<int>(ColorPair::Green);
+    // mass_nominal/mass_estimate come from UavInfo, independent of the thrust/ControlInfo check above.
+    if (mass_set < 0.0 || mass_estimate < 0.0) {
+
+      printNoData(win, 4, 1, params_.start_minimized);
+
+    } else {
+
+      color = static_cast<int>(ColorPair::Green);
+
       double mass_diff = std::fabs(mass_estimate - mass_set) / mass_set;
 
       if (mass_diff > 0.3) {
@@ -1242,6 +1261,7 @@ void TUI::hwApiStateHandler() {
         color = static_cast<int>(ColorPair::Yellow);
       }
 
+      wattron(win, COLOR_PAIR(color));
       printLimitedDouble(win, 4, 1, "%4.1f kg", mass_estimate, 99.99);
     }
 
@@ -1317,7 +1337,7 @@ void TUI::hwApiStateHandler() {
       wattron(win, COLOR_PAIR(color));
     }
 
-    if (battery_rate == 0) {
+    if (battery_rate == 0 || battery_volt < 0.0) {
 
       printNoData(win, 4, 1, "Batt:  ", params_.start_minimized);
 
@@ -1353,7 +1373,7 @@ void TUI::hwApiStateHandler() {
       printLimitedDouble(win, 3, 1, "Mag: %4.2f", mag_norm, 9.99);
     }
 
-    if (cmd_rate == 0) {
+    if (cmd_rate == 0 || thrust < 0.0) {
 
       printNoData(win, 5, 1, "Thrust: ", params_.start_minimized);
 
@@ -1368,6 +1388,14 @@ void TUI::hwApiStateHandler() {
       }
       printLimitedDouble(win, 5, 1, "Thrust: %4.2f", thrust, 1.01);
       wattron(win, COLOR_PAIR(color));
+    }
+
+    if (mass_set < 0.0 || mass_estimate < 0.0) {
+
+      // x=17 clears "Thrust: NO DATA" (cols 1-15) when both blocks are missing at once.
+      printNoData(win, 5, 17, params_.start_minimized);
+
+    } else {
 
       color            = static_cast<int>(ColorPair::Green);
       double mass_diff = std::fabs(mass_estimate - mass_set) / mass_set;

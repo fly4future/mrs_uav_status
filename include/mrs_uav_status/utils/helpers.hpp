@@ -50,8 +50,7 @@ inline std::vector<std::string> withActiveFirst(const std::string &active, const
   return out;
 }
 
-// Decodes GeneralRobotInfo::robot_type. The enum has no UNKNOWN sentinel (0 == DRONE), so
-// callers must gate on message freshness themselves before trusting this string.
+// No UNKNOWN sentinel in the enum (0 == DRONE) — caller must check message freshness separately.
 inline std::string robotTypeToString(uint8_t robot_type) {
   switch (robot_type) {
     case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_DRONE:
