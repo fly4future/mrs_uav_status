@@ -251,6 +251,7 @@ private:
   rclcpp::Time last_time_got_general_robot_info_;
   rclcpp::Time last_time_got_collision_avoidance_info_;
   rclcpp::Time last_time_got_uav_info_;
+  rclcpp::Time last_time_got_system_health_info_;
 
 
   // | ---------------------- Window Pointers ------------------- |

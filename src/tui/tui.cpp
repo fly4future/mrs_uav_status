@@ -29,6 +29,7 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
   last_time_got_general_robot_info_       = rclcpp::Time(0, 0, clock_->get_clock_type());
   last_time_got_collision_avoidance_info_ = rclcpp::Time(0, 0, clock_->get_clock_type());
   last_time_got_uav_info_                 = rclcpp::Time(0, 0, clock_->get_clock_type());
+  last_time_got_system_health_info_       = rclcpp::Time(0, 0, clock_->get_clock_type());
 
   goto_double_vec_   = params_.goto_values;
   service_input_vec_ = params_.service_list;
@@ -121,7 +122,8 @@ void TUI::onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg) {
     std::scoped_lock lock(mutex_status_msg_);
     last_system_health_info_ = msg;
   }
-  last_time_got_data_ = clock_->now();
+  last_time_got_data_               = clock_->now();
+  last_time_got_system_health_info_ = clock_->now();
 }
 
 void TUI::onUavState(const mrs_msgs::msg::State &msg) {
@@ -326,19 +328,26 @@ void TUI::generalInfoHandler() {
     free_hdd            = oc.free_hdd;
   }
 
+  const bool have_system_health_info = last_time_got_system_health_info_.nanoseconds() != 0;
+
   printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
 
   if (_light_) {
     wattron(win, A_STANDOUT);
   }
 
-  printCpuLoad(win, cpu_load, params_.start_minimized);
-  printMemLoad(win, free_ram, total_ram, params_.start_minimized);
-  if (!params_.start_minimized) {
-    printCpuFreq(win, cpu_ghz);
+  if (!have_system_health_info) {
+    // Fields default to -1/-1.0 and would otherwise render as a healthy-looking 0% CPU/RAM.
+    printNoData(win, 1, 1, params_.start_minimized);
+  } else {
+    printCpuLoad(win, cpu_load, params_.start_minimized);
+    printMemLoad(win, free_ram, total_ram, params_.start_minimized);
+    if (!params_.start_minimized) {
+      printCpuFreq(win, cpu_ghz);
+    }
+    printDiskSpace(win, free_hdd, last_gigas_, params_.start_minimized);
+    last_gigas_ = free_hdd;
   }
-  printDiskSpace(win, free_hdd, last_gigas_, params_.start_minimized);
-  last_gigas_ = free_hdd;
 
   wnoutrefresh(win);
 }
@@ -1500,16 +1509,18 @@ void TUI::topLineHandler() {
 
   since_data_s = std::min(since_data_s, 99.9);
 
-  if (have_general_robot_info) {
-    mvwprintw(win, 0, 10, " %s - %s ", uav_name.c_str(), uav_type.c_str());
-  } else {
-    printNoData(win, 0, 10, params_.start_minimized);
-  }
-
   const int status_x = params_.start_minimized ? 27 : 26;
   const int alert_x  = params_.start_minimized ? 22 : 26;
   const int count_x  = params_.start_minimized ? 31 : 51;
   const int uavs_x   = params_.start_minimized ? -1 : 45;
+
+  // x=13 clears "ToF: NO DATA"; truncated to status_x/alert_x so a long name/type can't run into them.
+  if (have_general_robot_info) {
+    const std::string name_type = " " + uav_name + " - " + uav_type + " ";
+    printLimitedString(win, 0, 13, name_type, static_cast<unsigned long>(std::min(status_x, alert_x) - 14));
+  } else {
+    printNoData(win, 0, 13, params_.start_minimized);
+  }
 
   const char *disabled_text = params_.start_minimized ? "C/A" : "COL AVOID DISABLED";
   const char *avoiding_text = params_.start_minimized ? "!AVOIDING!" : "!! AVOIDING COLLISION !!";
