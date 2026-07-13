@@ -1129,7 +1129,7 @@ void TUI::controlManagerHandler() {
 void TUI::hwApiStateHandler() {
   WINDOW     *win = hw_api_state_window_.get();
   int16_t     color;
-  double      hw_api_rate, state_rate, cmd_rate, battery_rate;
+  double      hw_api_rate, state_rate, cmd_rate;
   bool        gnss_ok, armed;
   std::string mode;
   double      battery_volt, battery_curr, battery_wh_drained;
@@ -1141,12 +1141,11 @@ void TUI::hwApiStateHandler() {
     const auto      &bat = last_general_robot_info_.battery_state;
 
     hw_api_rate = last_system_health_info_.hw_api_rate;
-    // The legacy per-topic rates (state/cmd/battery) collapsed into a single
+    // The legacy per-topic rates (state/battery) collapsed into a single
     // hw_api_rate in SystemHealthInfo. Alias them so the existing zero-check UI
     // logic still trips when hw_api stops publishing entirely.
     state_rate   = hw_api_rate;
-    cmd_rate     = hw_api_rate;
-    battery_rate = hw_api_rate;
+    cmd_rate     = last_system_health_info_.control_manager_rate;
 
     gnss_ok = false;
     if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GNSS); gnss) {
@@ -1227,8 +1226,9 @@ void TUI::hwApiStateHandler() {
       wattron(win, COLOR_PAIR(color));
     }
 
-    // battery_rate is aliased to hw_api_rate, so battery_volt < 0 catches BatteryState never arriving.
-    if (battery_rate == 0 || battery_volt < 0.0) {
+    // battery_volt defaults to a negative sentinel whenever BatteryState is stale or was never
+    // received (StateMonitor nulls it out via not_reporting_delay_), so this alone is sufficient.
+    if (battery_volt < 0.0) {
 
       printLimitedString(win, 3, 1, "ERR", 3);
 
@@ -1358,7 +1358,7 @@ void TUI::hwApiStateHandler() {
       wattron(win, COLOR_PAIR(color));
     }
 
-    if (battery_rate == 0 || battery_volt < 0.0) {
+    if (battery_volt < 0.0) {
 
       printNoData(win, 4, 1, "Batt:  ", params_.start_minimized);
 
