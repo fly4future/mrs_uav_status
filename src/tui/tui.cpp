@@ -1734,6 +1734,9 @@ void TUI::setupMainMenu() {
     if (null_tracker && (name.find("land") != std::string::npos)) {
       continue;
     }
+    if (!null_tracker && (name.find("takeoff") != std::string::npos)) {
+      continue;
+    }
     main_menu_rows_.push_back({service.display_name, [this, service]() mutable {
                                  std::vector<std::string> menu_text{"CANCEL", service.display_name};
                                  createSubMenu(menu_text);
