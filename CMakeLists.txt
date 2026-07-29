@@ -30,7 +30,6 @@ find_package(mrs_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
-find_package(mrs_robot_diagnostics REQUIRED)
 
 # From CMake docs: https://cmake.org/cmake/help/v4.2/module/FindCurses.html
 if(Curses_FOUND AND NOT TARGET Curses::Curses)
@@ -80,7 +79,6 @@ target_link_libraries(MrsUavStatus_Status
     rclcpp::rclcpp
     rclcpp_components::component
     mrs_lib::mrs_lib
-    mrs_robot_diagnostics::mrs_robot_diagnostics
     Curses::Curses
     ${std_msgs_TARGETS}
     ${mrs_msgs_TARGETS}

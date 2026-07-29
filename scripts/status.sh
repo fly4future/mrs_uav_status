@@ -38,13 +38,13 @@ params=(
 )
 
 remaps=(
-  "$node_name/general_robot_info_in"       "state_monitor/general_robot_info"
-  "$node_name/state_estimation_info_in"    "state_monitor/state_estimation_info"
-  "$node_name/control_info_in"             "state_monitor/control_info"
-  "$node_name/collision_avoidance_info_in" "state_monitor/collision_avoidance_info"
-  "$node_name/uav_info_in"                 "state_monitor/uav_info"
-  "$node_name/system_health_info_in"       "state_monitor/system_health_info"
-  "$node_name/uav_state_in"                "state_monitor/uav_state"
+  "$node_name/general_robot_info_in"       "diagnostics_manager/general_robot_info"
+  "$node_name/state_estimation_info_in"    "diagnostics_manager/state_estimation_info"
+  "$node_name/control_info_in"             "diagnostics_manager/control_info"
+  "$node_name/collision_avoidance_info_in" "diagnostics_manager/collision_avoidance_info"
+  "$node_name/uav_info_in"                 "diagnostics_manager/uav_info"
+  "$node_name/system_health_info_in"       "diagnostics_manager/system_health_info"
+  "$node_name/uav_state_in"                "diagnostics_manager/uav_state"
   "$node_name/display_string_in"           "display_string"
   "$node_name/goto_reference_out"          "control_manager/reference"
   "$node_name/velocity_reference_out"      "control_manager/velocity_reference"
