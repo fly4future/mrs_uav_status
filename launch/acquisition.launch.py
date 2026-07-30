@@ -179,7 +179,6 @@ def generate_launch_description():
 
         remappings=[
             # subscribers
-            ("~/uav_state_in", "estimation_manager/uav_state"),
             ("~/cmd_tracker_in", "control_manager/tracker_cmd"),
             ("~/estimation_diag_in", "estimation_manager/diagnostics"),
             ("~/mpc_diag_in", "control_manager/mpc_tracker/diagnostics"),
@@ -192,7 +191,7 @@ def generate_launch_description():
             ("~/tf_static_in", "/tf_static"),
             ("~/gnss_in", "hw_api/gnss"),
             ("~/gnss_status_in", "hw_api/gnss_status"),
-            ("~/odometry_in", "hw_api/odometry"),
+            ("~/odometry_in", "estimation_manager/odom_main"),
             ("~/automatic_start_in", "automatic_start/can_takeoff"),
             ("~/throttle_in", "control_manager/throttle"),
             ("~/mass_estimate_in", "control_manager/mass_estimate"),

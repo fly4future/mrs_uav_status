@@ -2575,7 +2575,6 @@ void Status::controlManagerHandler(WINDOW *win) {
 void Status::hwApiStateHander(WINDOW *win) {
 
   int16_t     color;
-  double      hw_api_rate;
   double      state_rate;
   double      cmd_rate;
   double      battery_rate;
@@ -2595,7 +2594,6 @@ void Status::hwApiStateHander(WINDOW *win) {
   {
     std::scoped_lock lock(mutex_status_msg_);
     color              = uav_status_.hw_api_color;
-    hw_api_rate        = uav_status_.hw_api_hz;
     state_rate         = uav_status_.hw_api_state_hz;
     cmd_rate           = uav_status_.hw_api_cmd_hz;
     battery_rate       = uav_status_.hw_api_battery_hz;
@@ -2630,14 +2628,11 @@ void Status::hwApiStateHander(WINDOW *win) {
   /* mini //{ */
 
   if (mini_) {
-    printLimitedDouble(win, 0, 1, "Mav %3.0f", hw_api_rate, 1000);
+    printLimitedDouble(win, 0, 1, "Mav %3.0f", state_rate, 1000);
     wattroff(win, COLOR_PAIR(color));
-
-    if (hw_api_rate == 0) {
-      printNoData(win, 0, 1);
-    }
-
+    
     if (state_rate == 0) {
+      printNoData(win, 0, 1);
 
       wattron(win, COLOR_PAIR(RED));
       printLimitedString(win, 1, 1, "ERR", 3);
@@ -2751,15 +2746,11 @@ void Status::hwApiStateHander(WINDOW *win) {
 
   else {
 
-    printLimitedDouble(win, 0, 9, "HW Api %5.1f Hz", hw_api_rate, 1000);
+    printLimitedDouble(win, 0, 9, "HW Api %5.1f Hz", state_rate, 1000);
     wattroff(win, COLOR_PAIR(color));
 
-    if (hw_api_rate == 0) {
-
-      printNoData(win, 0, 1);
-    }
-
     if (state_rate == 0) {
+      printNoData(win, 0, 1);
 
       wattron(win, COLOR_PAIR(RED));
       printLimitedString(win, 1, 1, "State: ", 15);
@@ -3150,7 +3141,6 @@ void Status::prefillUavStatus() {
   uav_status_.cpu_ghz               = 0.0;
   uav_status_.free_ram              = 0.0;
   uav_status_.free_hdd              = 0.0;
-  uav_status_.hw_api_hz             = 0.0;
   uav_status_.hw_api_armed          = false;
   uav_status_.hw_api_mode           = "N/A";
   uav_status_.hw_api_gnss_ok        = false;

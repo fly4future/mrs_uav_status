@@ -115,7 +115,7 @@ private:
 
   // | ------------------------ Callbacks ----------------------- |
 
-  void callbackUavState(const mrs_msgs::msg::UavState::ConstSharedPtr msg);
+  void callbackOdom(const nav_msgs::msg::Odometry::ConstSharedPtr msg);
   void callbackTrackerCommand(const mrs_msgs::msg::TrackerCommand::ConstSharedPtr msg);
   void callbackEstimationDiaag(const mrs_msgs::msg::EstimationDiagnostics::ConstSharedPtr msg);
   void callbackMpcTrackerDiag(const mrs_msgs::msg::MpcTrackerDiagnostics::ConstSharedPtr msg);
@@ -152,7 +152,6 @@ private:
 
   double uav_state_expected_rate_          = 100.0;
   double control_manager_expected_rate_    = 10.0;
-  double hw_api_odometry_expected_rate_    = 100.0;
   double hw_api_gnss_expected_rate_        = 100.0;
   double hw_api_gnss_status_expected_rate_ = 1.0;
   double hw_api_state_expected_rate_       = 100.0;
@@ -161,7 +160,6 @@ private:
 
   TopicInfo uav_state_ts_;
   TopicInfo control_manager_ts_;
-  TopicInfo hw_api_odometry_ts_;
   TopicInfo hw_api_gnss_ts_;
   TopicInfo hw_api_gnss_status_ts_;
   TopicInfo hw_api_state_ts_;
@@ -200,7 +198,7 @@ private:
 
   // | ----------------------- Subscribers ---------------------- |
 
-  mrs_lib::SubscriberHandler<mrs_msgs::msg::UavState>                     sh_uav_state_;
+  mrs_lib::SubscriberHandler<nav_msgs::msg::Odometry>                     sh_odom_;
   mrs_lib::SubscriberHandler<mrs_msgs::msg::TrackerCommand>               sh_tracker_cmd_;
   mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimationDiagnostics>        sh_estimator_diag_;
   mrs_lib::SubscriberHandler<mrs_msgs::msg::MpcTrackerDiagnostics>        sh_mpc_tracker_diag_;
@@ -294,7 +292,6 @@ void Acquisition::initialize() {
 
   uav_state_ts_          = TopicInfo(node_, 10, BUFFER_LEN_SECS, uav_state_expected_rate_);
   control_manager_ts_    = TopicInfo(node_, 1, BUFFER_LEN_SECS, control_manager_expected_rate_);
-  hw_api_odometry_ts_    = TopicInfo(node_, 1, BUFFER_LEN_SECS, hw_api_odometry_expected_rate_);
   hw_api_gnss_ts_        = TopicInfo(node_, 1, BUFFER_LEN_SECS, hw_api_gnss_expected_rate_);
   hw_api_gnss_status_ts_ = TopicInfo(node_, 1, BUFFER_LEN_SECS, hw_api_gnss_status_expected_rate_);
   hw_api_state_ts_       = TopicInfo(node_, 1, BUFFER_LEN_SECS, hw_api_state_expected_rate_);
@@ -403,7 +400,7 @@ void Acquisition::initialize() {
 
   /* sh_estimation_diag_      = mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimationDiagnostics>(shopts, "~/estimation_diag_in"); */
 
-  sh_uav_state_   = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavState>(shopts, "~/uav_state_in", &Acquisition::callbackUavState, this);
+  sh_odom_   = mrs_lib::SubscriberHandler<nav_msgs::msg::Odometry>(shopts, "~/odometry_in", &Acquisition::callbackOdom, this);
   sh_tracker_cmd_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::TrackerCommand>(shopts, "~/cmd_tracker_in", &Acquisition::callbackTrackerCommand, this);
   sh_estimator_diag_ =
       mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimationDiagnostics>(shopts, "~/estimation_diag_in", &Acquisition::callbackEstimationDiaag, this);
@@ -423,7 +420,6 @@ void Acquisition::initialize() {
       shopts, "~/constraint_manager_in", &Acquisition::callbackConstraintManagerDiagnostics, this);
   sh_string_          = mrs_lib::SubscriberHandler<std_msgs::msg::String>(shopts, "~/string_in", &Acquisition::callbackString, this);
   sh_tf_static_       = mrs_lib::SubscriberHandler<tf2_msgs::msg::TFMessage>(shopts, "~/tf_static_in", &Acquisition::callbackTfStatic, this);
-  sh_hw_api_odom_     = mrs_lib::SubscriberHandler<nav_msgs::msg::Odometry>(shopts, "~/odometry_in", &Acquisition::callbackHwApiOdom, this);
   sh_autostart_ready_ = mrs_lib::SubscriberHandler<std_msgs::msg::Bool>(shopts, "~/automatic_start_in", &Acquisition::callbackAutostartReady, this);
   sh_magnetometer_    = mrs_lib::SubscriberHandler<sensor_msgs::msg::MagneticField>(shopts, "~/mag_in", &Acquisition::callbackMagnetometer, this);
 
@@ -813,7 +809,6 @@ void Acquisition::controlManagerHandler() {
 
 void Acquisition::hwApiDiagHandler() {
 
-  std::tuple<double, int16_t> odometry_rate_color    = hw_api_odometry_ts_.GetHz();
   std::tuple<double, int16_t> gnss_rate_color        = hw_api_gnss_ts_.GetHz();
   std::tuple<double, int16_t> gnss_status_rate_color = hw_api_gnss_status_ts_.GetHz();
   std::tuple<double, int16_t> state_rate_color       = hw_api_state_ts_.GetHz();
@@ -827,8 +822,7 @@ void Acquisition::hwApiDiagHandler() {
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    uav_status_.hw_api_hz             = std::get<0>(odometry_rate_color);
-    uav_status_.hw_api_color          = std::get<1>(odometry_rate_color);
+    uav_status_.hw_api_color          = std::get<1>(state_rate_color);
     uav_status_.hw_api_gnss_ok        = gnss;
     uav_status_.hw_api_gnss_status_hz = std::get<0>(gnss_status_rate_color);
     uav_status_.hw_api_battery_hz     = std::get<0>(battery_rate_color);
@@ -987,7 +981,6 @@ void Acquisition::prefillUavStatus() {
   uav_status_.cpu_temperature      = 0.0;
   uav_status_.free_ram             = 0.0;
   uav_status_.free_hdd             = 0.0;
-  uav_status_.hw_api_hz            = 0.0;
   uav_status_.hw_api_armed         = false;
   uav_status_.hw_api_mode          = "N/A";
   uav_status_.hw_api_gnss_ok       = false;
@@ -1248,9 +1241,9 @@ void Acquisition::getDiskSpace() {
 
 /* CALLBACKS //{ */
 
-/* callbackUavState() //{ */
+/* callbackUavOdom() //{ */
 
-void Acquisition::callbackUavState(const mrs_msgs::msg::UavState::ConstSharedPtr msg) {
+void Acquisition::callbackOdom(const nav_msgs::msg::Odometry::ConstSharedPtr msg) {
 
   if (!initialized_) {
     return;
@@ -1261,7 +1254,7 @@ void Acquisition::callbackUavState(const mrs_msgs::msg::UavState::ConstSharedPtr
   double heading;
 
   try {
-    heading = mrs_lib::AttitudeConverter(msg->pose.orientation).getHeading();
+    heading = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeading();
   }
   catch (...) {
     heading = 0;
@@ -1270,15 +1263,15 @@ void Acquisition::callbackUavState(const mrs_msgs::msg::UavState::ConstSharedPtr
   {
     std::scoped_lock lock(mutex_status_msg_);
 
-    uav_status_.odom_x     = msg->pose.position.x;
-    uav_status_.odom_y     = msg->pose.position.y;
-    uav_status_.odom_z     = msg->pose.position.z;
+    uav_status_.odom_x     = msg->pose.pose.position.x;
+    uav_status_.odom_y     = msg->pose.pose.position.y;
+    uav_status_.odom_z     = msg->pose.pose.position.z;
     uav_status_.odom_hdg   = heading;
     uav_status_.odom_frame = msg->header.frame_id;
 
-    uav_status_short_.odom_x   = msg->pose.position.x;
-    uav_status_short_.odom_y   = msg->pose.position.y;
-    uav_status_short_.odom_z   = msg->pose.position.z;
+    uav_status_short_.odom_x   = msg->pose.pose.position.x;
+    uav_status_short_.odom_y   = msg->pose.pose.position.y;
+    uav_status_short_.odom_z   = msg->pose.pose.position.z;
     uav_status_short_.odom_hdg = heading;
   }
 }
@@ -1511,19 +1504,6 @@ void Acquisition::callbackHwApiGNSSStatus(const mrs_msgs::msg::GpsInfo::ConstSha
 
 //}
 
-/* callbackHwApiOdom() //{ */
-
-void Acquisition::callbackHwApiOdom([[maybe_unused]] const nav_msgs::msg::Odometry::ConstSharedPtr msg) {
-
-  if (!initialized_) {
-    return;
-  }
-
-  hw_api_odometry_ts_.Count();
-}
-
-//}
-
 /* callbackControlManagerDiag() //{ */
 
 void Acquisition::callbackControlManagerDiag(const mrs_msgs::msg::ControlManagerDiagnostics::ConstSharedPtr msg) {
@@ -1696,7 +1676,7 @@ void Acquisition::callbackTfStatic(const tf2_msgs::msg::TFMessage::ConstSharedPt
     return;
   }
 
-  bool got_new_tf_static = false;
+  // bool got_new_tf_static = false;
 
   for (size_t i = 0; i < msg->transforms.size(); i++) {
 
@@ -1716,7 +1696,7 @@ void Acquisition::callbackTfStatic(const tf2_msgs::msg::TFMessage::ConstSharedPt
           generic_topic_input_vec_.push_back(tf_static_list_add_[j]);
         }
 
-        got_new_tf_static = true;
+        // got_new_tf_static = true;
       }
     }
   }
