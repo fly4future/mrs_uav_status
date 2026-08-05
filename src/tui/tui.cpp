@@ -1247,7 +1247,7 @@ void TUI::hwApiStateHandler() {
     }
 
     // battery_volt defaults to a negative sentinel whenever BatteryState is stale or was never
-    // received (StateMonitor nulls it out via not_reporting_delay_), so this alone is sufficient.
+    // received (DiagnosticsManager nulls it out via not_reporting_timeout_), so this alone is sufficient.
     if (battery_volt < 0.0) {
 
       printLimitedString(win, 3, 1, "ERR", 3);
