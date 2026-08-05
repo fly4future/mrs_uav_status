@@ -889,10 +889,21 @@ void TUI::uavStateHandler() {
 
       printLimitedDouble(win, 0, 12, "Odom %5.1f Hz", avg_rate, 1000);
 
-      printLimitedDouble(win, 1, 1, "X %7.2f", state_x, 1000);
-      printLimitedDouble(win, 2, 1, "Y %7.2f", state_y, 1000);
-      printLimitedDouble(win, 3, 1, "Z %7.2f", state_z, 1000);
-      printLimitedDouble(win, 4, 1, "hdg %5.2f", heading, 1000);
+      // Position/heading/estimator names reset together upstream, so NaN position is a reliable proxy.
+      const bool estimation_data_valid = !std::isnan(state_x);
+
+      if (estimation_data_valid) {
+        printLimitedDouble(win, 1, 1, "X %7.2f", state_x, 1000);
+        printLimitedDouble(win, 2, 1, "Y %7.2f", state_y, 1000);
+        printLimitedDouble(win, 3, 1, "Z %7.2f", state_z, 1000);
+        printLimitedDouble(win, 4, 1, "hdg %5.2f", heading, 1000);
+      } else {
+        printNoData(win, 1, 1, "X ", params_.start_minimized);
+        printNoData(win, 2, 1, "Y ", params_.start_minimized);
+        printNoData(win, 3, 1, "Z ", params_.start_minimized);
+        // "hdg " leaves only a 5-char field before the estimator name column -- too narrow for NO DATA.
+        printLimitedString(win, 4, 1, "hdg ERR", 7);
+      }
 
       if (!null_tracker && have_control_info) {
         wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
@@ -938,22 +949,27 @@ void TUI::uavStateHandler() {
         wattron(win, COLOR_PAIR(color));
       }
 
-      printLimitedString(win, 1, 11, main_estimator, 14);
+      if (!estimation_data_valid) {
+        printLimitedString(win, 1, 11, "NO DATA", 14);
+        printLimitedString(win, 2, 11, "NO DATA", 14);
+        printLimitedString(win, 4, 11, "NO DATA", 14);
+      } else {
+        printLimitedString(win, 1, 11, main_estimator, 14);
 
-      switch (estimator_display_counter_) {
-      case 0:
-        printLimitedString(win, 2, 11, "hor: " + horizontal_estimator, 14);
-        break;
-      case 1:
-        printLimitedString(win, 2, 11, "ver: " + vertical_estimator, 14);
-        break;
-      case 2:
-        printLimitedString(win, 2, 11, "hdg: " + heading_estimator, 14);
-        break;
+        switch (estimator_display_counter_) {
+        case 0:
+          printLimitedString(win, 2, 11, "hor: " + horizontal_estimator, 14);
+          break;
+        case 1:
+          printLimitedString(win, 2, 11, "ver: " + vertical_estimator, 14);
+          break;
+        case 2:
+          printLimitedString(win, 2, 11, "hdg: " + heading_estimator, 14);
+          break;
+        }
+
+        printLimitedString(win, 4, 11, "ag: " + agl_estimator, 14);
       }
-
-
-      printLimitedString(win, 4, 11, "ag: " + agl_estimator, 14);
 
       if (max_flight_z < 0.0) {
         // Negative means EstimationDiagnostics was never received, not that we're near the ceiling.
