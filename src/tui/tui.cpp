@@ -1157,7 +1157,7 @@ void TUI::hwApiStateHandler() {
   WINDOW     *win = hw_api_state_window_.get();
   int16_t     color;
   double      hw_api_rate, cmd_rate;
-  bool        gnss_ok, armed, have_uav_info, autopilot_ok;
+  bool        gnss_ok, armed, have_uav_info, autopilot_ok, have_system_health_info;
   std::string mode;
   double      battery_volt, battery_curr, battery_wh_drained;
   double      thrust, mass_estimate, mass_set, gnss_qual, mag_norm, mag_norm_rate;
@@ -1167,9 +1167,10 @@ void TUI::hwApiStateHandler() {
     std::scoped_lock lock(mutex_status_msg_);
     const auto      &bat = last_general_robot_info_.battery_state;
 
-    hw_api_rate   = last_system_health_info_.hw_api_rate;
-    cmd_rate      = last_system_health_info_.control_manager_rate;
-    have_uav_info = have_uav_info_;
+    hw_api_rate             = last_system_health_info_.hw_api_rate;
+    cmd_rate                = last_system_health_info_.control_manager_rate;
+    have_uav_info           = have_uav_info_;
+    have_system_health_info = have_system_health_info_;
 
     gnss_ok = false;
     if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GNSS); gnss) {
@@ -1225,7 +1226,7 @@ void TUI::hwApiStateHandler() {
     printLimitedDouble(win, 0, 1, "Mav %3.0f", hw_api_rate, 1000);
     wattroff(win, COLOR_PAIR(color));
 
-    if (hw_api_rate == 0) {
+    if (hw_api_rate == 0 || !have_system_health_info) {
       printNoData(win, 0, 1, params_.start_minimized);
     }
 
@@ -1352,12 +1353,17 @@ void TUI::hwApiStateHandler() {
 
   else {
 
-    printLimitedDouble(win, 0, 9, "HW Api %5.1f Hz", hw_api_rate, 1000);
-    wattroff(win, COLOR_PAIR(color));
+    if (hw_api_rate == 0 || !have_system_health_info) {
 
-    if (hw_api_rate == 0) {
-
+      // Showing a healthy Hz next to NO DATA reads as contradictory -- suppress it too.
+      printNoData(win, 0, 9, "HW Api ", params_.start_minimized);
+      wattroff(win, COLOR_PAIR(color));
       printNoData(win, 0, 1, params_.start_minimized);
+
+    } else {
+
+      printLimitedDouble(win, 0, 9, "HW Api %5.1f Hz", hw_api_rate, 1000);
+      wattroff(win, COLOR_PAIR(color));
     }
 
     if (!have_uav_info || !autopilot_ok) {
