@@ -102,6 +102,9 @@ public:
 
   void tickSlowCounter();
 
+  /** @brief Evict non-persistent display_string entries older than 10s. Runs every slow tick, independent of the currently selected pane. */
+  void pruneStrings();
+
   // | --------------------- Bottom-window helpers --------------- |
   void blankBottomWindow();
   void refreshBottomWindow();

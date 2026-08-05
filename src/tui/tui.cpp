@@ -180,6 +180,18 @@ void TUI::tickSlowCounter() {
   }
 }
 
+void TUI::pruneStrings() {
+  std::scoped_lock   lock(mutex_status_msg_);
+  const rclcpp::Time now = clock_->now();
+  for (auto it = string_info_vec_.begin(); it != string_info_vec_.end();) {
+    if (!it->persistent && (now - it->last_time).seconds() > 10.0) {
+      it = string_info_vec_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
+
 bool TUI::updateTermSize() {
 
   bool changed = false;
@@ -304,6 +316,7 @@ void TUI::renderFast() {
 
 void TUI::renderSlow() {
   tickSlowCounter();
+  pruneStrings();
   hwApiStateHandler();
   controlManagerHandler();
   paneHandler();
@@ -380,15 +393,10 @@ void TUI::renderStringsGnssPane(WINDOW *win) {
       gnss_status_rate               = gnss->rate;
     }
 
-    // Custom strings: evict stale (>10 s, unless persistent), collect the rest.
-    const rclcpp::Time now = clock_->now();
-    for (auto it = string_info_vec_.begin(); it != string_info_vec_.end();) {
-      if (!it->persistent && (now - it->last_time).seconds() > 10.0) {
-        it = string_info_vec_.erase(it);
-      } else {
-        string_vector.push_back(it->display_string);
-        ++it;
-      }
+    // Eviction happens unconditionally in pruneStrings() (every slow tick);
+    // here we just collect whatever's currently live for display.
+    for (const auto &entry : string_info_vec_) {
+      string_vector.push_back(entry.display_string);
     }
   }
 
