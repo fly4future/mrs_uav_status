@@ -1157,7 +1157,7 @@ void TUI::hwApiStateHandler() {
   WINDOW     *win = hw_api_state_window_.get();
   int16_t     color;
   double      hw_api_rate, cmd_rate;
-  bool        gnss_ok, armed, have_uav_info, autopilot_ok, have_system_health_info;
+  bool        gnss_ok, armed, have_uav_info, autopilot_ok, have_system_health_info, have_general_robot_info;
   std::string mode;
   double      battery_volt, battery_curr, battery_wh_drained;
   double      thrust, mass_estimate, mass_set, gnss_qual, mag_norm, mag_norm_rate;
@@ -1171,6 +1171,7 @@ void TUI::hwApiStateHandler() {
     cmd_rate                = last_system_health_info_.control_manager_rate;
     have_uav_info           = have_uav_info_;
     have_system_health_info = have_system_health_info_;
+    have_general_robot_info = have_general_robot_info_;
 
     // have_system_health_info catches a frozen sensor list from before DiagnosticsManager died.
     gnss_ok = false;
@@ -1193,9 +1194,10 @@ void TUI::hwApiStateHandler() {
       mag_norm_rate = have_system_health_info ? mag->rate : 0.0;
     }
 
-    armed              = last_uav_info_.armed;
-    mode               = last_uav_info_.flight_state;
-    battery_volt       = bat.voltage;
+    armed = last_uav_info_.armed;
+    mode  = last_uav_info_.flight_state;
+    // Forced to the same -1.0 sentinel used below; a frozen GeneralRobotInfo wouldn't reset it on its own.
+    battery_volt       = have_general_robot_info ? bat.voltage : -1.0;
     battery_curr       = bat.current;
     battery_wh_drained = bat.wh_drained;
     thrust             = last_control_info_.thrust / 100.0;
