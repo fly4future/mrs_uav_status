@@ -218,6 +218,11 @@ void TUI::setupWindows() {
   session_name_       = utils::callTerminal(command.c_str());
   session_name_.erase(std::remove(session_name_.begin(), session_name_.end(), '\n'), session_name_.end());
 
+  // derwin() children must be delwin()'d before their parent debug_window_ is
+  // replaced/destroyed, so reset them first in both branches.
+  sub_tmux_window_1_.reset();
+  sub_tmux_window_2_.reset();
+
   if (params_.start_minimized) {
     control_manager_window_.reset(newwin(4, 9, 1, 1));
     uav_state_window_.reset(newwin(6, 9, 5, 1));
