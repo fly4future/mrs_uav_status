@@ -1282,7 +1282,7 @@ void TUI::hwApiStateHandler() {
     }
 
 
-    if (cmd_rate == 0 || thrust < 0.0) {
+    if (cmd_rate == 0 || thrust < 0.0 || !have_system_health_info) {
 
       printLimitedString(win, 3, 5, "ERR", 3);
 
@@ -1435,7 +1435,7 @@ void TUI::hwApiStateHandler() {
       printLimitedDouble(win, 3, 1, "Mag: %4.2f", mag_norm, 9.99);
     }
 
-    if (cmd_rate == 0 || thrust < 0.0) {
+    if (cmd_rate == 0 || thrust < 0.0 || !have_system_health_info) {
 
       printNoData(win, 5, 1, "Thrust: ", params_.start_minimized);
 
