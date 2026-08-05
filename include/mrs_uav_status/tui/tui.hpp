@@ -6,8 +6,6 @@
 #include <memory>
 
 // --- Internal Package Includes ---
-#include <mrs_uav_status/ros/topic_info.hpp>
-
 #include <mrs_uav_status/tui/system_info.hpp>
 #include <mrs_uav_status/tui/control_bar.hpp>
 #include <mrs_uav_status/tui/print_helpers.hpp>
@@ -284,7 +282,6 @@ private:
   std::vector<tui::StatusWindow> submenu_vec_;
   std::vector<tui::ControlBar>   goto_menu_inputs_;
 
-  std::vector<TopicInfo>   string_topic_;
   std::vector<std::string> service_input_vec_;
   std::vector<std::string> main_menu_text_;
   std::vector<std::string> display_menu_text_;
