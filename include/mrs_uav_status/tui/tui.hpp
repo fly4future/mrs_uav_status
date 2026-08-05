@@ -114,9 +114,9 @@ public:
   void setupMainMenu();
   void setupGotoMenu();
   void setupDisplayMenu();
-  bool mainMenuHandler(int key_in);
-  bool gotoMenuHandler(int key_in);
-  bool displayMenuHandler(int key_in);
+  bool mainMenuHandler(int key);
+  bool gotoMenuHandler(int key);
+  bool displayMenuHandler(int key);
   void clearMenus();
   void loadDisplayConfig();
   void renderTmuxOrHelp();
@@ -218,7 +218,7 @@ private:
   std::vector<MenuRow> sub_menu_rows_;
 
   // | -------------------- Remote (private helpers) ------------ |
-  void remoteModeFly(const mrs_msgs::msg::VelocityReference &ref_in);
+  void remoteModeFly(const mrs_msgs::msg::VelocityReference &velocity_reference);
   void drawRemoteBanner(WINDOW *win);
   void handleRemoteMotion(int key);
   void toggleTurboRemote();

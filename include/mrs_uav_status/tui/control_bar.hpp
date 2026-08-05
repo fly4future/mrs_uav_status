@@ -11,7 +11,7 @@ class ControlBar {
 public:
   ControlBar(unsigned long size, WINDOW *win, double initial_value);
 
-  unsigned long process(int key_in);
+  unsigned long process(int key);
   void          print(int line, bool active);
 
   double getDouble() const;

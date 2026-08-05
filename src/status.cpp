@@ -183,14 +183,14 @@ void Status::timerRender() {
 
   tui_->blankBottomWindow();
 
-  int key_in = getch();
+  int key = getch();
 
   switch (state_) {
 
     /* STANDARD //{ */
   case StatusState::STANDARD: {
 
-    switch (key_in) {
+    switch (key) {
 
     case 'R': {
       if (tui_->isFlyingNormally()) {
@@ -228,7 +228,7 @@ void Status::timerRender() {
     case '7':
     case '8':
     case '9':
-      tui_->selectPane(static_cast<size_t>(key_in - '1'));
+      tui_->selectPane(static_cast<size_t>(key - '1'));
       break;
 
     case 'M':
@@ -254,8 +254,8 @@ void Status::timerRender() {
     /* REMOTE //{ */
   case StatusState::REMOTE: {
     flushinp();
-    tui_->remoteHandler(key_in);
-    if (key_in == 'R' || key_in == static_cast<int>(mrs_uav_status::tui::Key::Escape)) {
+    tui_->remoteHandler(key);
+    if (key == 'R' || key == static_cast<int>(mrs_uav_status::tui::Key::Escape)) {
       tui_->setRemoteMode(false);
       state_ = StatusState::STANDARD;
     }
@@ -266,7 +266,7 @@ void Status::timerRender() {
     /* MAIN_MENU //{ */
   case StatusState::MAIN_MENU: {
     flushinp();
-    if (tui_->mainMenuHandler(key_in)) {
+    if (tui_->mainMenuHandler(key)) {
       tui_->clearMenus();
       tui_->refreshAfterMenu();
       state_ = StatusState::STANDARD;
@@ -278,7 +278,7 @@ void Status::timerRender() {
     /* GOTO_MENU //{ */
   case StatusState::GOTO_MENU: {
     flushinp();
-    if (tui_->gotoMenuHandler(key_in)) {
+    if (tui_->gotoMenuHandler(key)) {
       tui_->clearMenus();
       state_ = StatusState::STANDARD;
     }
@@ -289,7 +289,7 @@ void Status::timerRender() {
     /* DISPLAY_MENU //{ */
   case StatusState::DISPLAY_MENU: {
     flushinp();
-    if (tui_->displayMenuHandler(key_in)) {
+    if (tui_->displayMenuHandler(key)) {
       tui_->clearMenus();
       state_ = StatusState::STANDARD;
     }

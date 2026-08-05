@@ -1833,20 +1833,20 @@ void TUI::setupMainMenu() {
   menu_vec_.push_back(menu);
 }
 
-bool TUI::mainMenuHandler(int key_in) {
+bool TUI::mainMenuHandler(int key) {
 
   if (!submenu_vec_.empty()) {
 
     menu_vec_[0].iterate(main_menu_text_, -1, true);
 
-    auto result = submenu_vec_[0].iterate(key_in, true);
+    auto result = submenu_vec_[0].iterate(key, true);
 
     if (result.action == StatusWindow::Result::Action::Exit) {
       submenu_vec_.clear();
       return false;
     }
 
-    if (key_in == static_cast<int>(Key::Enter)) {
+    if (key == static_cast<int>(Key::Enter)) {
       sub_menu_rows_[result.selected_line].on_open();
       submenu_vec_.clear();
       sub_menu_rows_.clear();
@@ -1855,7 +1855,7 @@ bool TUI::mainMenuHandler(int key_in) {
     return false;
   }
 
-  auto result = menu_vec_[0].iterate(main_menu_text_, key_in, true);
+  auto result = menu_vec_[0].iterate(main_menu_text_, key, true);
 
   if (result.action == StatusWindow::Result::Action::Exit) {
     menu_vec_.clear();
@@ -1897,9 +1897,9 @@ void TUI::setupGotoMenu() {
   }
 }
 
-bool TUI::gotoMenuHandler(int key_in) {
+bool TUI::gotoMenuHandler(int key) {
 
-  auto result = menu_vec_[0].iterate(goto_menu_text_, key_in, false);
+  auto result = menu_vec_[0].iterate(goto_menu_text_, key, false);
 
   if (result.action == StatusWindow::Result::Action::Exit) {
     menu_vec_.clear();
@@ -1984,9 +1984,9 @@ void TUI::setupDisplayMenu() {
   menu_vec_.push_back(menu);
 }
 
-bool TUI::displayMenuHandler(int key_in) {
+bool TUI::displayMenuHandler(int key) {
 
-  auto result = menu_vec_[0].iterate(display_menu_text_, key_in, false);
+  auto result = menu_vec_[0].iterate(display_menu_text_, key, false);
 
   if (result.action == StatusWindow::Result::Action::Exit) {
     menu_vec_.clear();
@@ -2202,10 +2202,10 @@ void TUI::toggleTurboRemote() {
   renderServiceResult(response.value()->success, response.value()->message);
 }
 
-void TUI::remoteModeFly(const mrs_msgs::msg::VelocityReference &ref_in) {
+void TUI::remoteModeFly(const mrs_msgs::msg::VelocityReference &velocity_reference) {
   auto request = std::make_shared<mrs_msgs::srv::VelocityReferenceStampedSrv::Request>();
 
-  request->reference.reference = ref_in;
+  request->reference.reference = velocity_reference;
 
   std::string uav_name;
 
