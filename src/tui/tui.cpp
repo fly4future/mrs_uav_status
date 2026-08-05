@@ -825,7 +825,8 @@ void TUI::uavStateHandler() {
     cmd_z   = last_control_info_.cmd_pose.position.z;
     cmd_hdg = last_control_info_.cmd_pose.heading;
 
-    main_estimator       = est.current_estimator.empty() ? std::string("NONE") : est.current_estimator;
+    // DiagnosticsManager's default for current_estimator is the literal string "unknown", not empty.
+    main_estimator       = (est.current_estimator.empty() || est.current_estimator == "unknown") ? std::string("NONE") : est.current_estimator;
     horizontal_estimator = est.horizontal_estimator;
     vertical_estimator   = est.vertical_estimator;
     heading_estimator    = est.heading_estimator;
