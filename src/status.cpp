@@ -61,11 +61,11 @@ void Status::initialize() {
 
   param_loader.addYamlFileFromParam("config_public");
 
-  std::string         pwd, colorscheme, turbo_remote_constraints, uav_name;
-  double              update_rate, update_rate_slow, resize_rate;
-  std::vector<double> goto_values;
-  bool                colorblind_mode = false;
-  bool                start_minimized = false;
+  std::string                 pwd, colorscheme, turbo_remote_constraints, uav_name;
+  double                      update_rate, update_rate_slow, resize_rate;
+  Eigen::Matrix<double, 4, 1> goto_values_mat;
+  bool                        colorblind_mode = false;
+  bool                        start_minimized = false;
 
   param_loader.loadParam("pwd", pwd);
   param_loader.loadParam("colorscheme", colorscheme);
@@ -79,7 +79,7 @@ void Status::initialize() {
   param_loader.loadParam("mrs_uav_status/start_minimized", start_minimized);
   std::vector<std::string> service_list;
   param_loader.loadParam("mrs_uav_status/service_list", service_list);
-  param_loader.loadParam("mrs_uav_status/goto_values", goto_values);
+  param_loader.loadMatrixStatic("mrs_uav_status/goto_values", goto_values_mat);
 
   if (!param_loader.loadedSuccessfully()) {
     RCLCPP_ERROR(node_->get_logger(), "Could not load all parameters!");
@@ -89,6 +89,7 @@ void Status::initialize() {
   RCLCPP_INFO(node_->get_logger(), "All params loaded!");
 
   const std::string display_config_filename = pwd + "/.mrs_status_display_config~";
+  const std::vector<double> goto_values(goto_values_mat.data(), goto_values_mat.data() + goto_values_mat.size());
 
   const tui::TUI::TUIParams tui_params{
       .uav_name                 = uav_name,
