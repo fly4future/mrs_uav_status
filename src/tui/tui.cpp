@@ -737,9 +737,19 @@ void TUI::renderNodeCpuPane(WINDOW *win) {
   int row = drawPaneChrome(win);
 
   std::vector<mrs_msgs::msg::CpuLoad> node_cpu_loads;
+  bool                                have_system_health_info;
   {
     std::scoped_lock lock(mutex_status_msg_);
-    node_cpu_loads = last_system_health_info_.onboard_computer_info.node_cpu_loads;
+    node_cpu_loads           = last_system_health_info_.onboard_computer_info.node_cpu_loads;
+    have_system_health_info = last_time_got_system_health_info_.nanoseconds() != 0;
+  }
+
+  if (!have_system_health_info) {
+    // Otherwise an empty node_cpu_loads sums to 0.0, rendering as a healthy-looking 0% CPU.
+    printNoData(win, row, 1, params_.start_minimized);
+    wattroff(win, A_BOLD);
+    wnoutrefresh(win);
+    return;
   }
 
   // Aggregate (single-core %) total — OnboardComputerInfo doesn't expose it.
