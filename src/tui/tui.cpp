@@ -1381,7 +1381,7 @@ void TUI::hwApiStateHandler() {
       printLimitedString(win, 1, 1, "State: ", 15);
       printNoData(win, 1, 9, params_.start_minimized);
       printLimitedString(win, 2, 1, "Mode: ", 15);
-      printNoData(win, 1, 9, params_.start_minimized);
+      printNoData(win, 2, 9, params_.start_minimized);
       wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
 
     } else {
