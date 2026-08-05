@@ -989,7 +989,7 @@ void TUI::controlManagerHandler() {
   WINDOW *win = control_manager_window_.get();
 
   int16_t     color;
-  bool        null_tracker, avoiding_collision, bumper_active, can_takeoff;
+  bool        null_tracker, avoiding_collision, bumper_active, can_takeoff, have_system_health_info;
   double      rate;
   std::string curr_controller, curr_tracker, curr_gains, curr_constraints;
   bool        callbacks_enabled, rc_mode, have_goal, tracking_trajectory;
@@ -998,13 +998,17 @@ void TUI::controlManagerHandler() {
     std::scoped_lock lock(mutex_status_msg_);
     const auto      &ci = last_control_info_;
 
-    rate = last_system_health_info_.control_manager_rate;
+    rate                    = last_system_health_info_.control_manager_rate;
+    have_system_health_info = have_system_health_info_;
 
-    // "unknown" is ControlInfo's not-yet-received sentinel; .empty() alone never actually catches it.
-    curr_controller  = (ci.active_controller.empty() || ci.active_controller == "unknown") ? std::string("NO DATA") : ci.active_controller;
-    curr_tracker     = (ci.active_tracker.empty() || ci.active_tracker == "unknown") ? std::string("NO DATA") : ci.active_tracker;
-    curr_gains       = (ci.active_gains.empty() || ci.active_gains == "unknown") ? std::string("NO DATA") : ci.active_gains;
-    curr_constraints = (ci.active_constraints.empty() || ci.active_constraints == "unknown") ? std::string("NO DATA") : ci.active_constraints;
+    // "unknown" self-corrects only while DiagnosticsManager stays alive; !have_system_health_info
+    // catches it dying entirely, which would otherwise freeze these at their last real names.
+    curr_controller =
+        (!have_system_health_info || ci.active_controller.empty() || ci.active_controller == "unknown") ? std::string("NO DATA") : ci.active_controller;
+    curr_tracker = (!have_system_health_info || ci.active_tracker.empty() || ci.active_tracker == "unknown") ? std::string("NO DATA") : ci.active_tracker;
+    curr_gains   = (!have_system_health_info || ci.active_gains.empty() || ci.active_gains == "unknown") ? std::string("NO DATA") : ci.active_gains;
+    curr_constraints =
+        (!have_system_health_info || ci.active_constraints.empty() || ci.active_constraints == "unknown") ? std::string("NO DATA") : ci.active_constraints;
 
     callbacks_enabled   = ci.callbacks_enabled;
     rc_mode             = (last_uav_state_.state == mrs_msgs::msg::State::STATE_RC_MODE);
@@ -1032,7 +1036,7 @@ void TUI::controlManagerHandler() {
   if (params_.start_minimized) {
     printLimitedDouble(win, 0, 1, "Ctr %3.0f", rate, 1000);
 
-    if (rate == 0.0) {
+    if (rate == 0.0 || !have_system_health_info) {
 
       printNoData(win, 0, 1, params_.start_minimized);
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
@@ -1080,11 +1084,10 @@ void TUI::controlManagerHandler() {
 
   else {
 
-    printLimitedDouble(win, 0, 1, "Control Manager %5.1f Hz", rate, 1000);
+    if (rate == 0.0 || !have_system_health_info) {
 
-    if (rate == 0.0) {
-
-      printNoData(win, 0, 1, params_.start_minimized);
+      // Showing a healthy Hz next to NO DATA reads as contradictory -- suppress it too.
+      printNoData(win, 0, 1, "Control ", params_.start_minimized);
 
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
       mvwprintw(win, 1, 1, "NO_CONTROLLER");
@@ -1092,6 +1095,8 @@ void TUI::controlManagerHandler() {
       wattroff(win, COLOR_PAIR(color));
 
     } else {
+      printLimitedDouble(win, 0, 1, "Control Manager %5.1f Hz", rate, 1000);
+
       if (curr_controller != "Se3Controller" && curr_controller != "MpcController") {
         wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
       }
@@ -1116,35 +1121,36 @@ void TUI::controlManagerHandler() {
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
       printLimitedString(win, 2, 1 + std::min(int(curr_tracker.length()), 13), "/" + curr_constraints, 8);
       wattron(win, COLOR_PAIR(color));
-    }
 
-    if (rc_mode) {
-      wattron(win, A_BLINK);
-      wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-      mvwprintw(win, 1, 18, "RC_MODE");
-      wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-      wattroff(win, A_BLINK);
+      // Same freshness gate as curr_controller/curr_tracker above, so these can't linger stale either.
+      if (rc_mode) {
+        wattron(win, A_BLINK);
+        wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+        mvwprintw(win, 1, 18, "RC_MODE");
+        wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+        wattroff(win, A_BLINK);
 
-    } else if (!callbacks_enabled) {
-      wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-      mvwprintw(win, 1, 20, "NO_CB");
-      wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-    }
+      } else if (!callbacks_enabled) {
+        wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+        mvwprintw(win, 1, 20, "NO_CB");
+        wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+      }
 
-    if (tracking_trajectory) {
-      wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
-      mvwprintw(win, 2, 21, "TRAJ");
-      wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
+      if (tracking_trajectory) {
+        wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
+        mvwprintw(win, 2, 21, "TRAJ");
+        wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
 
-    } else if (have_goal) {
-      wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
-      mvwprintw(win, 2, 21, "GOTO");
-      wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
+      } else if (have_goal) {
+        wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
+        mvwprintw(win, 2, 21, "GOTO");
+        wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
 
-    } else {
-      wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Yellow)));
-      mvwprintw(win, 2, 21, "IDLE");
-      wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Yellow)));
+      } else {
+        wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Yellow)));
+        mvwprintw(win, 2, 21, "IDLE");
+        wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Yellow)));
+      }
     }
   }
 
