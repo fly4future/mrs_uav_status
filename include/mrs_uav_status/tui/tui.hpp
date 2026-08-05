@@ -73,7 +73,7 @@ public:
   void onString(const std_msgs::msg::String &msg);
 
   /** @brief Pushed once per render tick from Status; true if the topic has ever arrived and hasn't timed out. */
-  void setDataFreshness(bool general_robot_info, bool collision_avoidance_info, bool uav_info, bool system_health_info);
+  void setDataFreshness(bool general_robot_info, bool collision_avoidance_info, bool uav_info, bool system_health_info, bool state_estimation_info);
 
   // | --------------------- Window lifecycle ------------------- |
   void setupWindows();
@@ -260,6 +260,7 @@ private:
   bool have_collision_avoidance_info_ = false;
   bool have_uav_info_                 = false;
   bool have_system_health_info_       = false;
+  bool have_state_estimation_info_    = false;
 
 
   // | ---------------------- Window Pointers ------------------- |

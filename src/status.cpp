@@ -170,7 +170,8 @@ void Status::timerRender() {
 
   // hasMsg() guards against sim-time-near-zero at boot; the elapsed-time check catches mid-flight stalls.
   auto is_fresh = [&now, this](const auto &sh) { return sh.hasMsg() && (now - sh.lastMsgTime()).seconds() < data_timeout_s_; };
-  tui_->setDataFreshness(is_fresh(sh_general_robot_info_), is_fresh(sh_collision_avoidance_info_), is_fresh(sh_uav_info_), is_fresh(sh_system_health_info_));
+  tui_->setDataFreshness(is_fresh(sh_general_robot_info_), is_fresh(sh_collision_avoidance_info_), is_fresh(sh_uav_info_), is_fresh(sh_system_health_info_),
+                         is_fresh(sh_state_estimation_info_));
   if (now - last_resize_check_ >= resize_period_) {
     last_resize_check_                = now;
     mrs_lib::Routine profiler_routine = profiler_.createRoutine("resize");

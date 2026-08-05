@@ -105,12 +105,13 @@ void TUI::onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg) {
   last_time_got_data_      = clock_->now();
 }
 
-void TUI::setDataFreshness(bool general_robot_info, bool collision_avoidance_info, bool uav_info, bool system_health_info) {
+void TUI::setDataFreshness(bool general_robot_info, bool collision_avoidance_info, bool uav_info, bool system_health_info, bool state_estimation_info) {
   std::scoped_lock lock(mutex_status_msg_);
   have_general_robot_info_       = general_robot_info;
   have_collision_avoidance_info_ = collision_avoidance_info;
   have_uav_info_                 = uav_info;
   have_system_health_info_       = system_health_info;
+  have_state_estimation_info_    = state_estimation_info;
 }
 
 void TUI::onUavState(const mrs_msgs::msg::State &msg) {
@@ -806,17 +807,18 @@ void TUI::uavStateHandler() {
   double      cmd_x, cmd_y, cmd_z, cmd_hdg;
   std::string odom_frame, main_estimator, horizontal_estimator, vertical_estimator, heading_estimator, agl_estimator;
   double      max_flight_z;
-  bool        null_tracker, have_control_info, avoiding_collision, bumper_active, can_takeoff;
+  bool        null_tracker, have_control_info, avoiding_collision, bumper_active, can_takeoff, have_state_estimation_info;
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    const auto      &est = last_state_estimation_info_;
-    avg_rate             = last_system_health_info_.state_estimation_rate;
-    heading              = est.local_pose.heading;
-    state_x              = est.local_pose.position.x;
-    state_y              = est.local_pose.position.y;
-    state_z              = est.local_pose.position.z;
-    odom_frame           = est.header.frame_id;
+    const auto      &est       = last_state_estimation_info_;
+    have_state_estimation_info = have_state_estimation_info_;
+    avg_rate                   = last_system_health_info_.state_estimation_rate;
+    heading                    = est.local_pose.heading;
+    state_x                    = est.local_pose.position.x;
+    state_y                    = est.local_pose.position.y;
+    state_z                    = est.local_pose.position.z;
+    odom_frame                 = est.header.frame_id;
 
     cmd_x   = last_control_info_.cmd_pose.position.x;
     cmd_y   = last_control_info_.cmd_pose.position.y;
@@ -860,7 +862,7 @@ void TUI::uavStateHandler() {
   if (params_.start_minimized) {
     printLimitedDouble(win, 0, 1, "Odm %3.0f", avg_rate, 1000);
 
-    if (avg_rate == 0) {
+    if (avg_rate == 0 || !have_state_estimation_info) {
 
       printNoData(win, 0, 1, params_.start_minimized);
 
@@ -879,7 +881,7 @@ void TUI::uavStateHandler() {
 
     printLimitedDouble(win, 0, 12, "Odom %5.1f Hz", avg_rate, 1000);
 
-    if (avg_rate == 0) {
+    if (avg_rate == 0 || !have_state_estimation_info) {
 
       printNoData(win, 0, 1, params_.start_minimized);
 
