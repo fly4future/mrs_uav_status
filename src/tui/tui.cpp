@@ -1282,8 +1282,9 @@ void TUI::hwApiStateHandler() {
       wattron(win, COLOR_PAIR(color));
     }
 
-    // mass_nominal/mass_estimate come from UavInfo, independent of the thrust/ControlInfo check above.
-    if (mass_set < 0.0 || mass_estimate < 0.0) {
+    // mass_nominal/mass_estimate come from UavInfo; !have_uav_info catches a frozen topic that the
+    // sentinel check below can't (values stop updating but stay non-negative).
+    if (!have_uav_info || mass_set < 0.0 || mass_estimate < 0.0) {
 
       printNoData(win, 4, 1, params_.start_minimized);
 
@@ -1431,7 +1432,7 @@ void TUI::hwApiStateHandler() {
       wattron(win, COLOR_PAIR(color));
     }
 
-    if (mass_set < 0.0 || mass_estimate < 0.0) {
+    if (!have_uav_info || mass_set < 0.0 || mass_estimate < 0.0) {
 
       // x=17 clears "Thrust: NO DATA" (cols 1-15) when both blocks are missing at once.
       printNoData(win, 5, 17, params_.start_minimized);
