@@ -70,16 +70,16 @@ void Status::initialize() {
   param_loader.loadParam("pwd", pwd);
   param_loader.loadParam("colorscheme", colorscheme);
   param_loader.loadParam("uav_name", uav_name);
-  param_loader.loadParam("mrs_uav_status/update_rate", update_rate);
-  param_loader.loadParam("mrs_uav_status/update_rate_slow", update_rate_slow);
-  param_loader.loadParam("mrs_uav_status/resize_rate", resize_rate);
+  param_loader.loadParam("mrs_uav_status/rates/update_rate", update_rate);
+  param_loader.loadParam("mrs_uav_status/rates/update_rate_slow", update_rate_slow);
+  param_loader.loadParam("mrs_uav_status/rates/resize_rate", resize_rate);
   param_loader.loadParam("mrs_uav_status/turbo_remote_constraints", turbo_remote_constraints);
-  param_loader.loadParam("mrs_uav_status/colorblind_mode", colorblind_mode);
+  param_loader.loadParam("mrs_uav_status/display/colorblind_mode", colorblind_mode);
   param_loader.loadParam("mrs_uav_status/enable_profiler", _profiler_enabled_);
-  param_loader.loadParam("mrs_uav_status/start_minimized", start_minimized);
+  param_loader.loadParam("mrs_uav_status/display/start_minimized", start_minimized);
   std::vector<std::string> service_list;
-  param_loader.loadParam("mrs_uav_status/service_list", service_list);
-  param_loader.loadMatrixStatic("mrs_uav_status/goto_values", goto_values_mat);
+  param_loader.loadParam("mrs_uav_status/menu/service_list", service_list);
+  param_loader.loadMatrixStatic("mrs_uav_status/menu/goto_values", goto_values_mat);
 
   if (!param_loader.loadedSuccessfully()) {
     RCLCPP_ERROR(node_->get_logger(), "Could not load all parameters!");

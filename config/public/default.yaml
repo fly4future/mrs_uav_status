@@ -1,21 +1,26 @@
 mrs_uav_status:
 
-  update_rate: 20 # Rate of status updates in Hz
-  update_rate_slow: 1 # Rate of slow status updates in Hz (e.g. GPS)
-  resize_rate: 1 # Rate of resizing the status window in Hz
-  colorblind_mode: True # Set True to change green color to blue
   enable_profiler: False
-  start_minimized: False
   turbo_remote_constraints: "fast"
 
-  goto_values: [ 0.0, 0.0, 2.0, 1.57 ] # Default goto values [x, y, z, yaw]
+  rates:
+    update_rate: 20 # Rate of status updates in Hz
+    update_rate_slow: 1 # Rate of slow status updates in Hz (e.g. GPS)
+    resize_rate: 1 # Rate of resizing the status window in Hz
 
-  # List of services available to call in main menu
-  # Only available for std_srvs::srv::Trigger type services
-  service_list:
-    [
-      "uav_manager/land Land",
-      "uav_manager/land_home Land Home",
-      "uav_manager/takeoff Takeoff",
-      "control_manager/hover Hover",
-    ]
+  display:
+    colorblind_mode: True # Set True to change green color to blue
+    start_minimized: False
+
+  menu:
+    goto_values: [ 0.0, 0.0, 2.0, 1.57 ] # Default goto values [x, y, z, heading]
+
+    # List of services available to call in main menu
+    # Only available for std_srvs::srv::Trigger type services
+    service_list:
+      [
+        "uav_manager/land Land",
+        "uav_manager/land_home Land Home",
+        "uav_manager/takeoff Takeoff",
+        "control_manager/hover Hover",
+      ]
