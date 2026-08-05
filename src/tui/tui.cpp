@@ -522,8 +522,9 @@ void TUI::setupPanes() {
                       return !last_general_robot_info_.problems_preventing_start.empty() || !last_general_robot_info_.errors.empty();
                     }});
 
-  // To add a pane push another Pane with a
-  // title + render lambda; cycling, the title, and auto-focus pick it up.
+  // To add a pane push another Pane with a title and a render lambda that
+  // calls drawPaneChrome(win) itself; cycling, the title, and auto-focus
+  // pick it up automatically.
 
   pane_focus_prev_.assign(panes_.size(), false);
   pane_idx_ = 0;
@@ -561,8 +562,8 @@ void TUI::paneHandler() {
 }
 
 // Shared chrome for every pane: clears the window, draws the box, and writes
-// the "<p>reset: <name> (i/N)" label into the top border (so all interior rows
-// stay available for content). Returns the first usable content row (1).
+// a numbered tab bar (active tab bracketed in green, others in red) into the
+// top border. Returns the first usable content row (1).
 int TUI::drawPaneChrome(WINDOW *win) {
   bool avoiding_collision, bumper_active, can_takeoff, null_tracker;
   {

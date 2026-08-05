@@ -165,16 +165,17 @@ private:
   mrs_msgs::msg::State                  last_uav_state_;
 
   // Custom strings published via std_msgs/String. Each entry tracks its own
-  // freshness — entries older than 10 s are pruned in stringHandler unless
-  // marked persistent (`-p` flag). Deduped by id (parsed from `-id <key>`).
+  // freshness — entries older than 10 s are pruned in pruneStrings() (called
+  // every slow tick, independent of the selected pane) unless marked
+  // persistent (`-p` flag). Deduped by id (parsed from `-id <key>`).
   std::vector<utils::StringInfo> string_info_vec_;
 
   // | -------------------- Panes ---------------- |
   // The pane box cycles through pluggable panes ('p' key). To add a pane,
-  // push a Pane in setupPanes(): give it a title, a render
-  // callback that draws content rows (the dispatcher handles the box + title),
-  // and optionally wants_focus() to auto-switch to it when it has
-  // something important to show.
+  // push a Pane in setupPanes(): give it a title, a render callback that
+  // calls drawPaneChrome(win) itself (for the box + tab bar) before drawing
+  // its own content rows, and optionally wants_focus() to auto-switch to it
+  // when it has something important to show.
   struct Pane
   {
     std::string                      title;
