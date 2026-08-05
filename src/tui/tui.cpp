@@ -1129,8 +1129,8 @@ void TUI::controlManagerHandler() {
 void TUI::hwApiStateHandler() {
   WINDOW     *win = hw_api_state_window_.get();
   int16_t     color;
-  double      hw_api_rate, state_rate, cmd_rate;
-  bool        gnss_ok, armed;
+  double      hw_api_rate, cmd_rate;
+  bool        gnss_ok, armed, have_uav_info;
   std::string mode;
   double      battery_volt, battery_curr, battery_wh_drained;
   double      thrust, mass_estimate, mass_set, gnss_qual, mag_norm, mag_norm_rate;
@@ -1140,12 +1140,9 @@ void TUI::hwApiStateHandler() {
     std::scoped_lock lock(mutex_status_msg_);
     const auto      &bat = last_general_robot_info_.battery_state;
 
-    hw_api_rate = last_system_health_info_.hw_api_rate;
-    // The legacy per-topic rates (state/battery) collapsed into a single
-    // hw_api_rate in SystemHealthInfo. Alias them so the existing zero-check UI
-    // logic still trips when hw_api stops publishing entirely.
-    state_rate   = hw_api_rate;
-    cmd_rate     = last_system_health_info_.control_manager_rate;
+    hw_api_rate   = last_system_health_info_.hw_api_rate;
+    cmd_rate      = last_system_health_info_.control_manager_rate;
+    have_uav_info = last_time_got_uav_info_.nanoseconds() != 0;
 
     gnss_ok = false;
     if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GNSS); gnss) {
@@ -1198,7 +1195,7 @@ void TUI::hwApiStateHandler() {
       printNoData(win, 0, 1, params_.start_minimized);
     }
 
-    if (state_rate == 0) {
+    if (!have_uav_info) {
 
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
       printLimitedString(win, 1, 1, "ERR", 3);
@@ -1328,7 +1325,7 @@ void TUI::hwApiStateHandler() {
       printNoData(win, 0, 1, params_.start_minimized);
     }
 
-    if (state_rate == 0) {
+    if (!have_uav_info) {
 
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
       printLimitedString(win, 1, 1, "State: ", 15);
