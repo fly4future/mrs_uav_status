@@ -1172,9 +1172,10 @@ void TUI::hwApiStateHandler() {
     have_uav_info           = have_uav_info_;
     have_system_health_info = have_system_health_info_;
 
+    // have_system_health_info catches a frozen sensor list from before DiagnosticsManager died.
     gnss_ok = false;
     if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GNSS); gnss) {
-      gnss_ok   = (gnss->level == mrs_msgs::msg::SensorStatus::OK);
+      gnss_ok   = have_system_health_info && (gnss->level == mrs_msgs::msg::SensorStatus::OK);
       gnss_qual = utils::parseDoubleOr(utils::lookupDetail(gnss->details, "quality"), 0.0);
     }
 
@@ -1189,7 +1190,7 @@ void TUI::hwApiStateHandler() {
     mag_norm_rate = 0.0;
     if (const auto *mag = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_MAGNETOMETER); mag) {
       mag_norm      = utils::parseDoubleOr(utils::lookupDetail(mag->details, "norm_gauss"), 0.0);
-      mag_norm_rate = mag->rate;
+      mag_norm_rate = have_system_health_info ? mag->rate : 0.0;
     }
 
     armed              = last_uav_info_.armed;
