@@ -879,13 +879,15 @@ void TUI::uavStateHandler() {
 
   else {
 
-    printLimitedDouble(win, 0, 12, "Odom %5.1f Hz", avg_rate, 1000);
-
     if (avg_rate == 0 || !have_state_estimation_info) {
 
+      // Showing a healthy Hz next to NO DATA reads as contradictory -- suppress it too.
+      printNoData(win, 0, 12, "Odom ", params_.start_minimized);
       printNoData(win, 0, 1, params_.start_minimized);
 
     } else {
+
+      printLimitedDouble(win, 0, 12, "Odom %5.1f Hz", avg_rate, 1000);
 
       printLimitedDouble(win, 1, 1, "X %7.2f", state_x, 1000);
       printLimitedDouble(win, 2, 1, "Y %7.2f", state_y, 1000);
