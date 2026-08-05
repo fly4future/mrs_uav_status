@@ -37,7 +37,7 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
   for (const auto &service_input : service_input_vec_) {
     std::vector<std::string> results = utils::splitByChar(service_input, ' ');
 
-    if (results.size() < 2) {
+    if (results.size() < 2 || results[0].empty()) {
       RCLCPP_ERROR(node_->get_logger(),
                    "Invalid service entry: '%s'. Each entry must contain at least a service name and a display name, separated by a space.",
                    service_input.c_str());
@@ -1969,7 +1969,10 @@ void TUI::setupDisplayText() {
   }
 
   for (size_t i = 0; i < selected_tmux_window_.size(); i++) {
-    display_menu_text_[selected_tmux_window_[i]][1] = '*';
+    // A persisted index may no longer be valid if the tmux window count changed since it was saved.
+    if (selected_tmux_window_[i] >= 0 && static_cast<size_t>(selected_tmux_window_[i]) < display_menu_text_.size()) {
+      display_menu_text_[selected_tmux_window_[i]][1] = '*';
+    }
   }
 }
 
@@ -2029,6 +2032,8 @@ void TUI::loadDisplayConfig() {
       selected_tmux_window_.push_back(std::stoi(line));
     }
     catch (const std::invalid_argument &e) {
+    }
+    catch (const std::out_of_range &e) {
     }
   }
 

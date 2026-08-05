@@ -184,10 +184,11 @@ inline void printTmuxDump(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2, cons
 
   mvwhline(debug_window, tmp_rows + 1, 1, 0, tmp_cols - 1);
 
-  if (selected.size() > 1) {
+  // A persisted index may no longer be valid if the tmux window count changed since it was saved.
+  if (selected.size() > 1 && selected[1] >= 0 && static_cast<size_t>(selected[1]) < display_menu_text.size()) {
     printLimitedString(debug_window, tmp_rows + 1, 3, display_menu_text[selected[1]], 50);
   }
-  if (!selected.empty()) {
+  if (!selected.empty() && selected[0] >= 0 && static_cast<size_t>(selected[0]) < display_menu_text.size()) {
     printLimitedString(debug_window, 0, 3, display_menu_text[selected[0]], 50);
   }
 
