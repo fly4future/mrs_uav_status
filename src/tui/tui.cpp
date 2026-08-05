@@ -26,11 +26,6 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
   last_time_got_data_       = rclcpp::Time(0, 0, clock_->get_clock_type());
   bottom_window_clear_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
 
-  last_time_got_general_robot_info_       = rclcpp::Time(0, 0, clock_->get_clock_type());
-  last_time_got_collision_avoidance_info_ = rclcpp::Time(0, 0, clock_->get_clock_type());
-  last_time_got_uav_info_                 = rclcpp::Time(0, 0, clock_->get_clock_type());
-  last_time_got_system_health_info_       = rclcpp::Time(0, 0, clock_->get_clock_type());
-
   goto_double_vec_   = params_.goto_values;
   service_input_vec_ = params_.service_list;
 
@@ -76,9 +71,8 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
 
 void TUI::onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg) {
   std::scoped_lock lock(mutex_status_msg_);
-  last_general_robot_info_          = msg;
-  last_time_got_data_               = clock_->now();
-  last_time_got_general_robot_info_ = last_time_got_data_;
+  last_general_robot_info_ = msg;
+  last_time_got_data_      = clock_->now();
 }
 
 void TUI::onStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo &msg) {
@@ -95,23 +89,28 @@ void TUI::onControlInfo(const mrs_msgs::msg::ControlInfo &msg) {
 
 void TUI::onCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo &msg) {
   std::scoped_lock lock(mutex_status_msg_);
-  last_collision_avoidance_info_          = msg;
-  last_time_got_data_                     = clock_->now();
-  last_time_got_collision_avoidance_info_ = last_time_got_data_;
+  last_collision_avoidance_info_ = msg;
+  last_time_got_data_            = clock_->now();
 }
 
 void TUI::onUavInfo(const mrs_msgs::msg::UavInfo &msg) {
   std::scoped_lock lock(mutex_status_msg_);
-  last_uav_info_          = msg;
-  last_time_got_data_     = clock_->now();
-  last_time_got_uav_info_ = last_time_got_data_;
+  last_uav_info_      = msg;
+  last_time_got_data_ = clock_->now();
 }
 
 void TUI::onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg) {
   std::scoped_lock lock(mutex_status_msg_);
-  last_system_health_info_          = msg;
-  last_time_got_data_               = clock_->now();
-  last_time_got_system_health_info_ = last_time_got_data_;
+  last_system_health_info_ = msg;
+  last_time_got_data_      = clock_->now();
+}
+
+void TUI::setDataFreshness(bool general_robot_info, bool collision_avoidance_info, bool uav_info, bool system_health_info) {
+  std::scoped_lock lock(mutex_status_msg_);
+  have_general_robot_info_       = general_robot_info;
+  have_collision_avoidance_info_ = collision_avoidance_info;
+  have_uav_info_                 = uav_info;
+  have_system_health_info_       = system_health_info;
 }
 
 void TUI::onUavState(const mrs_msgs::msg::State &msg) {
@@ -347,7 +346,7 @@ void TUI::generalInfoHandler() {
     free_ram                = oc.free_ram;
     total_ram               = oc.total_ram;
     free_hdd                = oc.free_hdd;
-    have_system_health_info = last_time_got_system_health_info_.nanoseconds() != 0;
+    have_system_health_info = have_system_health_info_;
   }
 
   printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
@@ -619,7 +618,7 @@ void TUI::renderProblemsPane(WINDOW *win) {
     std::scoped_lock lock(mutex_status_msg_);
     problems                = last_general_robot_info_.problems_preventing_start;
     errors                  = last_general_robot_info_.errors;
-    have_general_robot_info = last_time_got_general_robot_info_.nanoseconds() != 0;
+    have_general_robot_info = have_general_robot_info_;
   }
 
   // Empty vectors are indistinguishable from "genuinely zero problems" without this check.
@@ -742,7 +741,7 @@ void TUI::renderNodeCpuPane(WINDOW *win) {
   {
     std::scoped_lock lock(mutex_status_msg_);
     node_cpu_loads          = last_system_health_info_.onboard_computer_info.node_cpu_loads;
-    have_system_health_info = last_time_got_system_health_info_.nanoseconds() != 0;
+    have_system_health_info = have_system_health_info_;
   }
 
   if (!have_system_health_info) {
@@ -1166,7 +1165,7 @@ void TUI::hwApiStateHandler() {
 
     hw_api_rate   = last_system_health_info_.hw_api_rate;
     cmd_rate      = last_system_health_info_.control_manager_rate;
-    have_uav_info = last_time_got_uav_info_.nanoseconds() != 0;
+    have_uav_info = have_uav_info_;
 
     gnss_ok = false;
     if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GNSS); gnss) {
@@ -1521,9 +1520,9 @@ void TUI::topLineHandler() {
     bumper_active                 = last_collision_avoidance_info_.bumper_active;
     num_other_uavs                = static_cast<uint16_t>(last_collision_avoidance_info_.other_robots_visible.size());
     secs_flown                    = static_cast<int>(std::max(0.0f, last_uav_info_.flight_duration));
-    have_general_robot_info       = last_time_got_general_robot_info_.nanoseconds() != 0;
-    have_collision_avoidance_info = last_time_got_collision_avoidance_info_.nanoseconds() != 0;
-    have_uav_info                 = last_time_got_uav_info_.nanoseconds() != 0;
+    have_general_robot_info       = have_general_robot_info_;
+    have_collision_avoidance_info = have_collision_avoidance_info_;
+    have_uav_info                 = have_uav_info_;
     last_time_got_data            = last_time_got_data_;
   }
 
@@ -1537,7 +1536,7 @@ void TUI::topLineHandler() {
   double since_data_s = (clock_->now() - last_time_got_data).seconds();
 
   // If we haven't received data for a while, switch to the "no data" color scheme. If we start receiving data again, switch back to the normal color scheme.
-  if (const bool nd = (since_data_s < 3.0); nd != have_data_) {
+  if (const bool nd = (since_data_s < params_.data_timeout_s); nd != have_data_) {
     have_data_    = nd;
     light_scheme_ = setupColors(have_data_, params_.colorscheme, params_.colorblind_mode);
   }

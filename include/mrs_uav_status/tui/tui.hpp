@@ -57,6 +57,7 @@ public:
     std::string              turbo_remote_constraints;
     std::vector<std::string> service_list;
     std::vector<double>      goto_values;
+    double                   data_timeout_s; // Seconds without a message before data is considered stale.
   };
 
   TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const TUI::TUIParams &params);
@@ -70,6 +71,9 @@ public:
   void onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg);
   void onUavState(const mrs_msgs::msg::State &msg);
   void onString(const std_msgs::msg::String &msg);
+
+  /** @brief Pushed once per render tick from Status; true if the topic has ever arrived and hasn't timed out. */
+  void setDataFreshness(bool general_robot_info, bool collision_avoidance_info, bool uav_info, bool system_health_info);
 
   // | --------------------- Window lifecycle ------------------- |
   void setupWindows();
@@ -251,11 +255,11 @@ private:
   rclcpp::Time last_time_got_data_;
   rclcpp::Time bottom_window_clear_time_;
 
-  // Per-topic freshness; last_time_got_data_ alone can't isolate one topic that never published.
-  rclcpp::Time last_time_got_general_robot_info_;
-  rclcpp::Time last_time_got_collision_avoidance_info_;
-  rclcpp::Time last_time_got_uav_info_;
-  rclcpp::Time last_time_got_system_health_info_;
+  // Per-topic freshness, pushed by Status via setDataFreshness().
+  bool have_general_robot_info_       = false;
+  bool have_collision_avoidance_info_ = false;
+  bool have_uav_info_                 = false;
+  bool have_system_health_info_       = false;
 
 
   // | ---------------------- Window Pointers ------------------- |

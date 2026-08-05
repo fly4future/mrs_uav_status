@@ -71,6 +71,7 @@ private:
   rclcpp::Duration resize_period_{0, 0};
   rclcpp::Time     last_slow_run_;
   rclcpp::Time     last_resize_check_;
+  double           data_timeout_s_ = 0.0; // Seconds without a message before data is considered stale.
 
   void timerRender();
   void callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::ConstSharedPtr msg);

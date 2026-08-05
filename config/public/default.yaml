@@ -2,6 +2,7 @@ mrs_uav_status:
 
   enable_profiler: False
   turbo_remote_constraints: "fast"
+  data_timeout: 3.0 # Seconds without a message before a topic's data is considered stale (shown as NO DATA/ERR)
 
   rates:
     update_rate: 20 # Rate of status updates in Hz

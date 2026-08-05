@@ -73,6 +73,7 @@ void Status::initialize() {
   param_loader.loadParam("mrs_uav_status/rates/update_rate", update_rate);
   param_loader.loadParam("mrs_uav_status/rates/update_rate_slow", update_rate_slow);
   param_loader.loadParam("mrs_uav_status/rates/resize_rate", resize_rate);
+  param_loader.loadParam("mrs_uav_status/data_timeout", data_timeout_s_);
   param_loader.loadParam("mrs_uav_status/turbo_remote_constraints", turbo_remote_constraints);
   param_loader.loadParam("mrs_uav_status/display/colorblind_mode", colorblind_mode);
   param_loader.loadParam("mrs_uav_status/enable_profiler", _profiler_enabled_);
@@ -100,6 +101,7 @@ void Status::initialize() {
       .turbo_remote_constraints = turbo_remote_constraints,
       .service_list             = service_list,
       .goto_values              = goto_values,
+      .data_timeout_s           = data_timeout_s_,
   };
 
   tui_ = std::make_unique<tui::TUI>(node_, cbkgrp_sc_, tui_params);
@@ -165,6 +167,10 @@ void Status::timerRender() {
   // Resize before anything else draws; force a slow redraw right after so it isn't left blank.
   const rclcpp::Time now     = clock_->now();
   bool               resized = false;
+
+  // hasMsg() guards against sim-time-near-zero at boot; the elapsed-time check catches mid-flight stalls.
+  auto is_fresh = [&now, this](const auto &sh) { return sh.hasMsg() && (now - sh.lastMsgTime()).seconds() < data_timeout_s_; };
+  tui_->setDataFreshness(is_fresh(sh_general_robot_info_), is_fresh(sh_collision_avoidance_info_), is_fresh(sh_uav_info_), is_fresh(sh_system_health_info_));
   if (now - last_resize_check_ >= resize_period_) {
     last_resize_check_                = now;
     mrs_lib::Routine profiler_routine = profiler_.createRoutine("resize");
