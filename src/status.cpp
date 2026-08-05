@@ -88,7 +88,7 @@ void Status::initialize() {
   }
   RCLCPP_INFO(node_->get_logger(), "All params loaded!");
 
-  const std::string display_config_filename = pwd + "/.mrs_status_display_config~";
+  const std::string         display_config_filename = pwd + "/.mrs_status_display_config~";
   const std::vector<double> goto_values(goto_values_mat.data(), goto_values_mat.data() + goto_values_mat.size());
 
   const tui::TUI::TUIParams tui_params{
@@ -147,7 +147,7 @@ void Status::initialize() {
 
   profiler_ = mrs_lib::Profiler(node_, "Status", _profiler_enabled_);
 
-  initialized_ = true;
+  is_initialized_ = true;
 
   RCLCPP_INFO(node_->get_logger(), "initialized");
 }
@@ -158,7 +158,7 @@ void Status::initialize() {
 
 void Status::timerRender() {
 
-  if (!initialized_) {
+  if (!is_initialized_) {
     return;
   }
 
@@ -310,56 +310,56 @@ void Status::timerRender() {
 /* callbacks //{ */
 
 void Status::callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::ConstSharedPtr msg) {
-  if (!initialized_) {
+  if (!is_initialized_) {
     return;
   }
   tui_->onGeneralRobotInfo(*msg);
 }
 
 void Status::callbackStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo::ConstSharedPtr msg) {
-  if (!initialized_) {
+  if (!is_initialized_) {
     return;
   }
   tui_->onStateEstimationInfo(*msg);
 }
 
 void Status::callbackControlInfo(const mrs_msgs::msg::ControlInfo::ConstSharedPtr msg) {
-  if (!initialized_) {
+  if (!is_initialized_) {
     return;
   }
   tui_->onControlInfo(*msg);
 }
 
 void Status::callbackCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo::ConstSharedPtr msg) {
-  if (!initialized_) {
+  if (!is_initialized_) {
     return;
   }
   tui_->onCollisionAvoidanceInfo(*msg);
 }
 
 void Status::callbackUavInfo(const mrs_msgs::msg::UavInfo::ConstSharedPtr msg) {
-  if (!initialized_) {
+  if (!is_initialized_) {
     return;
   }
   tui_->onUavInfo(*msg);
 }
 
 void Status::callbackSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo::ConstSharedPtr msg) {
-  if (!initialized_) {
+  if (!is_initialized_) {
     return;
   }
   tui_->onSystemHealthInfo(*msg);
 }
 
 void Status::callbackUavState(const mrs_msgs::msg::State::ConstSharedPtr msg) {
-  if (!initialized_) {
+  if (!is_initialized_) {
     return;
   }
   tui_->onUavState(*msg);
 }
 
 void Status::callbackDisplayString(const std_msgs::msg::String::ConstSharedPtr msg) {
-  if (!initialized_) {
+  if (!is_initialized_) {
     return;
   }
   tui_->onString(*msg);

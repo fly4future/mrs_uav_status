@@ -204,7 +204,7 @@ private:
   */
 
   TUIParams params_;
-  bool      _light_         = false;
+  bool      light_scheme_   = false;
   bool      help_active_    = false;
   bool      in_remote_mode_ = false;
 

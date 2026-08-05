@@ -19,7 +19,7 @@ using radians = mrs_lib::geometry::radians;
 TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const TUI::TUIParams &params)
     : node_(node), clock_(node->get_clock()), params_(params) {
 
-  _light_ = (params_.colorscheme.find("COLORSCHEME_LIGHT") != std::string::npos);
+  light_scheme_ = (params_.colorscheme.find("COLORSCHEME_LIGHT") != std::string::npos);
 
   setupPanes();
 
@@ -263,7 +263,7 @@ void TUI::setupWindows() {
 
   clear();
   refresh();
-  _light_ = tui::setupColors(have_data_, params_.colorscheme, params_.colorblind_mode);
+  light_scheme_ = tui::setupColors(have_data_, params_.colorscheme, params_.colorblind_mode);
 }
 
 bool TUI::resize() {
@@ -352,7 +352,7 @@ void TUI::generalInfoHandler() {
 
   printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
 
-  if (_light_) {
+  if (light_scheme_) {
     wattron(win, A_STANDOUT);
   }
 
@@ -456,9 +456,9 @@ void TUI::renderStringsGnssPane(WINDOW *win) {
     string_vector.push_back("-y no GNSS / strings data");
   }
 
-  constexpr int max_rows = 9;
+  constexpr int MAX_STRING_ROWS = 9;
   for (const auto &raw : string_vector) {
-    if (row > max_rows) {
+    if (row > MAX_STRING_ROWS) {
       break;
     }
 
@@ -579,7 +579,7 @@ int TUI::drawPaneChrome(WINDOW *win) {
   wattroff(win, A_STANDOUT);
   printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
 
-  if (_light_) {
+  if (light_scheme_) {
     wattron(win, A_STANDOUT);
   }
 
@@ -630,40 +630,40 @@ void TUI::renderProblemsPane(WINDOW *win) {
     return;
   }
 
-  constexpr int max_rows   = 9;
-  constexpr int text_width = 80;
+  constexpr int MAX_PROBLEM_ROWS = 9;
+  constexpr int TEXT_WIDTH       = 80;
 
   const auto problems_color = problems.empty() ? ColorPair::Green : ColorPair::Red;
   wattron(win, COLOR_PAIR(static_cast<int>(problems_color)));
-  printLimitedString(win, row++, 1, "Problems: " + std::to_string(problems.size()), text_width);
+  printLimitedString(win, row++, 1, "Problems: " + std::to_string(problems.size()), TEXT_WIDTH);
   wattroff(win, COLOR_PAIR(static_cast<int>(problems_color)));
 
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   for (const auto &p : problems) {
-    if (row > max_rows) {
+    if (row > MAX_PROBLEM_ROWS) {
       break;
     }
-    printLimitedString(win, row++, 1, "- " + p, text_width);
+    printLimitedString(win, row++, 1, "- " + p, TEXT_WIDTH);
   }
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
 
-  if (row <= max_rows) {
+  if (row <= MAX_PROBLEM_ROWS) {
     ++row; // blank separator
   }
 
-  if (row <= max_rows) {
+  if (row <= MAX_PROBLEM_ROWS) {
     const auto errors_color = errors.empty() ? ColorPair::Green : ColorPair::Red;
     wattron(win, COLOR_PAIR(static_cast<int>(errors_color)));
-    printLimitedString(win, row++, 1, "Errors: " + std::to_string(errors.size()), text_width);
+    printLimitedString(win, row++, 1, "Errors: " + std::to_string(errors.size()), TEXT_WIDTH);
     wattroff(win, COLOR_PAIR(static_cast<int>(errors_color)));
   }
 
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   for (const auto &e : errors) {
-    if (row > max_rows) {
+    if (row > MAX_PROBLEM_ROWS) {
       break;
     }
-    printLimitedString(win, row++, 1, "- " + e, text_width);
+    printLimitedString(win, row++, 1, "- " + e, TEXT_WIDTH);
   }
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
 
@@ -688,9 +688,9 @@ void TUI::renderSensorsPane(WINDOW *win) {
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
   ++row;
 
-  constexpr int max_rows = 9;
+  constexpr int MAX_SENSOR_ROWS = 9;
   for (const auto &s : sensors) {
-    if (row > max_rows) {
+    if (row > MAX_SENSOR_ROWS) {
       break;
     }
 
@@ -741,7 +741,7 @@ void TUI::renderNodeCpuPane(WINDOW *win) {
   bool                                have_system_health_info;
   {
     std::scoped_lock lock(mutex_status_msg_);
-    node_cpu_loads           = last_system_health_info_.onboard_computer_info.node_cpu_loads;
+    node_cpu_loads          = last_system_health_info_.onboard_computer_info.node_cpu_loads;
     have_system_health_info = last_time_got_system_health_info_.nanoseconds() != 0;
   }
 
@@ -759,7 +759,7 @@ void TUI::renderNodeCpuPane(WINDOW *win) {
     cpu_load_total += n.cpu_load;
   }
 
-  constexpr int max_node_row = 9;
+  constexpr int MAX_NODE_ROWS = 9;
 
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
   printLimitedString(win, row, 42, "Total CPU", 20);
@@ -779,7 +779,7 @@ void TUI::renderNodeCpuPane(WINDOW *win) {
             [](const auto &a, const auto &b) { return (a.cpu_load > b.cpu_load) || ((a.cpu_load == b.cpu_load) && (a.node_name < b.node_name)); });
 
   for (const auto &n : node_cpu_loads) {
-    if (row > max_node_row) {
+    if (row > MAX_NODE_ROWS) {
       break;
     }
     printLimitedString(win, row, 1, n.node_name, 36);
@@ -851,7 +851,7 @@ void TUI::uavStateHandler() {
   wattroff(win, A_STANDOUT);
   printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
 
-  if (_light_) {
+  if (light_scheme_) {
     wattron(win, A_STANDOUT);
   }
 
@@ -1020,7 +1020,7 @@ void TUI::controlManagerHandler() {
   wattroff(win, A_STANDOUT);
   printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
 
-  if (_light_) {
+  if (light_scheme_) {
     wattron(win, A_STANDOUT);
   }
 
@@ -1204,7 +1204,7 @@ void TUI::hwApiStateHandler() {
   wattroff(win, A_STANDOUT);
   printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
 
-  if (_light_) {
+  if (light_scheme_) {
     wattron(win, A_STANDOUT);
   }
 
@@ -1527,7 +1527,7 @@ void TUI::topLineHandler() {
     last_time_got_data            = last_time_got_data_;
   }
 
-  if (_light_) {
+  if (light_scheme_) {
     wattron(win, A_STANDOUT);
   }
 
@@ -1538,8 +1538,8 @@ void TUI::topLineHandler() {
 
   // If we haven't received data for a while, switch to the "no data" color scheme. If we start receiving data again, switch back to the normal color scheme.
   if (const bool nd = (since_data_s < 3.0); nd != have_data_) {
-    have_data_ = nd;
-    _light_    = setupColors(have_data_, params_.colorscheme, params_.colorblind_mode);
+    have_data_    = nd;
+    light_scheme_ = setupColors(have_data_, params_.colorscheme, params_.colorblind_mode);
   }
 
   since_data_s = std::min(since_data_s, 99.9);
@@ -1648,7 +1648,7 @@ void TUI::blankBottomWindow() {
 }
 
 void TUI::renderServiceResult(bool success, const std::string &msg) {
-  printServiceResult(bottom_window_.get(), _light_, success, msg);
+  printServiceResult(bottom_window_.get(), light_scheme_, success, msg);
   bottom_window_clear_time_ = clock_->now();
 }
 
@@ -2071,7 +2071,7 @@ void TUI::remoteHandler(int key) {
 }
 
 void TUI::drawRemoteBanner(WINDOW *win) {
-  if (_light_) {
+  if (light_scheme_) {
     wattron(win, A_STANDOUT);
   }
 

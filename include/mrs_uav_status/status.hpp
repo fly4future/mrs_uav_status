@@ -82,7 +82,7 @@ private:
   void callbackUavState(const mrs_msgs::msg::State::ConstSharedPtr msg);
   void callbackDisplayString(const std_msgs::msg::String::ConstSharedPtr msg);
 
-  std::atomic<bool> initialized_ = false;
+  std::atomic<bool> is_initialized_ = false;
 
   mrs_lib::Profiler         profiler_;
   std::unique_ptr<tui::TUI> tui_;
