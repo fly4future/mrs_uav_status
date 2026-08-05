@@ -1157,7 +1157,7 @@ void TUI::hwApiStateHandler() {
   WINDOW     *win = hw_api_state_window_.get();
   int16_t     color;
   double      hw_api_rate, cmd_rate;
-  bool        gnss_ok, armed, have_uav_info;
+  bool        gnss_ok, armed, have_uav_info, autopilot_ok;
   std::string mode;
   double      battery_volt, battery_curr, battery_wh_drained;
   double      thrust, mass_estimate, mass_set, gnss_qual, mag_norm, mag_norm_rate;
@@ -1175,6 +1175,13 @@ void TUI::hwApiStateHandler() {
     if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GNSS); gnss) {
       gnss_ok   = (gnss->level == mrs_msgs::msg::SensorStatus::OK);
       gnss_qual = utils::parseDoubleOr(utils::lookupDetail(gnss->details, "quality"), 0.0);
+    }
+
+    // Catches HwApiStatus (armed/offboard) going stale on its own; have_uav_info alone can't, since
+    // DiagnosticsManager keeps republishing UavInfo. Defaults true if the AUTOPILOT handler isn't configured.
+    autopilot_ok = true;
+    if (const auto *autopilot = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_AUTOPILOT); autopilot) {
+      autopilot_ok = (autopilot->level == mrs_msgs::msg::SensorStatus::OK);
     }
 
     mag_norm      = 0.0;
@@ -1222,7 +1229,7 @@ void TUI::hwApiStateHandler() {
       printNoData(win, 0, 1, params_.start_minimized);
     }
 
-    if (!have_uav_info) {
+    if (!have_uav_info || !autopilot_ok) {
 
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
       printLimitedString(win, 1, 1, "ERR", 3);
@@ -1353,7 +1360,7 @@ void TUI::hwApiStateHandler() {
       printNoData(win, 0, 1, params_.start_minimized);
     }
 
-    if (!have_uav_info) {
+    if (!have_uav_info || !autopilot_ok) {
 
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
       printLimitedString(win, 1, 1, "State: ", 15);
