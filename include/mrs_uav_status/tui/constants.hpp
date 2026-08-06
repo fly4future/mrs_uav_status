@@ -20,16 +20,14 @@ enum class ColorPair : int
   Field  = 101,
   Green  = 102,
   Red    = 103,
-  Yellow = 104,
-  Blue   = 105
+  Yellow = 104
 };
 
 // --- Background Colors ---
-// Useful for specifying transparency (Default) or deep black (TrueBlack).
+// Useful for specifying transparency.
 enum class BackgroundColor : int
 {
-  Default   = -1,
-  TrueBlack = 16
+  Default = -1
 };
 
 // --- Extended Terminal Colors ---
@@ -37,7 +35,6 @@ enum class BackgroundColor : int
 enum class Color : int
 {
   NiceRed    = 196,
-  DarkRed    = 88,
   NiceGreen  = 82,
   DarkGreen  = 2,
   NiceBlue   = 33,
