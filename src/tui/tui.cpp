@@ -691,7 +691,24 @@ void TUI::renderSensorsPane(WINDOW *win) {
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
   ++row;
 
+  // Worst-first: ERROR, WARN, STALE, then OK -- so the sensors most worth seeing
+  // survive the MAX_SENSOR_ROWS cutoff below when the list is longer than it.
+  auto severity_rank = [](uint8_t level) -> int {
+    switch (level) {
+    case mrs_msgs::msg::SensorStatus::ERROR:
+      return 0;
+    case mrs_msgs::msg::SensorStatus::WARN:
+      return 1;
+    case mrs_msgs::msg::SensorStatus::STALE:
+      return 2;
+    default: // OK
+      return 3;
+    }
+  };
+  std::stable_sort(sensors.begin(), sensors.end(), [&severity_rank](const auto &a, const auto &b) { return severity_rank(a.level) < severity_rank(b.level); });
+
   constexpr int MAX_SENSOR_ROWS = 9;
+  constexpr int MESSAGE_WIDTH   = 80;
   for (const auto &s : sensors) {
     if (row > MAX_SENSOR_ROWS) {
       break;
@@ -725,8 +742,13 @@ void TUI::renderSensorsPane(WINDOW *win) {
     }
     wattron(win, COLOR_PAIR(color));
     printLimitedString(win, row, 55, label, 12);
-    wattroff(win, COLOR_PAIR(color));
     ++row;
+
+    if (s.level != mrs_msgs::msg::SensorStatus::OK && row <= MAX_SENSOR_ROWS) {
+      printLimitedString(win, row, 1, "    -> " + s.message, MESSAGE_WIDTH);
+      ++row;
+    }
+    wattroff(win, COLOR_PAIR(color));
   }
 
   if (sensors.empty()) {
