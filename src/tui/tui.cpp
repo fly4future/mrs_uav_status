@@ -1385,9 +1385,9 @@ void TUI::hwApiStateHandler() {
     if (hw_api_rate == 0 || !have_system_health_info) {
 
       // Showing a healthy Hz next to NO DATA reads as contradictory -- suppress it too.
+      // (State/Mode/Mag/Batt/Thrust below already show their own NO DATA, no extra marker needed.)
       printNoData(win, 0, 9, "HW Api ", params_.start_minimized);
       wattroff(win, COLOR_PAIR(color));
-      printNoData(win, 0, 1, params_.start_minimized);
 
     } else {
 
