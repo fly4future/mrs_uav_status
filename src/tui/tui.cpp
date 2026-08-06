@@ -663,9 +663,19 @@ void TUI::renderSensorsPane(WINDOW *win) {
   int row = drawPaneChrome(win);
 
   std::vector<mrs_msgs::msg::SensorStatus> sensors;
+  bool                                     have_system_health_info;
   {
     std::scoped_lock lock(mutex_status_msg_);
-    sensors = last_system_health_info_.available_sensors;
+    sensors                 = last_system_health_info_.available_sensors;
+    have_system_health_info = have_system_health_info_;
+  }
+
+  if (!have_system_health_info) {
+    // Otherwise the last real sensor list/rates/statuses render forever, looking healthy.
+    printNoData(win, row, 1, params_.start_minimized);
+    wattroff(win, A_BOLD);
+    wnoutrefresh(win);
+    return;
   }
 
   // Column header.
