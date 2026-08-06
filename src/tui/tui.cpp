@@ -63,9 +63,6 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
   sc_set_estimator_      = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_estimator_out", cbkgrp_sc);
   sc_hover_              = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, "~/hover_out", cbkgrp_sc);
   sc_toggle_output_      = mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>(node_, "~/toggle_output_out", cbkgrp_sc);
-
-  transformer_ = std::make_unique<mrs_lib::Transformer>(node_);
-  transformer_->retryLookupNewest(true);
 }
 
 void TUI::onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg) {

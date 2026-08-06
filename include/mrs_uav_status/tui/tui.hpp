@@ -40,7 +40,6 @@
 
 #include <mrs_lib/publisher_handler.h>
 #include <mrs_lib/service_client_handler.h>
-#include <mrs_lib/transformer.h>
 
 namespace mrs_uav_status::tui
 {
@@ -153,8 +152,6 @@ private:
   };
 
   std::vector<ServiceEntry> service_entries_;
-
-  std::unique_ptr<mrs_lib::Transformer> transformer_;
 
   // | ----------------------- UAV status snapshot --------------- |
   // All last_*_ snapshots are guarded by this single mutex.
