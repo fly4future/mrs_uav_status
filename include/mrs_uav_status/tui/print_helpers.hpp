@@ -67,16 +67,28 @@ inline void printCompressedLimitedString(WINDOW *win, int y, int x, const std::s
 }
 
 inline void printNoData(WINDOW *win, int y, int x, [[maybe_unused]] bool mini) {
+  // Save/restore instead of wattroff(): ncurses attributes aren't stacked, so a blind
+  // wattroff() would clobber a color the caller turned on around this call.
+  attr_t saved_attrs;
+  short  saved_pair;
+  wattr_get(win, &saved_attrs, &saved_pair, nullptr);
+
   wattron(win, A_BLINK);
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   mvwprintw(win, y, x, "NO DATA");
-  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-  wattroff(win, A_BLINK);
+
+  wattr_set(win, saved_attrs, saved_pair, nullptr);
 }
 
 inline void printNoData(WINDOW *win, int y, int x, const std::string &text, bool mini) {
+  attr_t saved_attrs;
+  short  saved_pair;
+  wattr_get(win, &saved_attrs, &saved_pair, nullptr);
+
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   mvwprintw(win, y, x, text.c_str());
+
+  wattr_set(win, saved_attrs, saved_pair, nullptr);
   printNoData(win, y, x + static_cast<int>(text.length()), mini);
 }
 
