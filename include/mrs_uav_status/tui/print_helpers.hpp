@@ -136,6 +136,17 @@ inline void printHelp(WINDOW *win, bool help_active) {
   wnoutrefresh(win);
 }
 
+// Shown instead of printHelp() while in Remote mode, where 'h' is a flight command, not a help toggle.
+inline void printRemoteHelp(WINDOW *win) {
+  werase(win);
+  printLimitedString(win, 1, 0, "REMOTE MODE ACTIVE -- press 'R' or Esc to exit", 120);
+  printLimitedString(win, 2, 0, "   'w','s','a','d' to control pitch and roll ('h','j','k','l' works too)", 120);
+  printLimitedString(win, 3, 0, "   'q','e'         to control heading", 120);
+  printLimitedString(win, 4, 0, "   'r','f'         to control altitude", 120);
+  printLimitedString(win, 5, 0, "   'G'             to switch controlling in the FCU frame (local) or the world frame (global)", 120);
+  wnoutrefresh(win);
+}
+
 inline void printTmuxDump(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2, const std::vector<int> &selected, const std::string &session_name,
                           const std::vector<std::string> &display_menu_text, int max_windows, bool avoiding_collision, bool bumper_active, bool can_takeoff,
                           bool null_tracker) {

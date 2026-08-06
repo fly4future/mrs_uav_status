@@ -2296,6 +2296,12 @@ void TUI::renderTmuxOrHelp() {
   WINDOW *sub1         = sub_tmux_window_1_.get();
   WINDOW *sub2         = sub_tmux_window_2_.get();
 
+  // Remote mode overrides tmux dump / help entirely -- 'h' doesn't toggle help while in remote mode.
+  if (in_remote_mode_) {
+    printRemoteHelp(debug_window);
+    return;
+  }
+
   // The bottom region (y=13+) is now exclusively the help / tmux-dump overlay —
   // the pane panel moved up into the top-right, so there's no contention.
   if (!selected_tmux_window_.empty()) {
