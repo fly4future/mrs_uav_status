@@ -1646,7 +1646,10 @@ void TUI::topLineHandler() {
   } else {
     // "ToF: NO DATA" (12 chars) would overlap the uav_name/type field starting at x=10.
     wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-    mvwprintw(win, 0, 0, "ToF: ERR");
+    mvwprintw(win, 0, 0, "ToF: ");
+    wattron(win, A_BLINK);
+    mvwprintw(win, 0, 5, "ERR");
+    wattroff(win, A_BLINK);
     wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   }
   wattroff(win, A_BOLD);
