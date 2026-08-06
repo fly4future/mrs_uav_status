@@ -14,10 +14,17 @@
 #include <mrs_msgs/msg/uav_info.hpp>
 #include <std_msgs/msg/string.hpp>
 
+#include <mrs_msgs/srv/string.hpp>
+#include <mrs_msgs/srv/reference_stamped_srv.hpp>
+#include <mrs_msgs/srv/velocity_reference_stamped_srv.hpp>
+#include <std_srvs/srv/trigger.hpp>
+#include <std_srvs/srv/set_bool.hpp>
+
 #include <mrs_lib/node.h>
 #include <mrs_lib/profiler.h>
 #include <mrs_lib/subscriber_handler.h>
 #include <mrs_lib/param_loader.h>
+#include <mrs_lib/service_client_handler.h>
 
 #if USE_ROS_TIMER == 1
 using TimerType = mrs_lib::ROSTimer;
@@ -69,6 +76,17 @@ private:
   mrs_lib::SubscriberHandler<mrs_msgs::msg::SystemHealthInfo>       sh_system_health_info_;
   mrs_lib::SubscriberHandler<mrs_msgs::msg::State>                  sh_uav_state_;
   mrs_lib::SubscriberHandler<std_msgs::msg::String>                 sh_display_string_;
+
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>         sc_goto_reference_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::VelocityReferenceStampedSrv> sc_velocity_reference_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_constraints_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_gains_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_controller_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_tracker_;
+  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_estimator_;
+  mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>                     sc_hover_;
+  mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>                     sc_toggle_output_;
+  std::vector<mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>>        sc_extra_services_;
 
   std::shared_ptr<TimerType> timer_render_;
 

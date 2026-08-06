@@ -199,7 +199,112 @@ void Status::initialize() {
       .goto_values              = goto_values,
   };
 
-  tui_ = std::make_unique<tui::TUI>(node_, cbkgrp_sc_, tui_params);
+  sc_goto_reference_     = mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>(node_, "~/goto_reference_out", cbkgrp_sc_);
+  sc_velocity_reference_ = mrs_lib::ServiceClientHandler<mrs_msgs::srv::VelocityReferenceStampedSrv>(node_, "~/velocity_reference_out", cbkgrp_sc_);
+  sc_set_constraints_    = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_constraints_out", cbkgrp_sc_);
+  sc_set_gains_          = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_gains_out", cbkgrp_sc_);
+  sc_set_controller_     = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_controller_out", cbkgrp_sc_);
+  sc_set_tracker_        = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_tracker_out", cbkgrp_sc_);
+  sc_set_estimator_      = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_estimator_out", cbkgrp_sc_);
+  sc_hover_              = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, "~/hover_out", cbkgrp_sc_);
+  sc_toggle_output_      = mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>(node_, "~/toggle_output_out", cbkgrp_sc_);
+
+  tui::CommandSink command_sink;
+
+  command_sink.sendGoto = [this](double x, double y, double z, double heading, const std::string &frame_id) -> tui::CommandSink::ServiceResult {
+    auto request                  = std::make_shared<mrs_msgs::srv::ReferenceStampedSrv::Request>();
+    request->reference.position.x = x;
+    request->reference.position.y = y;
+    request->reference.position.z = z;
+    request->reference.heading    = heading;
+    request->header.frame_id      = frame_id;
+    auto response                 = sc_goto_reference_.callSync(request);
+    if (!response) {
+      return {false, "service could not be called"};
+    }
+    return {response.value()->success, response.value()->message};
+  };
+
+  command_sink.sendVelocityReference = [this](double vx, double vy, double vz, double heading_rate, const std::string &frame_id) {
+    auto request                                  = std::make_shared<mrs_msgs::srv::VelocityReferenceStampedSrv::Request>();
+    request->reference.reference.velocity.x       = vx;
+    request->reference.reference.velocity.y       = vy;
+    request->reference.reference.velocity.z       = vz;
+    request->reference.reference.heading_rate     = heading_rate;
+    request->reference.reference.use_heading_rate = true;
+    request->reference.header.frame_id            = frame_id;
+    request->reference.header.stamp               = clock_->now();
+    sc_velocity_reference_.callSync(request);
+  };
+
+  auto makeStringSetter = [this](mrs_lib::ServiceClientHandler<mrs_msgs::srv::String> &client) {
+    return [this, &client](const std::string &value) -> tui::CommandSink::ServiceResult {
+      auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
+      request->value = value;
+      auto response  = client.callSync(request);
+      if (!response) {
+        return {false, "service could not be called"};
+      }
+      return {response.value()->success, response.value()->message};
+    };
+  };
+  command_sink.setConstraints = makeStringSetter(sc_set_constraints_);
+  command_sink.setGains       = makeStringSetter(sc_set_gains_);
+  command_sink.setController  = makeStringSetter(sc_set_controller_);
+  command_sink.setTracker     = makeStringSetter(sc_set_tracker_);
+  command_sink.setEstimator   = makeStringSetter(sc_set_estimator_);
+
+  command_sink.hover = [this]() -> tui::CommandSink::ServiceResult {
+    auto request  = std::make_shared<std_srvs::srv::Trigger::Request>();
+    auto response = sc_hover_.callSync(request);
+    if (!response) {
+      return {false, "service could not be called"};
+    }
+    return {response.value()->success, response.value()->message};
+  };
+
+  command_sink.toggleOutput = [this]() -> tui::CommandSink::ServiceResult {
+    auto request  = std::make_shared<std_srvs::srv::SetBool::Request>();
+    request->data = true;
+    auto response = sc_toggle_output_.callSync(request);
+    if (!response) {
+      return {false, "service could not be called"};
+    }
+    return {response.value()->success, response.value()->message};
+  };
+
+  sc_extra_services_.reserve(service_list.size());
+  for (const auto &service_input : service_list) {
+    std::vector<std::string> results = utils::splitByChar(service_input, ' ');
+
+    if (results.size() < 2 || results[0].empty()) {
+      RCLCPP_ERROR(node_->get_logger(),
+                   "Invalid service entry: '%s'. Each entry must contain at least a service name and a display name, separated by a space.",
+                   service_input.c_str());
+      continue;
+    }
+
+    for (unsigned long j = 2; j < results.size(); j++) {
+      results[1] = results[1] + " " + results[j];
+    }
+
+    const std::string service_name = (results[0].at(0) == '/') ? results[0] : "/" + uav_name + "/" + results[0];
+    const std::string display_name = results[1];
+
+    sc_extra_services_.emplace_back(node_, service_name, cbkgrp_sc_);
+    const std::size_t idx = sc_extra_services_.size() - 1;
+
+    command_sink.extra_services.push_back({display_name, [this, idx]() -> tui::CommandSink::ServiceResult {
+                                             auto request  = std::make_shared<std_srvs::srv::Trigger::Request>();
+                                             auto response = sc_extra_services_[idx].callSync(request);
+                                             if (!response) {
+                                               return {false, "service could not be called"};
+                                             }
+                                             return {response.value()->success, response.value()->message};
+                                           }});
+  }
+
+  tui_ = std::make_unique<tui::TUI>(clock_, tui_params, std::move(command_sink));
   tui_->updateTermSize();
   tui_->setupWindows();
   tui_->loadDisplayConfig();

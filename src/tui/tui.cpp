@@ -8,7 +8,6 @@
 #include <sstream>
 
 #include <mrs_lib/geometry/cyclic.h>
-#include <mrs_msgs/msg/reference_stamped.hpp>
 
 namespace mrs_uav_status::tui
 {
@@ -16,8 +15,8 @@ namespace mrs_uav_status::tui
 using radians = mrs_lib::geometry::radians;
 
 
-TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const TUI::TUIParams &params)
-    : node_(node), clock_(node->get_clock()), params_(params) {
+TUI::TUI(rclcpp::Clock::SharedPtr clock, const TUI::TUIParams &params, CommandSink command_sink)
+    : clock_(clock), params_(params), command_sink_(std::move(command_sink)) {
 
   light_scheme_ = (params_.colorscheme.find("COLORSCHEME_LIGHT") != std::string::npos);
 
@@ -25,44 +24,7 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
 
   bottom_window_clear_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
 
-  goto_double_vec_   = params_.goto_values;
-  service_input_vec_ = params_.service_list;
-
-  for (const auto &service_input : service_input_vec_) {
-    std::vector<std::string> results = utils::splitByChar(service_input, ' ');
-
-    if (results.size() < 2 || results[0].empty()) {
-      RCLCPP_ERROR(node_->get_logger(),
-                   "Invalid service entry: '%s'. Each entry must contain at least a service name and a display name, separated by a space.",
-                   service_input.c_str());
-      continue;
-    }
-
-    for (unsigned long j = 2; j < results.size(); j++) {
-      results[1] = results[1] + " " + results[j];
-    }
-
-    std::string service_name;
-
-    if (results[0].at(0) == '/') {
-      service_name = results[0];
-    } else {
-      service_name = "/" + params_.uav_name + "/" + results[0];
-    }
-
-    auto service_display_name = results[1];
-    service_entries_.emplace_back(service_display_name, mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, service_name, cbkgrp_sc));
-  }
-
-  sc_goto_reference_     = mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>(node_, "~/goto_reference_out", cbkgrp_sc);
-  sc_velocity_reference_ = mrs_lib::ServiceClientHandler<mrs_msgs::srv::VelocityReferenceStampedSrv>(node_, "~/velocity_reference_out", cbkgrp_sc);
-  sc_set_constraints_    = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_constraints_out", cbkgrp_sc);
-  sc_set_gains_          = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_gains_out", cbkgrp_sc);
-  sc_set_controller_     = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_controller_out", cbkgrp_sc);
-  sc_set_tracker_        = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_tracker_out", cbkgrp_sc);
-  sc_set_estimator_      = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_estimator_out", cbkgrp_sc);
-  sc_hover_              = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, "~/hover_out", cbkgrp_sc);
-  sc_toggle_output_      = mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>(node_, "~/toggle_output_out", cbkgrp_sc);
+  goto_double_vec_ = params_.goto_values;
 }
 
 void TUI::initTerminal() {
@@ -1759,57 +1721,26 @@ void TUI::createSubMenu(std::vector<std::string> &submenu_entries) {
   }
 }
 
-void TUI::createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<mrs_msgs::srv::String> &service_client) {
+void TUI::createSubMenuActions(std::vector<std::string> &submenu_entries, const std::function<CommandSink::ServiceResult(const std::string &)> &call) {
   sub_menu_rows_.clear();
   for (const auto &entry : submenu_entries) {
-    sub_menu_rows_.push_back({entry, [this, entry, &service_client]() {
-                                auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
-                                request->value = entry;
-                                auto response  = service_client.callSync(request);
-                                if (!response) {
-                                  renderServiceResult(false, "service could not be called");
-                                } else {
-                                  renderServiceResult(response.value()->success, response.value()->message);
-                                }
+    sub_menu_rows_.push_back({entry, [this, entry, call]() {
+                                const auto result = call(entry);
+                                renderServiceResult(result.success, result.message);
                               }});
   }
 }
 
-void TUI::createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger> &service_client) {
+void TUI::createSubMenuActions(std::vector<std::string> &submenu_entries, const std::function<CommandSink::ServiceResult()> &call) {
   sub_menu_rows_.clear();
   for (const auto &entry : submenu_entries) {
     if (entry == "CANCEL") {
       sub_menu_rows_.push_back({"CANCEL", []() {}});
       continue;
     }
-    sub_menu_rows_.push_back({entry, [this, entry, &service_client]() {
-                                auto request  = std::make_shared<std_srvs::srv::Trigger::Request>();
-                                auto response = service_client.callSync(request);
-                                if (!response) {
-                                  renderServiceResult(false, "service could not be called");
-                                } else {
-                                  renderServiceResult(response.value()->success, response.value()->message);
-                                }
-                              }});
-  }
-}
-
-void TUI::createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool> &service_client) {
-  sub_menu_rows_.clear();
-  for (const auto &entry : submenu_entries) {
-    if (entry == "CANCEL") {
-      sub_menu_rows_.push_back({"CANCEL", []() {}});
-      continue;
-    }
-    sub_menu_rows_.push_back({entry, [this, entry, &service_client]() {
-                                auto request  = std::make_shared<std_srvs::srv::SetBool::Request>();
-                                request->data = true;
-                                auto response = service_client.callSync(request);
-                                if (!response) {
-                                  renderServiceResult(false, "service could not be called");
-                                } else {
-                                  renderServiceResult(response.value()->success, response.value()->message);
-                                }
+    sub_menu_rows_.push_back({entry, [this, call]() {
+                                const auto result = call();
+                                renderServiceResult(result.success, result.message);
                               }});
   }
 }
@@ -1828,7 +1759,7 @@ void TUI::setupMainMenu() {
   }
 
   // Create menu entries for trigger services
-  for (auto &service : service_entries_) {
+  for (const auto &service : command_sink_.extra_services) {
     std::string name = service.display_name;
     std::transform(name.begin(), name.end(), name.begin(), ::tolower);
     if (null_tracker && (name.find("land") != std::string::npos)) {
@@ -1837,10 +1768,10 @@ void TUI::setupMainMenu() {
     if (!null_tracker && (name.find("takeoff") != std::string::npos)) {
       continue;
     }
-    main_menu_rows_.push_back({service.display_name, [this, service]() mutable {
+    main_menu_rows_.push_back({service.display_name, [this, service]() {
                                  std::vector<std::string> menu_text{"CANCEL", service.display_name};
                                  createSubMenu(menu_text);
-                                 createSubMenuActions(menu_text, service.client);
+                                 createSubMenuActions(menu_text, service.call);
                                }});
   }
 
@@ -1848,7 +1779,7 @@ void TUI::setupMainMenu() {
   main_menu_rows_.push_back({"Toggle Output", [this]() {
                                std::vector<std::string> menu_text{"CANCEL", "Toggle Output"};
                                createSubMenu(menu_text);
-                               createSubMenuActions(menu_text, sc_toggle_output_);
+                               createSubMenuActions(menu_text, command_sink_.toggleOutput);
                              }});
 
   // Create menu entries for setting controller, tracker, gains, constraints, estimator
@@ -1860,7 +1791,7 @@ void TUI::setupMainMenu() {
                                }
                                sub_menu_rows_.clear();
                                createSubMenu(constraints_text);
-                               createSubMenuActions(constraints_text, sc_set_constraints_);
+                               createSubMenuActions(constraints_text, command_sink_.setConstraints);
                              }});
 
   main_menu_rows_.push_back({"Set Gains", [this]() {
@@ -1870,7 +1801,7 @@ void TUI::setupMainMenu() {
                                  gains_text = utils::withActiveFirst(last_control_info_.active_gains, last_control_info_.available_gains);
                                }
                                createSubMenu(gains_text);
-                               createSubMenuActions(gains_text, sc_set_gains_);
+                               createSubMenuActions(gains_text, command_sink_.setGains);
                              }});
 
   main_menu_rows_.push_back({"Set Controller", [this]() {
@@ -1880,7 +1811,7 @@ void TUI::setupMainMenu() {
                                  controllers_text = utils::withActiveFirst(last_control_info_.active_controller, last_control_info_.available_controllers);
                                }
                                createSubMenu(controllers_text);
-                               createSubMenuActions(controllers_text, sc_set_controller_);
+                               createSubMenuActions(controllers_text, command_sink_.setController);
                              }});
 
   main_menu_rows_.push_back({"Set Tracker", [this]() {
@@ -1890,7 +1821,7 @@ void TUI::setupMainMenu() {
                                  trackers_text = utils::withActiveFirst(last_control_info_.active_tracker, last_control_info_.available_trackers);
                                }
                                createSubMenu(trackers_text);
-                               createSubMenuActions(trackers_text, sc_set_tracker_);
+                               createSubMenuActions(trackers_text, command_sink_.setTracker);
                              }});
 
   main_menu_rows_.push_back({"Set Estimator", [this]() {
@@ -1901,7 +1832,7 @@ void TUI::setupMainMenu() {
                                      utils::withActiveFirst(last_state_estimation_info_.current_estimator, last_state_estimation_info_.switchable_estimators);
                                }
                                createSubMenu(odometry_lat_sources_text);
-                               createSubMenuActions(odometry_lat_sources_text, sc_set_estimator_);
+                               createSubMenuActions(odometry_lat_sources_text, command_sink_.setEstimator);
                              }});
 
   for (const auto &rows : main_menu_rows_) {
@@ -1998,27 +1929,14 @@ bool TUI::gotoMenuHandler(int key) {
     goto_double_vec_[2] = goto_menu_inputs_[2].getDouble();
     goto_double_vec_[3] = goto_menu_inputs_[3].getDouble();
 
-    auto request = std::make_shared<mrs_msgs::srv::ReferenceStampedSrv::Request>();
-
-    request->reference.position.x = goto_double_vec_[0];
-    request->reference.position.y = goto_double_vec_[1];
-    request->reference.position.z = goto_double_vec_[2];
-    request->reference.heading    = goto_double_vec_[3];
-
+    std::string frame_id;
     {
       std::scoped_lock lock(mutex_status_msg_);
-      request->header.frame_id = last_state_estimation_info_.frame_id;
+      frame_id = last_state_estimation_info_.frame_id;
     }
 
-    auto response = sc_goto_reference_.callSync(request);
-
-    if (!response) {
-      renderServiceResult(false, "service could not be called");
-      menu_vec_.clear();
-      return true;
-    }
-
-    renderServiceResult(response.value()->success, response.value()->message);
+    const auto result_service = command_sink_.sendGoto(goto_double_vec_[0], goto_double_vec_[1], goto_double_vec_[2], goto_double_vec_[3], frame_id);
+    renderServiceResult(result_service.success, result_service.message);
     menu_vec_.clear();
     return true;
 
@@ -2190,13 +2108,7 @@ void TUI::handleRemoteMotion(int key) {
   const double hdg_step = turbo_remote_ ? 1.0 : 0.5;
 
   auto fly = [&](double vx, double vy, double vz, double vhdg) {
-    mrs_msgs::msg::VelocityReference reference{};
-    reference.velocity.x       = vx;
-    reference.velocity.y       = vy;
-    reference.velocity.z       = vz;
-    reference.heading_rate     = vhdg;
-    reference.use_heading_rate = true;
-    remoteModeFly(reference);
+    remoteModeFly(vx, vy, vz, vhdg);
     remote_hover_ = true;
   };
 
@@ -2238,8 +2150,7 @@ void TUI::handleRemoteMotion(int key) {
 
   default:
     if (remote_hover_) {
-      auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
-      sc_hover_.callSync(request);
+      command_sink_.hover();
       remote_hover_ = false;
     }
     break;
@@ -2259,15 +2170,9 @@ void TUI::toggleTurboRemote() {
 
   if (turbo_remote_) {
     // Toggle down turbo remote after new pressed T
-    turbo_remote_  = false;
-    auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
-    request->value = old_constraints_;
-    auto response  = sc_set_constraints_.callSync(request);
-    if (!response) {
-      renderServiceResult(false, "service could not be called");
-      return;
-    }
-    renderServiceResult(response.value()->success, response.value()->message);
+    turbo_remote_     = false;
+    const auto result = command_sink_.setConstraints(old_constraints_);
+    renderServiceResult(result.success, result.message);
     return;
   }
 
@@ -2277,40 +2182,20 @@ void TUI::toggleTurboRemote() {
     std::scoped_lock lock(mutex_status_msg_);
     old_constraints_ = last_control_info_.active_constraints;
   }
-  auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
-  request->value = params_.turbo_remote_constraints;
-  auto response  = sc_set_constraints_.callSync(request);
-  if (!response) {
-    renderServiceResult(false, "service could not be called");
-    return;
-  }
-  renderServiceResult(response.value()->success, response.value()->message);
+  const auto result = command_sink_.setConstraints(params_.turbo_remote_constraints);
+  renderServiceResult(result.success, result.message);
 }
 
-void TUI::remoteModeFly(const mrs_msgs::msg::VelocityReference &velocity_reference) {
-  auto request = std::make_shared<mrs_msgs::srv::VelocityReferenceStampedSrv::Request>();
-
-  request->reference.reference = velocity_reference;
-
+void TUI::remoteModeFly(double vx, double vy, double vz, double heading_rate) {
   std::string uav_name;
-
   {
     std::scoped_lock lock(mutex_status_msg_);
     uav_name = last_general_robot_info_.robot_name;
   }
 
-  if (remote_global_) {
+  const std::string frame_id = uav_name + (remote_global_ ? "/world_origin" : "/fcu_untilted");
 
-    request->reference.header.frame_id = uav_name + "/world_origin";
-
-  } else {
-
-    request->reference.header.frame_id = uav_name + "/fcu_untilted";
-  }
-
-  request->reference.header.stamp = clock_->now();
-
-  auto response = sc_velocity_reference_.callSync(request);
+  command_sink_.sendVelocityReference(vx, vy, vz, heading_rate, frame_id);
 }
 
 void TUI::renderTmuxOrHelp() {

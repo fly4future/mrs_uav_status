@@ -60,6 +60,7 @@ target_sources(MrsUavStatus_Status
   FILES
     "include/mrs_uav_status/status.hpp"
     "include/mrs_uav_status/status/data_types.hpp"
+    "include/mrs_uav_status/tui/command_sink.hpp"
     "include/mrs_uav_status/tui/control_bar.hpp"
     "include/mrs_uav_status/tui/colors.hpp"
     "include/mrs_uav_status/tui/status_window.hpp"

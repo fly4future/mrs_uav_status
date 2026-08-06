@@ -24,16 +24,10 @@
 #include <mrs_uav_status/utils/terminal.hpp>
 
 #include <mrs_uav_status/status/data_types.hpp>
+#include <mrs_uav_status/tui/command_sink.hpp>
 #include <std_msgs/msg/string.hpp>
 
-#include <mrs_msgs/srv/string.hpp>
-#include <mrs_msgs/srv/reference_stamped_srv.hpp>
-#include <mrs_msgs/srv/velocity_reference_stamped_srv.hpp>
-#include <std_srvs/srv/trigger.hpp>
-#include <std_srvs/srv/set_bool.hpp>
-
 #include <mrs_lib/publisher_handler.h>
-#include <mrs_lib/service_client_handler.h>
 
 namespace mrs_uav_status::tui
 {
@@ -55,9 +49,8 @@ public:
     std::vector<double>      goto_values;
   };
 
-  // Sets up the default panes and the goto/service-call service clients (parsing params.service_list
-  // into service_entries_).
-  TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const TUI::TUIParams &params);
+  // Sets up the default panes; all outbound ROS actions are dispatched through command_sink.
+  TUI(rclcpp::Clock::SharedPtr clock, const TUI::TUIParams &params, CommandSink command_sink);
 
   // Puts the terminal into ncurses raw/no-echo mode. Must run once, before constructing any
   // TUI and before any window is created. Call before ParamLoader/TUI construction, matching
@@ -175,28 +168,7 @@ public:
 
 private:
   // | ------------------------- ROS Core ----------------------- |
-  rclcpp::Node::SharedPtr  node_;
   rclcpp::Clock::SharedPtr clock_;
-
-
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>         sc_goto_reference_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::VelocityReferenceStampedSrv> sc_velocity_reference_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_constraints_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_gains_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_controller_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_tracker_;
-  mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_estimator_;
-  mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>                     sc_hover_;
-  mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>                     sc_toggle_output_;
-
-  // Holds one service entry and its associated client handler.
-  struct ServiceEntry
-  {
-    std::string                                           display_name;
-    mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger> client;
-  };
-
-  std::vector<ServiceEntry> service_entries_;
 
   // | ----------------------- UAV status snapshot --------------- |
   // All last_*_ snapshots are guarded by this single mutex.
@@ -248,10 +220,11 @@ private:
   // re-extract these same 4 fields independently.
   status::BorderStatus computeBorderStatus();
 
-  TUIParams params_;
-  bool      light_scheme_   = false;
-  bool      help_active_    = false;
-  bool      in_remote_mode_ = false;
+  TUIParams   params_;
+  CommandSink command_sink_;
+  bool        light_scheme_   = false;
+  bool        help_active_    = false;
+  bool        in_remote_mode_ = false;
 
   // Holds one menu entry: its label, and an on_open action run when it's selected -- used for both
   // the main menu (where on_open typically builds a submenu) and submenus (where it typically calls
@@ -267,7 +240,7 @@ private:
 
   // | -------------------- Remote (private helpers) ------------ |
   // Sends one velocity reference, in the world frame if remote_global_ else the fcu_untilted frame.
-  void remoteModeFly(const mrs_msgs::msg::VelocityReference &velocity_reference);
+  void remoteModeFly(double vx, double vy, double vz, double heading_rate);
   // Draws the REMOTE/LOCAL-GLOBAL/TURBO banner over the top bar.
   void drawRemoteBanner(WINDOW *win);
   // Maps a keypress to a velocity command (wasd/hjkl/arrows for xy, r/f for z, q/e for heading); any
@@ -286,11 +259,10 @@ private:
   // Creates the submenu window next to the main menu, listing submenu_entries.
   void createSubMenu(std::vector<std::string> &submenu_entries);
   // Populates sub_menu_rows_ with one action per entry: calling it synchronously and rendering the
-  // response via renderServiceResult(). Overloaded per service type; the Trigger/SetBool overloads
-  // treat a "CANCEL" entry as a no-op instead of calling the service.
-  void createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<mrs_msgs::srv::String> &service_client);
-  void createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger> &service_client);
-  void createSubMenuActions(std::vector<std::string> &submenu_entries, mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool> &service_client);
+  // response via renderServiceResult(). Overloaded per call arity; the no-arg overload treats a
+  // "CANCEL" entry as a no-op instead of calling the service.
+  void createSubMenuActions(std::vector<std::string> &submenu_entries, const std::function<CommandSink::ServiceResult(const std::string &)> &call);
+  void createSubMenuActions(std::vector<std::string> &submenu_entries, const std::function<CommandSink::ServiceResult()> &call);
 
   // | ---------------------- TMUX & Misc ----------------------- |
   std::vector<int> selected_tmux_window_;
@@ -342,7 +314,6 @@ private:
   std::vector<tui::StatusWindow> submenu_vec_;
   std::vector<tui::ControlBar>   goto_menu_inputs_;
 
-  std::vector<std::string> service_input_vec_;
   std::vector<std::string> main_menu_text_;
   std::vector<std::string> display_menu_text_;
   std::vector<std::string> goto_menu_text_;
