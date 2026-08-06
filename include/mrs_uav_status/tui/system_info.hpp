@@ -24,22 +24,6 @@ inline void printCpuLoad(WINDOW *win, double cpu_load, bool mini) {
   }
 }
 
-inline void printCpuTemp(WINDOW *win, double cpu_temp, bool mini) {
-  int tmp_color = static_cast<int>(ColorPair::Green);
-  if (cpu_temp > 90.0) {
-    tmp_color = static_cast<int>(ColorPair::Red);
-  } else if (cpu_temp > 75.0) {
-    tmp_color = static_cast<int>(ColorPair::Yellow);
-  }
-
-  wattron(win, COLOR_PAIR(tmp_color));
-  if (mini) {
-    printLimitedDouble(win, 0, 1, "%3.0f °C", cpu_temp, 999.9);
-  } else {
-    printLimitedDouble(win, 0, 1, "%5.1f °C", cpu_temp, 999.9);
-  }
-}
-
 inline void printCpuFreq(WINDOW *win, double cpu_ghz) {
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
   printLimitedDouble(win, 1, 16, "%4.2f GHz", cpu_ghz, 10);
