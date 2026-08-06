@@ -96,34 +96,34 @@ void TUI::commitFrame() {
   doupdate();
 }
 
-void TUI::onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg) {
+void TUI::onGeneralRobotInfo(const status::GeneralRobotInfoData &data) {
   std::scoped_lock lock(mutex_status_msg_);
-  last_general_robot_info_ = msg;
+  last_general_robot_info_ = data;
 }
 
-void TUI::onStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo &msg) {
+void TUI::onStateEstimationInfo(const status::StateEstimationInfoData &data) {
   std::scoped_lock lock(mutex_status_msg_);
-  last_state_estimation_info_ = msg;
+  last_state_estimation_info_ = data;
 }
 
-void TUI::onControlInfo(const mrs_msgs::msg::ControlInfo &msg) {
+void TUI::onControlInfo(const status::ControlInfoData &data) {
   std::scoped_lock lock(mutex_status_msg_);
-  last_control_info_ = msg;
+  last_control_info_ = data;
 }
 
-void TUI::onCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo &msg) {
+void TUI::onCollisionAvoidanceInfo(const status::CollisionAvoidanceInfoData &data) {
   std::scoped_lock lock(mutex_status_msg_);
-  last_collision_avoidance_info_ = msg;
+  last_collision_avoidance_info_ = data;
 }
 
-void TUI::onUavInfo(const mrs_msgs::msg::UavInfo &msg) {
+void TUI::onUavInfo(const status::UavInfoData &data) {
   std::scoped_lock lock(mutex_status_msg_);
-  last_uav_info_ = msg;
+  last_uav_info_ = data;
 }
 
-void TUI::onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg) {
+void TUI::onSystemHealthInfo(const status::SystemHealthInfoData &data) {
   std::scoped_lock lock(mutex_status_msg_);
-  last_system_health_info_ = msg;
+  last_system_health_info_ = data;
 }
 
 void TUI::setDataFreshness(bool general_robot_info, bool collision_avoidance_info, bool uav_info, bool system_health_info, bool state_estimation_info) {
@@ -135,9 +135,19 @@ void TUI::setDataFreshness(bool general_robot_info, bool collision_avoidance_inf
   have_state_estimation_info_    = state_estimation_info;
 }
 
-void TUI::onUavState(const mrs_msgs::msg::State &msg) {
+void TUI::onUavState(const status::StateData &data) {
   std::scoped_lock lock(mutex_status_msg_);
-  last_uav_state_ = msg;
+  last_uav_state_ = data;
+}
+
+status::BorderStatus TUI::computeBorderStatus() {
+  std::scoped_lock lock(mutex_status_msg_);
+  return status::BorderStatus{
+      .avoiding_collision = last_collision_avoidance_info_.avoiding_collision,
+      .bumper_active      = last_collision_avoidance_info_.bumper_active,
+      .can_takeoff        = last_general_robot_info_.ready_to_start,
+      .null_tracker       = (last_control_info_.active_tracker == "NullTracker"),
+  };
 }
 
 void TUI::onString(const std_msgs::msg::String &msg) {
@@ -351,17 +361,14 @@ void TUI::generalInfoHandler() {
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
   wattroff(win, A_STANDOUT);
 
-  bool   avoiding_collision, bumper_active, can_takeoff, null_tracker;
+  const status::BorderStatus bs = computeBorderStatus();
+
   double cpu_load, cpu_ghz, free_ram, total_ram;
   int    free_hdd;
   bool   have_system_health_info;
   {
     std::scoped_lock lock(mutex_status_msg_);
     const auto      &oc     = last_system_health_info_.onboard_computer_info;
-    avoiding_collision      = last_collision_avoidance_info_.avoiding_collision;
-    bumper_active           = last_collision_avoidance_info_.bumper_active;
-    can_takeoff             = last_general_robot_info_.ready_to_start;
-    null_tracker            = (last_control_info_.active_tracker == "NullTracker");
     cpu_load                = oc.cpu_load;
     cpu_ghz                 = oc.cpu_ghz;
     free_ram                = oc.free_ram;
@@ -370,7 +377,7 @@ void TUI::generalInfoHandler() {
     have_system_health_info = have_system_health_info_;
   }
 
-  printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
+  printBox(win, bs.avoiding_collision, bs.bumper_active, bs.can_takeoff, bs.null_tracker);
 
   if (light_scheme_) {
     wattron(win, A_STANDOUT);
@@ -405,7 +412,7 @@ void TUI::renderStringsGnssPane(WINDOW *win) {
   {
     std::scoped_lock lock(mutex_status_msg_);
     have_system_health_info = have_system_health_info_;
-    if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GNSS); gnss) {
+    if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, status::SENSOR_TYPE_GNSS); gnss) {
       const std::string fix_type_raw = utils::lookupDetail(gnss->details, "fix_type");
       gnss_status_msg_ok             = (fix_type_raw != "nan");
       gnss_fix_type                  = static_cast<uint8_t>(utils::parseLongOr(fix_type_raw, 0));
@@ -589,19 +596,12 @@ void TUI::paneHandler() {
 // a numbered tab bar (active tab bracketed in green, others in red) into the
 // top border. Returns the first usable content row (1).
 int TUI::drawPaneChrome(WINDOW *win) {
-  bool avoiding_collision, bumper_active, can_takeoff, null_tracker;
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
-    bumper_active      = last_collision_avoidance_info_.bumper_active;
-    can_takeoff        = last_general_robot_info_.ready_to_start;
-    null_tracker       = (last_control_info_.active_tracker == "NullTracker");
-  }
+  const status::BorderStatus bs = computeBorderStatus();
 
   werase(win);
   wattron(win, A_BOLD);
   wattroff(win, A_STANDOUT);
-  printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
+  printBox(win, bs.avoiding_collision, bs.bumper_active, bs.can_takeoff, bs.null_tracker);
 
   if (light_scheme_) {
     wattron(win, A_STANDOUT);
@@ -698,8 +698,8 @@ void TUI::renderProblemsPane(WINDOW *win) {
 void TUI::renderSensorsPane(WINDOW *win) {
   int row = drawPaneChrome(win);
 
-  std::vector<mrs_msgs::msg::SensorStatus> sensors;
-  bool                                     have_system_health_info;
+  std::vector<status::SensorStatusData> sensors;
+  bool                                  have_system_health_info;
   {
     std::scoped_lock lock(mutex_status_msg_);
     sensors                 = last_system_health_info_.available_sensors;
@@ -726,11 +726,11 @@ void TUI::renderSensorsPane(WINDOW *win) {
   // survive the MAX_SENSOR_ROWS cutoff below when the list is longer than it.
   auto severity_rank = [](uint8_t level) -> int {
     switch (level) {
-    case mrs_msgs::msg::SensorStatus::ERROR:
+    case status::SENSOR_STATUS_ERROR:
       return 0;
-    case mrs_msgs::msg::SensorStatus::WARN:
+    case status::SENSOR_STATUS_WARN:
       return 1;
-    case mrs_msgs::msg::SensorStatus::STALE:
+    case status::SENSOR_STATUS_STALE:
       return 2;
     default: // OK
       return 3;
@@ -775,7 +775,7 @@ void TUI::renderSensorsPane(WINDOW *win) {
     printLimitedString(win, row, 55, label, 12);
     ++row;
 
-    if (s.level != mrs_msgs::msg::SensorStatus::OK && row <= MAX_SENSOR_ROWS) {
+    if (s.level != status::SENSOR_STATUS_OK && row <= MAX_SENSOR_ROWS) {
       printLimitedString(win, row, 1, "    -> " + s.message, MESSAGE_WIDTH);
       ++row;
     }
@@ -793,8 +793,8 @@ void TUI::renderSensorsPane(WINDOW *win) {
 void TUI::renderNodeCpuPane(WINDOW *win) {
   int row = drawPaneChrome(win);
 
-  std::vector<mrs_msgs::msg::CpuLoad> node_cpu_loads;
-  bool                                have_system_health_info;
+  std::vector<status::CpuLoadData> node_cpu_loads;
+  bool                             have_system_health_info;
   {
     std::scoped_lock lock(mutex_status_msg_);
     node_cpu_loads          = last_system_health_info_.onboard_computer_info.node_cpu_loads;
@@ -863,23 +863,25 @@ void TUI::uavStateHandler() {
   double      cmd_x, cmd_y, cmd_z, cmd_hdg;
   std::string odom_frame, main_estimator, horizontal_estimator, vertical_estimator, heading_estimator, agl_estimator;
   double      max_flight_z;
-  bool        null_tracker, have_control_info, avoiding_collision, bumper_active, can_takeoff, have_state_estimation_info;
+  bool        null_tracker, have_control_info, have_state_estimation_info;
+
+  const status::BorderStatus bs = computeBorderStatus();
 
   {
     std::scoped_lock lock(mutex_status_msg_);
     const auto      &est       = last_state_estimation_info_;
     have_state_estimation_info = have_state_estimation_info_;
     avg_rate                   = last_system_health_info_.state_estimation_rate;
-    heading                    = est.local_pose.heading;
-    state_x                    = est.local_pose.position.x;
-    state_y                    = est.local_pose.position.y;
-    state_z                    = est.local_pose.position.z;
-    odom_frame                 = est.header.frame_id;
+    heading                    = est.heading;
+    state_x                    = est.pos_x;
+    state_y                    = est.pos_y;
+    state_z                    = est.pos_z;
+    odom_frame                 = est.frame_id;
 
-    cmd_x   = last_control_info_.cmd_pose.position.x;
-    cmd_y   = last_control_info_.cmd_pose.position.y;
-    cmd_z   = last_control_info_.cmd_pose.position.z;
-    cmd_hdg = last_control_info_.cmd_pose.heading;
+    cmd_x   = last_control_info_.cmd_pose_x;
+    cmd_y   = last_control_info_.cmd_pose_y;
+    cmd_z   = last_control_info_.cmd_pose_z;
+    cmd_hdg = last_control_info_.cmd_pose_heading;
 
     // DiagnosticsManager's default for current_estimator is the literal string "unknown", not empty.
     main_estimator       = (est.current_estimator.empty() || est.current_estimator == "unknown") ? std::string("NONE") : est.current_estimator;
@@ -889,12 +891,9 @@ void TUI::uavStateHandler() {
     agl_estimator        = est.agl_estimator;
 
     max_flight_z = est.max_flight_z;
-    null_tracker = (last_control_info_.active_tracker == "NullTracker");
+    null_tracker = bs.null_tracker;
     // "unknown" means no TrackerCommand yet, so cmd_pose is still (0,0,0).
-    have_control_info  = (last_control_info_.active_tracker != "unknown");
-    avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
-    bumper_active      = last_collision_avoidance_info_.bumper_active;
-    can_takeoff        = last_general_robot_info_.ready_to_start;
+    have_control_info = (last_control_info_.active_tracker != "unknown");
   }
   // Nominal MRS estimation rate is 100 Hz; threshold the color band off that.
   color = rateColor(avg_rate, 100.0);
@@ -907,7 +906,7 @@ void TUI::uavStateHandler() {
   werase(win);
   wattron(win, A_BOLD);
   wattroff(win, A_STANDOUT);
-  printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
+  printBox(win, bs.avoiding_collision, bs.bumper_active, bs.can_takeoff, bs.null_tracker);
 
   if (light_scheme_) {
     wattron(win, A_STANDOUT);
@@ -1062,10 +1061,12 @@ void TUI::controlManagerHandler() {
   WINDOW *win = control_manager_window_.get();
 
   int16_t     color;
-  bool        null_tracker, avoiding_collision, bumper_active, can_takeoff, have_system_health_info;
+  bool        null_tracker, have_system_health_info;
   double      rate;
   std::string curr_controller, curr_tracker, curr_gains, curr_constraints;
   bool        callbacks_enabled, rc_mode, have_goal, tracking_trajectory;
+
+  const status::BorderStatus bs = computeBorderStatus();
 
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -1084,13 +1085,10 @@ void TUI::controlManagerHandler() {
         (!have_system_health_info || ci.active_constraints.empty() || ci.active_constraints == "unknown") ? std::string("NO DATA") : ci.active_constraints;
 
     callbacks_enabled   = ci.callbacks_enabled;
-    rc_mode             = (last_uav_state_.state == mrs_msgs::msg::State::STATE_RC_MODE);
+    rc_mode             = (last_uav_state_.state == status::STATE_RC_MODE);
     have_goal           = ci.have_goal;
     tracking_trajectory = ci.tracking_trajectory;
-    null_tracker        = (ci.active_tracker == "NullTracker");
-    avoiding_collision  = last_collision_avoidance_info_.avoiding_collision;
-    bumper_active       = last_collision_avoidance_info_.bumper_active;
-    can_takeoff         = last_general_robot_info_.ready_to_start;
+    null_tracker        = bs.null_tracker;
   }
   // Nominal MRS control_manager diagnostics rate is 10 Hz.
   color = rateColor(rate, 10.0);
@@ -1098,7 +1096,7 @@ void TUI::controlManagerHandler() {
   werase(win);
   wattron(win, A_BOLD);
   wattroff(win, A_STANDOUT);
-  printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
+  printBox(win, bs.avoiding_collision, bs.bumper_active, bs.can_takeoff, bs.null_tracker);
 
   if (light_scheme_) {
     wattron(win, A_STANDOUT);
@@ -1240,7 +1238,8 @@ void TUI::hwApiStateHandler() {
   std::string mode;
   double      battery_volt, battery_curr, battery_wh_drained;
   double      thrust, mass_estimate, mass_set, gnss_qual, mag_norm, mag_norm_rate;
-  bool        avoiding_collision, bumper_active, can_takeoff, null_tracker;
+
+  const status::BorderStatus bs = computeBorderStatus();
 
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -1254,21 +1253,21 @@ void TUI::hwApiStateHandler() {
 
     // have_system_health_info catches a frozen sensor list from before DiagnosticsManager died.
     gnss_ok = false;
-    if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GNSS); gnss) {
-      gnss_ok   = have_system_health_info && (gnss->level == mrs_msgs::msg::SensorStatus::OK);
+    if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, status::SENSOR_TYPE_GNSS); gnss) {
+      gnss_ok   = have_system_health_info && (gnss->level == status::SENSOR_STATUS_OK);
       gnss_qual = utils::parseDoubleOr(utils::lookupDetail(gnss->details, "quality"), 0.0);
     }
 
     // Catches HwApiStatus (armed/offboard) going stale on its own; have_uav_info alone can't, since
     // DiagnosticsManager keeps republishing UavInfo. Defaults true if the AUTOPILOT handler isn't configured.
     autopilot_ok = true;
-    if (const auto *autopilot = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_AUTOPILOT); autopilot) {
-      autopilot_ok = (autopilot->level == mrs_msgs::msg::SensorStatus::OK);
+    if (const auto *autopilot = utils::findSensor(last_system_health_info_.available_sensors, status::SENSOR_TYPE_AUTOPILOT); autopilot) {
+      autopilot_ok = (autopilot->level == status::SENSOR_STATUS_OK);
     }
 
     mag_norm      = 0.0;
     mag_norm_rate = 0.0;
-    if (const auto *mag = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_MAGNETOMETER); mag) {
+    if (const auto *mag = utils::findSensor(last_system_health_info_.available_sensors, status::SENSOR_TYPE_MAGNETOMETER); mag) {
       mag_norm      = utils::parseDoubleOr(utils::lookupDetail(mag->details, "norm_gauss"), 0.0);
       mag_norm_rate = have_system_health_info ? mag->rate : 0.0;
     }
@@ -1282,10 +1281,6 @@ void TUI::hwApiStateHandler() {
     thrust             = last_control_info_.thrust / 100.0;
     mass_estimate      = last_uav_info_.mass_estimate;
     mass_set           = last_uav_info_.mass_nominal;
-    avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
-    bumper_active      = last_collision_avoidance_info_.bumper_active;
-    can_takeoff        = last_general_robot_info_.ready_to_start;
-    null_tracker       = (last_control_info_.active_tracker == "NullTracker");
   }
   // Nominal MRS hw_api rate is 100 Hz.
   color = rateColor(hw_api_rate, 100.0);
@@ -1295,7 +1290,7 @@ void TUI::hwApiStateHandler() {
   werase(win);
   wattron(win, A_BOLD);
   wattroff(win, A_STANDOUT);
-  printBox(win, avoiding_collision, bumper_active, can_takeoff, null_tracker);
+  printBox(win, bs.avoiding_collision, bs.bumper_active, bs.can_takeoff, bs.null_tracker);
 
   if (light_scheme_) {
     wattron(win, A_STANDOUT);
@@ -1617,7 +1612,7 @@ void TUI::topLineHandler() {
     collision_avoidance_enabled   = last_collision_avoidance_info_.collision_avoidance_enabled;
     avoiding_collision            = last_collision_avoidance_info_.avoiding_collision;
     bumper_active                 = last_collision_avoidance_info_.bumper_active;
-    num_other_uavs                = static_cast<uint16_t>(last_collision_avoidance_info_.other_robots_visible.size());
+    num_other_uavs                = static_cast<uint16_t>(last_collision_avoidance_info_.num_other_robots_visible);
     secs_flown                    = static_cast<int>(std::max(0.0f, last_uav_info_.flight_duration));
     have_general_robot_info       = have_general_robot_info_;
     have_collision_avoidance_info = have_collision_avoidance_info_;
@@ -1967,7 +1962,7 @@ void TUI::setupGotoMenu() {
 
   {
     std::scoped_lock lock(mutex_status_msg_);
-    odom_frame = last_state_estimation_info_.header.frame_id;
+    odom_frame = last_state_estimation_info_.frame_id;
   }
 
   goto_menu_inputs_.clear();
@@ -2012,7 +2007,7 @@ bool TUI::gotoMenuHandler(int key) {
 
     {
       std::scoped_lock lock(mutex_status_msg_);
-      request->header.frame_id = last_state_estimation_info_.header.frame_id;
+      request->header.frame_id = last_state_estimation_info_.frame_id;
     }
 
     auto response = sc_goto_reference_.callSync(request);
@@ -2336,16 +2331,9 @@ void TUI::renderTmuxOrHelp() {
   // The bottom region (y=13+) is now exclusively the help / tmux-dump overlay —
   // the pane panel moved up into the top-right, so there's no contention.
   if (!selected_tmux_window_.empty()) {
-    bool avoiding_collision, bumper_active, can_takeoff, null_tracker;
-    {
-      std::scoped_lock lock(mutex_status_msg_);
-      avoiding_collision = last_collision_avoidance_info_.avoiding_collision;
-      bumper_active      = last_collision_avoidance_info_.bumper_active;
-      can_takeoff        = last_general_robot_info_.ready_to_start;
-      null_tracker       = (last_control_info_.active_tracker == "NullTracker");
-    }
-    printTmuxDump(debug_window, sub1, sub2, selected_tmux_window_, session_name_, display_menu_text_, MAX_SELECTED_TMUX_WINDOWS, avoiding_collision,
-                  bumper_active, can_takeoff, null_tracker);
+    const status::BorderStatus bs = computeBorderStatus();
+    printTmuxDump(debug_window, sub1, sub2, selected_tmux_window_, session_name_, display_menu_text_, MAX_SELECTED_TMUX_WINDOWS, bs.avoiding_collision,
+                  bs.bumper_active, bs.can_takeoff, bs.null_tracker);
   } else {
     printHelp(debug_window, help_active_);
   }

@@ -14,7 +14,7 @@
 #include <mrs_uav_status/tui/colors.hpp>
 
 // <curses.h> (transitively included above by the TUI helpers) defines OK as a
-// preprocessor macro (0), colliding with mrs_msgs/SensorStatus::OK below.
+// preprocessor macro (0), colliding with symbols named OK elsewhere in this header.
 #ifdef OK
 #undef OK
 #endif
@@ -23,17 +23,12 @@
 #include <mrs_uav_status/utils/string_info.hpp>
 #include <mrs_uav_status/utils/terminal.hpp>
 
+#include <mrs_uav_status/status/data_types.hpp>
+#include <std_msgs/msg/string.hpp>
+
 #include <mrs_msgs/srv/string.hpp>
 #include <mrs_msgs/srv/reference_stamped_srv.hpp>
 #include <mrs_msgs/srv/velocity_reference_stamped_srv.hpp>
-#include <mrs_msgs/msg/collision_avoidance_info.hpp>
-#include <mrs_msgs/msg/control_info.hpp>
-#include <mrs_msgs/msg/general_robot_info.hpp>
-#include <mrs_msgs/msg/state.hpp>
-#include <mrs_msgs/msg/state_estimation_info.hpp>
-#include <mrs_msgs/msg/system_health_info.hpp>
-#include <mrs_msgs/msg/uav_info.hpp>
-#include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/trigger.hpp>
 #include <std_srvs/srv/set_bool.hpp>
 
@@ -81,13 +76,13 @@ public:
 
   // | --------------------- Data push (thread-safe) --------------------- |
   // Each stores msg into its last_*_ snapshot under mutex_status_msg_, for the next render to read.
-  void onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg);
-  void onStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo &msg);
-  void onControlInfo(const mrs_msgs::msg::ControlInfo &msg);
-  void onCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo &msg);
-  void onUavInfo(const mrs_msgs::msg::UavInfo &msg);
-  void onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg);
-  void onUavState(const mrs_msgs::msg::State &msg);
+  void onGeneralRobotInfo(const status::GeneralRobotInfoData &data);
+  void onStateEstimationInfo(const status::StateEstimationInfoData &data);
+  void onControlInfo(const status::ControlInfoData &data);
+  void onCollisionAvoidanceInfo(const status::CollisionAvoidanceInfoData &data);
+  void onUavInfo(const status::UavInfoData &data);
+  void onSystemHealthInfo(const status::SystemHealthInfoData &data);
+  void onUavState(const status::StateData &data);
   // Parses an optional "-id <key>" / "-p" (persistent) preamble, then dedupes-or-appends the
   // remaining text into string_info_vec_ (shown in the GNSS & strings pane).
   void onString(const std_msgs::msg::String &msg);
@@ -205,14 +200,14 @@ private:
 
   // | ----------------------- UAV status snapshot --------------- |
   // All last_*_ snapshots are guarded by this single mutex.
-  std::mutex                            mutex_status_msg_;
-  mrs_msgs::msg::GeneralRobotInfo       last_general_robot_info_;
-  mrs_msgs::msg::StateEstimationInfo    last_state_estimation_info_;
-  mrs_msgs::msg::ControlInfo            last_control_info_;
-  mrs_msgs::msg::CollisionAvoidanceInfo last_collision_avoidance_info_;
-  mrs_msgs::msg::UavInfo                last_uav_info_;
-  mrs_msgs::msg::SystemHealthInfo       last_system_health_info_;
-  mrs_msgs::msg::State                  last_uav_state_;
+  std::mutex                         mutex_status_msg_;
+  status::GeneralRobotInfoData       last_general_robot_info_;
+  status::StateEstimationInfoData    last_state_estimation_info_;
+  status::ControlInfoData            last_control_info_;
+  status::CollisionAvoidanceInfoData last_collision_avoidance_info_;
+  status::UavInfoData                last_uav_info_;
+  status::SystemHealthInfoData       last_system_health_info_;
+  status::StateData                  last_uav_state_;
 
   // Custom strings published via std_msgs/String. Each entry tracks its own
   // freshness — entries older than 10 s are pruned in pruneStrings() (called
@@ -247,6 +242,11 @@ private:
   void renderNodeCpuPane(WINDOW *win);
   // Shows GNSS fix/accuracy and the current display_string entries.
   void renderStringsGnssPane(WINDOW *win);
+
+  // Computed once per render tick from last_general_robot_info_/last_collision_avoidance_info_/
+  // last_control_info_ under mutex_status_msg_; replaces the 6 call sites that used to
+  // re-extract these same 4 fields independently.
+  status::BorderStatus computeBorderStatus();
 
   TUIParams params_;
   bool      light_scheme_   = false;

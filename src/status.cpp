@@ -1,5 +1,112 @@
 #include <mrs_uav_status/status.hpp>
 
+namespace
+{
+
+mrs_uav_status::status::GeneralRobotInfoData toData(const mrs_msgs::msg::GeneralRobotInfo &msg) {
+  return {
+      .robot_name                = msg.robot_name,
+      .robot_type                = msg.robot_type,
+      .ready_to_start            = msg.ready_to_start,
+      .problems_preventing_start = msg.problems_preventing_start,
+      .errors                    = msg.errors,
+      .battery_state             = {.voltage = msg.battery_state.voltage, .current = msg.battery_state.current, .wh_drained = msg.battery_state.wh_drained},
+  };
+}
+
+mrs_uav_status::status::StateEstimationInfoData toData(const mrs_msgs::msg::StateEstimationInfo &msg) {
+  return {
+      .frame_id              = msg.header.frame_id,
+      .pos_x                 = msg.local_pose.position.x,
+      .pos_y                 = msg.local_pose.position.y,
+      .pos_z                 = msg.local_pose.position.z,
+      .heading               = msg.local_pose.heading,
+      .current_estimator     = msg.current_estimator,
+      .switchable_estimators = msg.switchable_estimators,
+      .horizontal_estimator  = msg.horizontal_estimator,
+      .vertical_estimator    = msg.vertical_estimator,
+      .heading_estimator     = msg.heading_estimator,
+      .agl_estimator         = msg.agl_estimator,
+      .max_flight_z          = msg.max_flight_z,
+  };
+}
+
+mrs_uav_status::status::ControlInfoData toData(const mrs_msgs::msg::ControlInfo &msg) {
+  return {
+      .active_controller     = msg.active_controller,
+      .available_controllers = msg.available_controllers,
+      .active_gains          = msg.active_gains,
+      .available_gains       = msg.available_gains,
+      .active_tracker        = msg.active_tracker,
+      .available_trackers    = msg.available_trackers,
+      .active_constraints    = msg.active_constraints,
+      .available_constraints = msg.available_constraints,
+      .thrust                = msg.thrust,
+      .cmd_pose_x            = msg.cmd_pose.position.x,
+      .cmd_pose_y            = msg.cmd_pose.position.y,
+      .cmd_pose_z            = msg.cmd_pose.position.z,
+      .cmd_pose_heading      = msg.cmd_pose.heading,
+      .flying_normally       = msg.flying_normally,
+      .have_goal             = msg.have_goal,
+      .tracking_trajectory   = msg.tracking_trajectory,
+      .callbacks_enabled     = msg.callbacks_enabled,
+  };
+}
+
+mrs_uav_status::status::CollisionAvoidanceInfoData toData(const mrs_msgs::msg::CollisionAvoidanceInfo &msg) {
+  return {
+      .collision_avoidance_enabled = msg.collision_avoidance_enabled,
+      .avoiding_collision          = msg.avoiding_collision,
+      .bumper_active               = msg.bumper_active,
+      .num_other_robots_visible    = msg.other_robots_visible.size(),
+  };
+}
+
+mrs_uav_status::status::UavInfoData toData(const mrs_msgs::msg::UavInfo &msg) {
+  return {
+      .flight_state    = msg.flight_state,
+      .flight_duration = msg.flight_duration,
+      .armed           = msg.armed,
+      .offboard        = msg.offboard,
+      .mass_nominal    = msg.mass_nominal,
+      .mass_estimate   = msg.mass_estimate,
+  };
+}
+
+mrs_uav_status::status::SystemHealthInfoData toData(const mrs_msgs::msg::SystemHealthInfo &msg) {
+  mrs_uav_status::status::SystemHealthInfoData data;
+  data.onboard_computer_info.cpu_load  = msg.onboard_computer_info.cpu_load;
+  data.onboard_computer_info.cpu_ghz   = msg.onboard_computer_info.cpu_ghz;
+  data.onboard_computer_info.free_ram  = msg.onboard_computer_info.free_ram;
+  data.onboard_computer_info.total_ram = msg.onboard_computer_info.total_ram;
+  data.onboard_computer_info.free_hdd  = msg.onboard_computer_info.free_hdd;
+  for (const auto &n : msg.onboard_computer_info.node_cpu_loads) {
+    data.onboard_computer_info.node_cpu_loads.push_back({.node_name = n.node_name, .cpu_load = n.cpu_load});
+  }
+  data.hw_api_rate           = msg.hw_api_rate;
+  data.control_manager_rate  = msg.control_manager_rate;
+  data.state_estimation_rate = msg.state_estimation_rate;
+  for (const auto &s : msg.available_sensors) {
+    mrs_uav_status::status::SensorStatusData sd;
+    sd.type    = s.type;
+    sd.name    = s.name;
+    sd.rate    = s.rate;
+    sd.level   = s.level;
+    sd.message = s.message;
+    for (const auto &d : s.details) {
+      sd.details.push_back({.key = d.key, .value = d.value});
+    }
+    data.available_sensors.push_back(std::move(sd));
+  }
+  return data;
+}
+
+mrs_uav_status::status::StateData toData(const mrs_msgs::msg::State &msg) {
+  return {.state = msg.state};
+}
+
+} // namespace
+
 namespace mrs_uav_status
 {
 
@@ -308,49 +415,49 @@ void Status::callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::Con
   if (!is_initialized_) {
     return;
   }
-  tui_->onGeneralRobotInfo(*msg);
+  tui_->onGeneralRobotInfo(toData(*msg));
 }
 
 void Status::callbackStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  tui_->onStateEstimationInfo(*msg);
+  tui_->onStateEstimationInfo(toData(*msg));
 }
 
 void Status::callbackControlInfo(const mrs_msgs::msg::ControlInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  tui_->onControlInfo(*msg);
+  tui_->onControlInfo(toData(*msg));
 }
 
 void Status::callbackCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  tui_->onCollisionAvoidanceInfo(*msg);
+  tui_->onCollisionAvoidanceInfo(toData(*msg));
 }
 
 void Status::callbackUavInfo(const mrs_msgs::msg::UavInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  tui_->onUavInfo(*msg);
+  tui_->onUavInfo(toData(*msg));
 }
 
 void Status::callbackSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  tui_->onSystemHealthInfo(*msg);
+  tui_->onSystemHealthInfo(toData(*msg));
 }
 
 void Status::callbackUavState(const mrs_msgs::msg::State::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  tui_->onUavState(*msg);
+  tui_->onUavState(toData(*msg));
 }
 
 void Status::callbackDisplayString(const std_msgs::msg::String::ConstSharedPtr msg) {

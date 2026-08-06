@@ -5,9 +5,7 @@
 #include <string>
 #include <vector>
 
-#include <diagnostic_msgs/msg/key_value.hpp>
 #include <mrs_msgs/msg/general_robot_info.hpp>
-#include <mrs_msgs/msg/sensor_status.hpp>
 
 namespace mrs_uav_status::utils
 {
@@ -66,7 +64,10 @@ inline std::string robotTypeToString(uint8_t robot_type) {
 }
 
 // Find the first SensorStatus of a given type. Returns nullptr if not present.
-inline const mrs_msgs::msg::SensorStatus *findSensor(const std::vector<mrs_msgs::msg::SensorStatus> &sensors, uint8_t type) {
+// Templated (rather than fixed to mrs_msgs::msg::SensorStatus) so this keeps working for
+// status::SensorStatusData without giving utils/ a dependency on status/ or mrs_msgs.
+template <typename SensorT>
+inline const SensorT *findSensor(const std::vector<SensorT> &sensors, uint8_t type) {
   for (const auto &s : sensors) {
     if (s.type == type) {
       return &s;
@@ -76,7 +77,10 @@ inline const mrs_msgs::msg::SensorStatus *findSensor(const std::vector<mrs_msgs:
 }
 
 // Look up a value in a KeyValue list. Returns fallback if the key isn't present.
-inline std::string lookupDetail(const std::vector<diagnostic_msgs::msg::KeyValue> &details, const std::string &key, const std::string &fallback = "") {
+// Templated for the same reason as findSensor() above -- works for both
+// diagnostic_msgs::msg::KeyValue and status::KeyValueData.
+template <typename KeyValueT>
+inline std::string lookupDetail(const std::vector<KeyValueT> &details, const std::string &key, const std::string &fallback = "") {
   for (const auto &kv : details) {
     if (kv.key == key) {
       return kv.value;

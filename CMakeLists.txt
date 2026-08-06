@@ -59,6 +59,7 @@ target_sources(MrsUavStatus_Status
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
   FILES
     "include/mrs_uav_status/status.hpp"
+    "include/mrs_uav_status/status/data_types.hpp"
     "include/mrs_uav_status/tui/control_bar.hpp"
     "include/mrs_uav_status/tui/colors.hpp"
     "include/mrs_uav_status/tui/status_window.hpp"
