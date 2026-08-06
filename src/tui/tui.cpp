@@ -65,6 +65,37 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
   sc_toggle_output_      = mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>(node_, "~/toggle_output_out", cbkgrp_sc);
 }
 
+void TUI::initTerminal() {
+  initscr();
+  start_color();
+  cbreak();
+  noecho();
+  clear();
+  nodelay(stdscr, true);
+  keypad(stdscr, true);
+  timeout(0);
+  curs_set(0);
+  set_escdelay(0);
+  use_default_colors();
+  attron(A_BOLD);
+}
+
+void TUI::shutdownTerminal() {
+  endwin();
+}
+
+int TUI::pollKey() {
+  return getch();
+}
+
+void TUI::flushInput() {
+  flushinp();
+}
+
+void TUI::commitFrame() {
+  doupdate();
+}
+
 void TUI::onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg) {
   std::scoped_lock lock(mutex_status_msg_);
   last_general_robot_info_ = msg;

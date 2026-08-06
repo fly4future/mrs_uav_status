@@ -33,9 +33,9 @@ namespace mrs_uav_status
 class Status : public mrs_lib::Node {
 
 public:
-  // Sets up ncurses, then calls initialize().
+  // Calls tui::TUI::initTerminal(), then initialize().
   Status();
-  // Stops the render timer and tears down ncurses.
+  // Stops the render timer, then calls tui::TUI::shutdownTerminal().
   ~Status();
 
 private:

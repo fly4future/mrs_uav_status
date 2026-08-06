@@ -64,6 +64,21 @@ public:
   // into service_entries_).
   TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const TUI::TUIParams &params);
 
+  // Puts the terminal into ncurses raw/no-echo mode. Must run once, before constructing any
+  // TUI and before any window is created. Call before ParamLoader/TUI construction, matching
+  // today's Status ctor ordering.
+  static void initTerminal();
+  // Restores the terminal to normal mode. Call after the TUI instance (and its windows) is
+  // destroyed.
+  static void shutdownTerminal();
+
+  // Wraps getch(): reads one keypress (non-blocking, per initTerminal()'s nodelay(true)).
+  int pollKey();
+  // Wraps flushinp(): discards any buffered keypresses.
+  void flushInput();
+  // Wraps doupdate(): flushes all pending ncurses window updates to the physical screen.
+  void commitFrame();
+
   // | --------------------- Data push (thread-safe) --------------------- |
   // Each stores msg into its last_*_ snapshot under mutex_status_msg_, for the next render to read.
   void onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg);

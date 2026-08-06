@@ -7,18 +7,7 @@ namespace mrs_uav_status
 
 Status::Status() : Node("mrs_status_menu") {
 
-  initscr();
-  start_color();
-  cbreak();
-  noecho();
-  clear();
-  nodelay(stdscr, true);
-  keypad(stdscr, true);
-  timeout(0);
-  curs_set(0);
-  set_escdelay(0);
-  use_default_colors();
-  attron(A_BOLD);
+  tui::TUI::initTerminal();
 
   initialize();
 }
@@ -29,7 +18,7 @@ Status::Status() : Node("mrs_status_menu") {
 
 Status::~Status() {
   timer_render_.reset();
-  endwin();
+  tui::TUI::shutdownTerminal();
 }
 
 //}
@@ -189,7 +178,7 @@ void Status::timerRender() {
 
   tui_->blankBottomWindow();
 
-  int key = getch();
+  int key = tui_->pollKey();
 
   switch (state_) {
 
@@ -250,7 +239,7 @@ void Status::timerRender() {
       break;
 
     default:
-      flushinp();
+      tui_->flushInput();
       break;
     }
     break;
@@ -259,7 +248,7 @@ void Status::timerRender() {
 
     /* REMOTE //{ */
   case StatusState::REMOTE: {
-    flushinp();
+    tui_->flushInput();
     tui_->remoteHandler(key);
     if (key == 'R' || key == static_cast<int>(mrs_uav_status::tui::Key::Escape)) {
       tui_->setRemoteMode(false);
@@ -271,7 +260,7 @@ void Status::timerRender() {
 
     /* MAIN_MENU //{ */
   case StatusState::MAIN_MENU: {
-    flushinp();
+    tui_->flushInput();
     if (tui_->mainMenuHandler(key)) {
       tui_->clearMenus();
       tui_->refreshAfterMenu();
@@ -283,7 +272,7 @@ void Status::timerRender() {
 
     /* GOTO_MENU //{ */
   case StatusState::GOTO_MENU: {
-    flushinp();
+    tui_->flushInput();
     if (tui_->gotoMenuHandler(key)) {
       tui_->clearMenus();
       state_ = StatusState::STANDARD;
@@ -294,7 +283,7 @@ void Status::timerRender() {
 
     /* DISPLAY_MENU //{ */
   case StatusState::DISPLAY_MENU: {
-    flushinp();
+    tui_->flushInput();
     if (tui_->displayMenuHandler(key)) {
       tui_->clearMenus();
       state_ = StatusState::STANDARD;
@@ -308,7 +297,7 @@ void Status::timerRender() {
     tui_->refreshBottomWindow();
   }
   tui_->refreshTopBar();
-  doupdate();
+  tui_->commitFrame();
 }
 
 //}
