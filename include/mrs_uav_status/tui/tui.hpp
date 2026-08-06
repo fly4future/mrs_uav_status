@@ -57,7 +57,6 @@ public:
     std::string              turbo_remote_constraints;
     std::vector<std::string> service_list;
     std::vector<double>      goto_values;
-    double                   data_timeout_s; // Seconds without a message before data is considered stale.
   };
 
   TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_sc, const TUI::TUIParams &params);
@@ -249,10 +248,8 @@ private:
   void setupDisplayText();
 
   long         last_gigas_                = 0;
-  bool         have_data_                 = false;
   int          estimator_display_counter_ = 0;
   bool         increment_counter_         = false;
-  rclcpp::Time last_time_got_data_;
   rclcpp::Time bottom_window_clear_time_;
 
   // Per-topic freshness, pushed by Status via setDataFreshness().

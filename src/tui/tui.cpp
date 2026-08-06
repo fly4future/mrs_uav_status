@@ -23,7 +23,6 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
 
   setupPanes();
 
-  last_time_got_data_       = rclcpp::Time(0, 0, clock_->get_clock_type());
   bottom_window_clear_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
 
   goto_double_vec_   = params_.goto_values;
@@ -72,37 +71,31 @@ TUI::TUI(rclcpp::Node::SharedPtr node, rclcpp::CallbackGroup::SharedPtr cbkgrp_s
 void TUI::onGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo &msg) {
   std::scoped_lock lock(mutex_status_msg_);
   last_general_robot_info_ = msg;
-  last_time_got_data_      = clock_->now();
 }
 
 void TUI::onStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo &msg) {
   std::scoped_lock lock(mutex_status_msg_);
   last_state_estimation_info_ = msg;
-  last_time_got_data_         = clock_->now();
 }
 
 void TUI::onControlInfo(const mrs_msgs::msg::ControlInfo &msg) {
   std::scoped_lock lock(mutex_status_msg_);
-  last_control_info_  = msg;
-  last_time_got_data_ = clock_->now();
+  last_control_info_ = msg;
 }
 
 void TUI::onCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo &msg) {
   std::scoped_lock lock(mutex_status_msg_);
   last_collision_avoidance_info_ = msg;
-  last_time_got_data_            = clock_->now();
 }
 
 void TUI::onUavInfo(const mrs_msgs::msg::UavInfo &msg) {
   std::scoped_lock lock(mutex_status_msg_);
-  last_uav_info_      = msg;
-  last_time_got_data_ = clock_->now();
+  last_uav_info_ = msg;
 }
 
 void TUI::onSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo &msg) {
   std::scoped_lock lock(mutex_status_msg_);
   last_system_health_info_ = msg;
-  last_time_got_data_      = clock_->now();
 }
 
 void TUI::setDataFreshness(bool general_robot_info, bool collision_avoidance_info, bool uav_info, bool system_health_info, bool state_estimation_info) {
@@ -116,8 +109,7 @@ void TUI::setDataFreshness(bool general_robot_info, bool collision_avoidance_inf
 
 void TUI::onUavState(const mrs_msgs::msg::State &msg) {
   std::scoped_lock lock(mutex_status_msg_);
-  last_uav_state_     = msg;
-  last_time_got_data_ = clock_->now();
+  last_uav_state_ = msg;
 }
 
 void TUI::onString(const std_msgs::msg::String &msg) {
@@ -263,7 +255,7 @@ void TUI::setupWindows() {
 
   clear();
   refresh();
-  light_scheme_ = tui::setupColors(have_data_, params_.colorscheme, params_.colorblind_mode);
+  light_scheme_ = tui::setupColors(params_.colorscheme, params_.colorblind_mode);
 }
 
 bool TUI::resize() {
@@ -1553,7 +1545,6 @@ void TUI::topLineHandler() {
   uint16_t     num_other_uavs;
   int          secs_flown;
   bool         have_general_robot_info, have_collision_avoidance_info, have_uav_info;
-  rclcpp::Time last_time_got_data;
 
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -1567,7 +1558,6 @@ void TUI::topLineHandler() {
     have_general_robot_info       = have_general_robot_info_;
     have_collision_avoidance_info = have_collision_avoidance_info_;
     have_uav_info                 = have_uav_info_;
-    last_time_got_data            = last_time_got_data_;
   }
 
   if (light_scheme_) {
@@ -1576,16 +1566,6 @@ void TUI::topLineHandler() {
 
   wattron(win, A_BOLD);
   printLimitedInt(win, 0, 0, "ToF: %i", secs_flown, 1000);
-
-  double since_data_s = (clock_->now() - last_time_got_data).seconds();
-
-  // If we haven't received data for a while, switch to the "no data" color scheme. If we start receiving data again, switch back to the normal color scheme.
-  if (const bool nd = (since_data_s < params_.data_timeout_s); nd != have_data_) {
-    have_data_    = nd;
-    light_scheme_ = setupColors(have_data_, params_.colorscheme, params_.colorblind_mode);
-  }
-
-  since_data_s = std::min(since_data_s, 99.9);
 
   const int status_x = params_.start_minimized ? 27 : 26;
   const int alert_x  = params_.start_minimized ? 22 : 26;
@@ -1646,14 +1626,6 @@ void TUI::topLineHandler() {
     }
 
     wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
-  }
-
-  if (!have_data_) {
-    wattron(win, A_BLINK);
-    wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::AlwaysRed)));
-    mvwprintw(win, 0, 0, "!NO MSGS!");
-    wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::AlwaysRed)));
-    wattroff(win, A_BLINK);
   }
 
   int mins = secs_flown / 60;

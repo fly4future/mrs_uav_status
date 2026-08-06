@@ -16,13 +16,12 @@ enum class Key : int
 // These refer to the logical pairs initialized via init_pair() in ncurses.
 enum class ColorPair : int
 {
-  Normal    = 100,
-  Field     = 101,
-  Green     = 102,
-  Red       = 103,
-  Yellow    = 104,
-  Blue      = 105,
-  AlwaysRed = 106
+  Normal = 100,
+  Field  = 101,
+  Green  = 102,
+  Red    = 103,
+  Yellow = 104,
+  Blue   = 105
 };
 
 // --- Background Colors ---

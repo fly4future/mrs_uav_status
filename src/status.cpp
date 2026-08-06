@@ -101,7 +101,6 @@ void Status::initialize() {
       .turbo_remote_constraints = turbo_remote_constraints,
       .service_list             = service_list,
       .goto_values              = goto_values,
-      .data_timeout_s           = data_timeout_s_,
   };
 
   tui_ = std::make_unique<tui::TUI>(node_, cbkgrp_sc_, tui_params);
