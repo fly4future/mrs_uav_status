@@ -369,9 +369,11 @@ void TUI::renderStringsGnssPane(WINDOW *win) {
   double                   gnss_pos_acc       = 100.0;
   double                   gnss_status_rate   = 0.0;
   bool                     gnss_status_msg_ok = false;
+  bool                     have_system_health_info;
 
   {
     std::scoped_lock lock(mutex_status_msg_);
+    have_system_health_info = have_system_health_info_;
     if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, mrs_msgs::msg::SensorStatus::TYPE_GNSS); gnss) {
       const std::string fix_type_raw = utils::lookupDetail(gnss->details, "fix_type");
       gnss_status_msg_ok             = (fix_type_raw != "nan");
@@ -388,7 +390,8 @@ void TUI::renderStringsGnssPane(WINDOW *win) {
     }
   }
 
-  if (gnss_status_rate > 0.0 && gnss_status_msg_ok) {
+  // gnss_status_rate/gnss_status_msg_ok are cached and never reset, so gate on freshness too.
+  if (have_system_health_info && gnss_status_rate > 0.0 && gnss_status_msg_ok) {
     std::string fix_string;
     if (gnss_fix_type < 1 || gnss_fix_type >= 8) {
       fix_string += "-r ";
