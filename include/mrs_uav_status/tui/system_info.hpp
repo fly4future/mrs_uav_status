@@ -73,6 +73,8 @@ inline void printDiskSpace(WINDOW *win, int free_hdd, long last_gigas, bool mini
     wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Yellow)));
   }
 
+  // Mutually exclusive: separate unconditional ifs here used to all fire for a low free_hdd,
+  // overwriting each other's text and leaving stray leftover characters on screen.
   if (free_hdd < 10) {
     wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
     if (mini) {
@@ -81,18 +83,7 @@ inline void printDiskSpace(WINDOW *win, int free_hdd, long last_gigas, bool mini
     } else {
       printLimitedDouble(win, 2, 14, "HDD: %3.1f G", double(free_hdd), 10);
     }
-  }
-
-  if (free_hdd < 100) {
-    if (mini) {
-      printLimitedString(win, 1, 5, "HDD", 3);
-      printLimitedInt(win, 2, 6, "%i", free_hdd, 1000);
-    } else {
-      printLimitedInt(win, 2, 14, "HDD:  %i G", free_hdd, 1000);
-    }
-  }
-
-  if (free_hdd < 1024) {
+  } else if (free_hdd < 1024) {
     if (mini) {
       printLimitedString(win, 1, 5, "HDD", 3);
       printLimitedInt(win, 2, 5, "%i", free_hdd, 1000);
