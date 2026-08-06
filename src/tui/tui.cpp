@@ -1873,13 +1873,19 @@ bool TUI::mainMenuHandler(int key) {
     auto result = submenu_vec_[0].iterate(key, true);
 
     if (result.action == StatusWindow::Result::Action::Exit) {
+      // Escape here only backs out of the submenu, back to the main menu.
       submenu_vec_.clear();
       return false;
     }
 
     if (key == static_cast<int>(Key::Enter)) {
+      const bool is_cancel = sub_menu_rows_[result.selected_line].label == "CANCEL";
       sub_menu_rows_[result.selected_line].on_open();
       submenu_vec_.clear();
+      if (is_cancel) {
+        // Cancel backs out to the main menu, it shouldn't close the whole thing.
+        return false;
+      }
       sub_menu_rows_.clear();
       return true;
     }
