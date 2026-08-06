@@ -29,7 +29,6 @@
 #include <mrs_msgs/msg/collision_avoidance_info.hpp>
 #include <mrs_msgs/msg/control_info.hpp>
 #include <mrs_msgs/msg/general_robot_info.hpp>
-#include <mrs_msgs/msg/reference.hpp>
 #include <mrs_msgs/msg/state.hpp>
 #include <mrs_msgs/msg/state_estimation_info.hpp>
 #include <mrs_msgs/msg/system_health_info.hpp>
