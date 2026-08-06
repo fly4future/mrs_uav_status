@@ -510,7 +510,9 @@ void TUI::setupPanes() {
   panes_.push_back({"Problems & errors", [this](WINDOW *win) { renderProblemsPane(win); },
                     [this]() {
                       std::scoped_lock lock(mutex_status_msg_);
-                      return !last_general_robot_info_.problems_preventing_start.empty() || !last_general_robot_info_.errors.empty();
+                      // Avoid auto-focusing on frozen stale problems/errors.
+                      return have_general_robot_info_ &&
+                             (!last_general_robot_info_.problems_preventing_start.empty() || !last_general_robot_info_.errors.empty());
                     }});
 
   // To add a pane push another Pane with a title and a render lambda that
