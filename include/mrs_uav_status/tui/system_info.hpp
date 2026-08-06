@@ -66,10 +66,10 @@ inline void printMemLoad(WINDOW *win, double free_ram, double total_ram, bool mi
   wattroff(win, A_BLINK);
 }
 
-inline void printDiskSpace(WINDOW *win, int free_hdd, long last_gigas, bool mini) {
+inline void printDiskSpace(WINDOW *win, int free_hdd, bool mini) {
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
 
-  if (free_hdd < 20 || free_hdd != last_gigas) {
+  if (free_hdd < 20) {
     wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Yellow)));
   }
 

@@ -357,8 +357,7 @@ void TUI::generalInfoHandler() {
     if (!params_.start_minimized) {
       printCpuFreq(win, cpu_ghz);
     }
-    printDiskSpace(win, free_hdd, last_gigas_, params_.start_minimized);
-    last_gigas_ = free_hdd;
+    printDiskSpace(win, free_hdd, params_.start_minimized);
   }
 
   wnoutrefresh(win);

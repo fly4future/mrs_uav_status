@@ -247,7 +247,6 @@ private:
 
   void setupDisplayText();
 
-  long         last_gigas_                = 0;
   int          estimator_display_counter_ = 0;
   bool         increment_counter_         = false;
   rclcpp::Time bottom_window_clear_time_;
