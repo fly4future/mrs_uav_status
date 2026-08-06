@@ -7,6 +7,7 @@
 namespace mrs_uav_status::utils
 {
 
+// One display_string entry published by a user node, with its id (for dedup) and last-seen time (for expiry).
 struct StringInfo
 {
   std::string  id;

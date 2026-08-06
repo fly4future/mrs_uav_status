@@ -28,13 +28,18 @@ using TimerType = mrs_lib::ThreadTimer;
 namespace mrs_uav_status
 {
 
+// ROS2 node wrapping the ncurses TUI: subscribes to the diagnostics topics, drives the render
+// timer, and dispatches keyboard input through a menu/remote-mode state machine.
 class Status : public mrs_lib::Node {
 
 public:
+  // Sets up ncurses, then calls initialize().
   Status();
+  // Stops the render timer and tears down ncurses.
   ~Status();
 
 private:
+  // Loads params, constructs the TUI, starts the render timer, and subscribes to all topics.
   void initialize();
 
   bool _profiler_enabled_ = false;
@@ -73,7 +78,10 @@ private:
   rclcpp::Time     last_resize_check_;
   double           data_timeout_s_ = 0.0; // Seconds without a message before data is considered stale.
 
+  // Per-tick entry point: updates freshness/resize/render, reads one key, and routes it through
+  // the state_ state machine (STANDARD/REMOTE/MAIN_MENU/GOTO_MENU/DISPLAY_MENU).
   void timerRender();
+  // Forwards the message to the matching tui::TUI::on*() setter.
   void callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::ConstSharedPtr msg);
   void callbackStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo::ConstSharedPtr msg);
   void callbackControlInfo(const mrs_msgs::msg::ControlInfo::ConstSharedPtr msg);

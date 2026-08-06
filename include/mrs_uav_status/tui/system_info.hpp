@@ -8,6 +8,7 @@
 namespace mrs_uav_status::tui
 {
 
+// Prints CPU load %, colored green/yellow/red as it rises past 60/80%.
 inline void printCpuLoad(WINDOW *win, double cpu_load, bool mini) {
   int tmp_color = static_cast<int>(ColorPair::Green);
   if (cpu_load > 80.0) {
@@ -24,11 +25,13 @@ inline void printCpuLoad(WINDOW *win, double cpu_load, bool mini) {
   }
 }
 
+// Prints the CPU frequency in GHz.
 inline void printCpuFreq(WINDOW *win, double cpu_ghz) {
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
   printLimitedDouble(win, 1, 16, "%4.2f GHz", cpu_ghz, 10);
 }
 
+// Prints free RAM in GiB, colored green/yellow/red as used-ram ratio rises past 50/70%.
 inline void printMemLoad(WINDOW *win, double free_ram, double total_ram, bool mini) {
   double used_ram  = total_ram - free_ram;
   double ram_ratio = used_ram / total_ram;
@@ -50,6 +53,7 @@ inline void printMemLoad(WINDOW *win, double free_ram, double total_ram, bool mi
   wattroff(win, A_BLINK);
 }
 
+// Prints free disk space (G, or T above 1024G), yellow below 20G and red below 10G.
 inline void printDiskSpace(WINDOW *win, int free_hdd, bool mini) {
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
 

@@ -12,6 +12,7 @@
 namespace mrs_uav_status::utils
 {
 
+// Splits input on delimiter (returns {""} for an empty input).
 inline std::vector<std::string> splitByChar(const std::string &input, char delimiter) {
 
   if (input.empty()) {
@@ -84,6 +85,7 @@ inline std::string lookupDetail(const std::vector<diagnostic_msgs::msg::KeyValue
   return fallback;
 }
 
+// Parses s as a double; returns fallback if empty or unparseable.
 inline double parseDoubleOr(const std::string &s, double fallback) {
   if (s.empty()) {
     return fallback;
@@ -96,6 +98,7 @@ inline double parseDoubleOr(const std::string &s, double fallback) {
   }
 }
 
+// Parses s as a long; returns fallback if empty or unparseable.
 inline long parseLongOr(const std::string &s, long fallback) {
   if (s.empty()) {
     return fallback;

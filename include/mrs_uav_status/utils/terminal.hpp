@@ -9,6 +9,7 @@
 namespace mrs_uav_status::utils
 {
 
+// Runs cmd in a shell and returns its captured stdout.
 inline std::string callTerminal(const char *cmd) {
   std::array<char, 128>                  buffer;
   std::string                            result;

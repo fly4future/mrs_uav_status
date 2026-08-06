@@ -11,6 +11,8 @@
 namespace mrs_uav_status::tui
 {
 
+// Prints num with the given printf-style format string, switching to "%.0e"-style scientific
+// notation if it exceeds limit so it doesn't overflow its field width.
 inline void printLimitedInt(WINDOW *win, int y, int x, const std::string &str_in, int num, int limit) {
   std::string str_out = str_in;
   if (std::abs(num) > limit) {
@@ -25,6 +27,7 @@ inline void printLimitedInt(WINDOW *win, int y, int x, const std::string &str_in
   mvwprintw(win, y, x, str_out.c_str(), num);
 }
 
+// Same as printLimitedInt(), for a double.
 inline void printLimitedDouble(WINDOW *win, int y, int x, const std::string &str_in, double num, double limit) {
   std::string format_str = str_in;
   if (std::abs(num) > limit) {
@@ -39,6 +42,7 @@ inline void printLimitedDouble(WINDOW *win, int y, int x, const std::string &str
   mvwprintw(win, y, x, format_str.c_str(), num);
 }
 
+// Prints str_in, truncated to limit characters.
 inline void printLimitedString(WINDOW *win, int y, int x, const std::string &str_in, unsigned long limit) {
   if (str_in.length() > limit) {
     std::string truncated_str = str_in.substr(0, limit);
@@ -74,6 +78,8 @@ inline void printNoData(WINDOW *win, int y, int x, const std::string &text, bool
   printNoData(win, y, x + static_cast<int>(text.length()), mini);
 }
 
+// Draws the window's border, blinking red if avoiding a collision or the bumper is active,
+// or yellow if the drone can't take off and the null tracker is engaged.
 inline void printBox(WINDOW *win, bool avoiding_collision, bool bumper_active, bool can_takeoff, bool null_tracker) {
   if (avoiding_collision || bumper_active) {
     wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
@@ -90,6 +96,7 @@ inline void printBox(WINDOW *win, bool avoiding_collision, bool bumper_active, b
   wattroff(win, A_STANDOUT);
 }
 
+// Prints a service call's result line, green on success and red on failure.
 inline void printServiceResult(WINDOW *win, bool light, bool success, const std::string &msg) {
   if (light) {
     wattron(win, A_STANDOUT);
@@ -108,6 +115,7 @@ inline void printServiceResult(WINDOW *win, bool light, bool success, const std:
   wattroff(win, A_BOLD);
 }
 
+// Prints the full help text if help_active, otherwise just the "press 'h' for help" hint.
 inline void printHelp(WINDOW *win, bool help_active) {
   werase(win);
   if (help_active) {
@@ -147,6 +155,8 @@ inline void printRemoteHelp(WINDOW *win) {
   wnoutrefresh(win);
 }
 
+// Captures up to 2 selected tmux windows via the tmux CLI and prints them into sub1/sub2,
+// with each pane's display_menu_text label along the border.
 inline void printTmuxDump(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2, const std::vector<int> &selected, const std::string &session_name,
                           const std::vector<std::string> &display_menu_text, int max_windows, bool avoiding_collision, bool bumper_active, bool can_takeoff,
                           bool null_tracker) {
