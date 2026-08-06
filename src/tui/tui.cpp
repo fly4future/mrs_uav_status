@@ -887,7 +887,7 @@ void TUI::uavStateHandler() {
 
       // Showing a healthy Hz next to NO DATA reads as contradictory -- suppress it too.
       printNoData(win, 0, 12, "Odom ", params_.start_minimized);
-      printNoData(win, 0, 1, params_.start_minimized);
+      printNoData(win, 1, 1, params_.start_minimized); // Inside the box; rows 1-4 are otherwise blank.
 
     } else {
 
