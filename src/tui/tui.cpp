@@ -152,7 +152,7 @@ void TUI::onString(const std_msgs::msg::String &msg) {
 
   std::scoped_lock   lock(mutex_status_msg_);
   const rclcpp::Time now = clock_->now();
-  // Dedupe by id (the legacy publisher_name was already lost from ROS1 → always empty).
+  // Dedupe by id.
   for (auto &entry : string_info_vec_) {
     if (entry.id == id) {
       entry.display_string = display;
@@ -161,7 +161,7 @@ void TUI::onString(const std_msgs::msg::String &msg) {
       return;
     }
   }
-  string_info_vec_.emplace_back(now, std::string{}, display, id, persistent);
+  string_info_vec_.emplace_back(now, display, id, persistent);
 }
 
 void TUI::tickSlowCounter() {
