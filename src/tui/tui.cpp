@@ -1536,11 +1536,11 @@ void TUI::topLineHandler() {
   WINDOW *win = top_bar_window_.get();
   werase(win);
 
-  std::string  uav_name, uav_type;
-  bool         collision_avoidance_enabled, avoiding_collision, bumper_active;
-  uint16_t     num_other_uavs;
-  int          secs_flown;
-  bool         have_general_robot_info, have_collision_avoidance_info, have_uav_info;
+  std::string uav_name, uav_type;
+  bool        collision_avoidance_enabled, avoiding_collision, bumper_active;
+  uint16_t    num_other_uavs;
+  int         secs_flown;
+  bool        have_general_robot_info, have_collision_avoidance_info, have_uav_info;
 
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -1561,7 +1561,6 @@ void TUI::topLineHandler() {
   }
 
   wattron(win, A_BOLD);
-  printLimitedInt(win, 0, 0, "ToF: %i", secs_flown, 1000);
 
   const int status_x = params_.start_minimized ? 27 : 26;
   const int alert_x  = params_.start_minimized ? 22 : 26;
