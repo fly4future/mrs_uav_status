@@ -11,11 +11,9 @@ namespace mrs_uav_status::tui
 class StatusWindow {
 public:
   StatusWindow(int begin_y, int begin_x, const std::vector<std::string> &text);
-  StatusWindow(int begin_y, int begin_x, const std::vector<std::string> &text, int id);
 
   WINDOW *getWin() const;
   int     getLine() const;
-  int     getId() const;
 
   struct Result
   {
@@ -36,11 +34,6 @@ public:
 private:
   WINDOW                  *win_  = nullptr;
   int                      line_ = 0;
-  int                      id_   = 0;
-  int                      y_    = 0;
-  int                      x_    = 0;
-  int                      rows_ = 0;
-  int                      cols_ = 0;
   std::vector<std::string> text_;
 };
 

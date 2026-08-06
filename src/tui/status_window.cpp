@@ -8,10 +8,7 @@ namespace tui
 
 /* StatusWindow() //{ */
 
-StatusWindow::StatusWindow(int begin_y, int begin_x, const std::vector<std::string> &text) : StatusWindow(begin_y, begin_x, text, 0) {
-}
-
-StatusWindow::StatusWindow(int begin_y, int begin_x, const std::vector<std::string> &text, int id) {
+StatusWindow::StatusWindow(int begin_y, int begin_x, const std::vector<std::string> &text) {
 
   unsigned long longest_string = 0;
 
@@ -20,7 +17,6 @@ StatusWindow::StatusWindow(int begin_y, int begin_x, const std::vector<std::stri
       longest_string = text[line].length();
     }
   }
-  id_   = id;
   text_ = text;
   win_  = newwin(text_.size() + 2, longest_string + 2, begin_y, begin_x);
 }
@@ -31,14 +27,6 @@ StatusWindow::StatusWindow(int begin_y, int begin_x, const std::vector<std::stri
 
 WINDOW *StatusWindow::getWin() const {
   return win_;
-}
-
-//}
-
-/* getId() //{ */
-
-int StatusWindow::getId() const {
-  return id_;
 }
 
 //}
