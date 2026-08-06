@@ -9,3 +9,6 @@
 
 # Runtime-python
 *.pyc
+
+# git worktrees (local scratch, never commit)
+.worktrees/
