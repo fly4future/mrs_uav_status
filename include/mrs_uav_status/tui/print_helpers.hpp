@@ -2,7 +2,6 @@
 
 #include <ncurses.h>
 #include <string>
-#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -49,23 +48,6 @@ inline void printLimitedString(WINDOW *win, int y, int x, const std::string &str
   }
 }
 
-inline void printCompressedLimitedString(WINDOW *win, int y, int x, const std::string &str_in, unsigned long limit) {
-  if (str_in.empty()) {
-    return;
-  }
-  std::string compressed = str_in;
-  std::string chars_to_remove("aeiouAEIOU :");
-  for (char c : chars_to_remove) {
-    if (compressed.length() > 1) {
-      compressed.erase(std::remove(compressed.begin() + 1, compressed.end(), c), compressed.end());
-    }
-  }
-  if (compressed.length() > limit) {
-    compressed.resize(limit);
-  }
-  mvwprintw(win, y, x, "%s", compressed.c_str());
-}
-
 inline void printNoData(WINDOW *win, int y, int x, [[maybe_unused]] bool mini) {
   // Save/restore instead of wattroff(): ncurses attributes aren't stacked, so a blind
   // wattroff() would clobber a color the caller turned on around this call.
@@ -106,18 +88,6 @@ inline void printBox(WINDOW *win, bool avoiding_collision, bool bumper_active, b
   wattroff(win, A_BLINK);
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   wattroff(win, A_STANDOUT);
-}
-
-inline void printError(WINDOW *win, const std::string &msg) {
-  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-  printLimitedString(win, 0, 0, msg, 120);
-  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-  wnoutrefresh(win);
-}
-
-inline void printDebug(WINDOW *win, const std::string &msg) {
-  printLimitedString(win, 0, 0, msg, 120);
-  wnoutrefresh(win);
 }
 
 inline void printServiceResult(WINDOW *win, bool light, bool success, const std::string &msg) {
