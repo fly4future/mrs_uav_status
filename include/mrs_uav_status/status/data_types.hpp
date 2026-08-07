@@ -170,7 +170,7 @@ struct BorderStatus
   bool null_tracker       = false;
 };
 
-// Per-topic "has this ever arrived and not gone stale" flags, computed by ros_wrapper and
+// Per-topic "has this ever arrived and not gone stale" flags, computed by RosWrapper and
 // pushed once per render tick.
 struct Freshness
 {

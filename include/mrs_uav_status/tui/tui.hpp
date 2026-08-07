@@ -35,20 +35,18 @@ namespace mrs_uav_status::tui
 {
 
 // Owns the ncurses windows, renders them from the latest received diagnostics, and drives the
-// menus/goto/remote-control key handling. Status pushes messages in via the on*() setters and
+// menus/goto/remote-control key handling. RosWrapper pushes messages in via the on*() setters and
 // drives rendering/input via the rest of this public API.
 class TUI : public TuiActions {
 public:
   struct TUIParams
   {
-    std::string              uav_name;
-    std::string              colorscheme;
-    bool                     colorblind_mode;
-    bool                     start_minimized;
-    std::string              display_config_filename;
-    std::string              turbo_remote_constraints;
-    std::vector<std::string> service_list;
-    std::vector<double>      goto_values;
+    std::string         colorscheme;
+    bool                colorblind_mode;
+    bool                start_minimized;
+    std::string         display_config_filename;
+    std::string         turbo_remote_constraints;
+    std::vector<double> goto_values;
   };
 
   // Sets up the default panes; all outbound ROS actions are dispatched through command_sink.
@@ -81,7 +79,7 @@ public:
   // remaining text into string_info_vec_ (shown in the GNSS & strings pane).
   void onString(const std::string &data);
 
-  // Pushed once per render tick from Status; true if the topic has ever arrived and hasn't timed out.
+  // Pushed once per render tick from RosWrapper; true if the topic has ever arrived and hasn't timed out.
   void setDataFreshness(bool general_robot_info, bool collision_avoidance_info, bool uav_info, bool system_health_info, bool state_estimation_info) override;
 
   // | --------------------- Window lifecycle ------------------- |
@@ -278,7 +276,7 @@ private:
   bool         increment_counter_         = false;
   rclcpp::Time bottom_window_clear_time_;
 
-  // Per-topic freshness, pushed by Status via setDataFreshness().
+  // Per-topic freshness, pushed by RosWrapper via setDataFreshness().
   bool have_general_robot_info_       = false;
   bool have_collision_avoidance_info_ = false;
   bool have_uav_info_                 = false;

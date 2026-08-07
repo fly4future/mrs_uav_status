@@ -190,13 +190,11 @@ void RosWrapper::initialize() {
   const std::vector<double> goto_values(goto_values_mat.data(), goto_values_mat.data() + goto_values_mat.size());
 
   const tui::TUI::TUIParams tui_params{
-      .uav_name                 = uav_name,
       .colorscheme              = colorscheme,
       .colorblind_mode          = colorblind_mode,
       .start_minimized          = start_minimized,
       .display_config_filename  = display_config_filename,
       .turbo_remote_constraints = turbo_remote_constraints,
-      .service_list             = service_list,
       .goto_values              = goto_values,
   };
 
@@ -379,12 +377,14 @@ void RosWrapper::timerRender() {
   const rclcpp::Time now     = clock_->now();
   bool               resized = false;
 
+  // hasMsg() guards against sim-time-near-zero at boot; the elapsed-time check catches mid-flight stalls.
   auto                    is_fresh = [&now, this](const auto &sh) { return sh.hasMsg() && (now - sh.lastMsgTime()).seconds() < data_timeout_s_; };
   const status::Freshness freshness{
       is_fresh(sh_general_robot_info_), is_fresh(sh_collision_avoidance_info_), is_fresh(sh_uav_info_),
       is_fresh(sh_system_health_info_), is_fresh(sh_state_estimation_info_),
   };
 
+  // Resize before anything else draws; force a slow redraw right after so it isn't left blank.
   if (now - last_resize_check_ >= resize_period_) {
     last_resize_check_                = now;
     mrs_lib::Routine profiler_routine = profiler_.createRoutine("resize");
