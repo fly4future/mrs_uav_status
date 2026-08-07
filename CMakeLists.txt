@@ -97,6 +97,7 @@ target_compile_definitions(MrsUavStatus_Status PRIVATE USE_ROS_TIMER=${USE_ROS_T
 if(ENABLE_TESTS)
 
   add_subdirectory(test)
+  add_subdirectory(tui_examples)
 
   find_package(ament_cmake_clang_format REQUIRED)
   ament_clang_format(CONFIG_FILE "${PROJECT_SOURCE_DIR}/.clang-format")
