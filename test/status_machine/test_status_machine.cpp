@@ -97,7 +97,7 @@ public:
 };
 
 TickInput keyTick(int key) {
-  return TickInput{key, Freshness{}, rclcpp::Time(0, 0, RCL_ROS_TIME)};
+  return TickInput{key, Freshness{}, 0.0};
 }
 
 } // namespace

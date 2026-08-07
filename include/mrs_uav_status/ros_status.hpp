@@ -36,15 +36,16 @@ using TimerType = mrs_lib::ThreadTimer;
 namespace mrs_uav_status
 {
 
-// ROS2 node wrapping the ncurses TUI: subscribes to the diagnostics topics, drives the render
-// timer, and dispatches keyboard input through a menu/remote-mode state machine.
-class RosWrapper : public mrs_lib::Node {
+// The package's only ROS2 node: owns every rclcpp handle (subscribers, service clients, the render
+// timer), converts incoming messages to plain status::*Data, and converts rclcpp::Time to a plain
+// double before handing anything to the ROS-free layers below.
+class RosStatus : public mrs_lib::Node {
 
 public:
   // Calls tui::TUI::initTerminal(), then initialize().
-  RosWrapper();
+  RosStatus();
   // Stops the render timer, then calls tui::TUI::shutdownTerminal().
-  ~RosWrapper();
+  ~RosStatus();
 
 private:
   // Loads params, constructs the TUI, starts the render timer, and subscribes to all topics.

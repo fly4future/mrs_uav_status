@@ -7,7 +7,7 @@
 namespace mrs_uav_status::tui
 {
 
-// Outbound ROS actions TUI can trigger, injected by ros_wrapper so TUI never links against
+// Outbound ROS actions TUI can trigger, injected by ros_status so TUI never links against
 // rclcpp service/message types. Every call is synchronous.
 struct CommandSink
 {
