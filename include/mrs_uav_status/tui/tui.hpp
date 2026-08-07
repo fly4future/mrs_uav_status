@@ -5,6 +5,10 @@
 #include <mutex>
 #include <memory>
 
+// rclcpp::Time/Clock/Duration are the one allowed ROS dependency in tui/ (local UI timing only,
+// no node/topic/service graph access) -- see the Global Constraints in the layering refactor plan.
+#include <rclcpp/clock.hpp>
+
 // --- Internal Package Includes ---
 #include <mrs_uav_status/tui/system_info.hpp>
 #include <mrs_uav_status/tui/control_bar.hpp>

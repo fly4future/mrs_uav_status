@@ -143,6 +143,19 @@ TEST(StatusMachine, ExitsRemoteModeOnSecondR) {
   EXPECT_FALSE(tui.remote_mode_active);
 }
 
+TEST(StatusMachine, ExitsRemoteModeOnEscape) {
+  StatusMachine sm;
+  FakeTui       tui;
+
+  sm.handleTick(keyTick('R'), tui);
+  ASSERT_EQ(sm.state(), StatusState::REMOTE);
+
+  sm.handleTick(keyTick(static_cast<int>(mrs_uav_status::tui::Key::Escape)), tui);
+
+  EXPECT_EQ(sm.state(), StatusState::STANDARD);
+  EXPECT_FALSE(tui.remote_mode_active);
+}
+
 TEST(StatusMachine, MainMenuOpensAndClosesOnHandlerReturningTrue) {
   StatusMachine sm;
   FakeTui       tui;
@@ -172,6 +185,8 @@ TEST(StatusMachine, GotoMenuOpensAndClosesOnHandlerReturningTrue) {
 
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
   EXPECT_EQ(tui.clear_menus_calls, 1);
+  // Unlike MAIN_MENU, GOTO_MENU close must not call refreshAfterMenu().
+  EXPECT_EQ(tui.refresh_after_menu_calls, 0);
 }
 
 TEST(StatusMachine, DisplayMenuOpensAndClosesOnHandlerReturningTrue) {
@@ -187,6 +202,8 @@ TEST(StatusMachine, DisplayMenuOpensAndClosesOnHandlerReturningTrue) {
 
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
   EXPECT_EQ(tui.clear_menus_calls, 1);
+  // Unlike MAIN_MENU, DISPLAY_MENU close must not call refreshAfterMenu().
+  EXPECT_EQ(tui.refresh_after_menu_calls, 0);
 }
 
 TEST(StatusMachine, UnrecognizedKeyInStandardFlushesInput) {

@@ -5,10 +5,16 @@
 #include <string>
 #include <vector>
 
-#include <mrs_msgs/msg/general_robot_info.hpp>
-
 namespace mrs_uav_status::utils
 {
+
+// Mirrors mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_* -- named locally (rather than pulling in
+// <mrs_msgs/msg/general_robot_info.hpp>) so utils/ keeps no dependency on ROS message types,
+// matching findSensor()/lookupDetail() below. Same rationale as data_types.hpp's
+// SENSOR_STATUS_*/SENSOR_TYPE_*/STATE_RC_MODE constants.
+inline constexpr uint8_t ROBOT_TYPE_DRONE        = 0;
+inline constexpr uint8_t ROBOT_TYPE_BOAT         = 1;
+inline constexpr uint8_t ROBOT_TYPE_GROUND_ROBOT = 2;
 
 // Splits input on delimiter (returns {""} for an empty input).
 inline std::vector<std::string> splitByChar(const std::string &input, char delimiter) {
@@ -52,11 +58,11 @@ inline std::vector<std::string> withActiveFirst(const std::string &active, const
 // No UNKNOWN sentinel in the enum (0 == DRONE) — caller must check message freshness separately.
 inline std::string robotTypeToString(uint8_t robot_type) {
   switch (robot_type) {
-  case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_DRONE:
+  case ROBOT_TYPE_DRONE:
     return "DRONE";
-  case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_BOAT:
+  case ROBOT_TYPE_BOAT:
     return "BOAT";
-  case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_GROUND_ROBOT:
+  case ROBOT_TYPE_GROUND_ROBOT:
     return "UGV";
   default:
     return "UNKNOWN";
