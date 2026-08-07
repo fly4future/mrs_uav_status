@@ -49,9 +49,8 @@ public:
 private:
   // Loads params, constructs the TUI, starts the render timer, and subscribes to all topics.
   void initialize();
-  // Constructs the sc_*_ service clients and builds the fully-populated tui::CommandSink
-  // (the 9 lambda fields plus the sc_extra_services_/extra_services loop) that initialize()
-  // hands off to the TUI ctor. service_list/uav_name are the already-loaded params.
+  // Constructs the sc_*_ service clients and builds the tui::CommandSink that initialize()
+  // hands off to the TUI ctor.
   tui::CommandSink buildCommandSink(const std::vector<std::string> &service_list, const std::string &uav_name);
 
   bool _profiler_enabled_ = false;

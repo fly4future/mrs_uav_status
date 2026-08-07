@@ -1,24 +1,21 @@
 #!/usr/bin/env bash
 # Fails if tui/ (or the utils/ headers it depends on) pull in ROS message/service/Node types,
 # directly or transitively. rclcpp::Time/Clock/Duration (local UI timing only, no
-# node/topic/service graph access) is an explicitly allowed exception -- see
-# .superpowers/specs/2026-08-06-ros-status-tui-layering-design.md.
+# node/topic/service graph access) is an explicitly allowed exception.
 #
-# Deliberately does NOT use `set -e`: grep's exit status (0 = match found, 1 = no match,
-# >1 = error) is inspected explicitly below so "no forbidden includes" and "grep itself failed"
-# (e.g. a scanned directory went missing in a rename) are never conflated.
+# Deliberately does NOT use `set -e`: grep's exit status is inspected explicitly below so
+# "no forbidden includes" (1) and "grep itself failed" (>1) are never conflated.
 set -uo pipefail
 
 ROOT="$1"
 
-# Matches both angle-bracket and quoted #include forms for each forbidden ROS package
-# (`#include <mrs_msgs/...>` or `#include "mrs_msgs/..."`), plus rclcpp/node.hpp and the
-# rclcpp.hpp umbrella header that pulls it in transitively, plus the ROS-handle helper headers
-# that imply a live node/topic/service graph.
+# Matches #include <mrs_msgs/...> / "mrs_msgs/..." forms for each forbidden ROS package, plus
+# rclcpp/node.hpp and the rclcpp.hpp umbrella header, plus the ROS-handle helper headers that
+# imply a live node/topic/service graph.
 FORBIDDEN='#include[[:space:]]*[<"](mrs_msgs|std_msgs|std_srvs|rclcpp/node|rclcpp/rclcpp)|service_client_handler\.h|subscriber_handler\.h|publisher_handler\.h'
 
-# utils/ is in scope too: tui/ includes utils/ headers directly, so a forbidden dependency
-# hiding in utils/ is just as much a layering violation as one written directly under tui/.
+# tui/ includes utils/ headers directly, so a forbidden dependency hiding in utils/ is just as
+# much a layering violation as one written directly under tui/.
 DIRS=(
   "$ROOT/include/mrs_uav_status/tui"
   "$ROOT/src/tui"

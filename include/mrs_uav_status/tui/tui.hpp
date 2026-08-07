@@ -5,8 +5,8 @@
 #include <mutex>
 #include <memory>
 
-// rclcpp::Time/Clock/Duration are the one allowed ROS dependency in tui/ (local UI timing only,
-// no node/topic/service graph access) -- see the Global Constraints in the layering refactor plan.
+// rclcpp::Time/Clock/Duration are the one ROS dependency allowed in tui/ (local UI timing only,
+// no node/topic/service graph access).
 #include <rclcpp/clock.hpp>
 
 // --- Internal Package Includes ---
@@ -17,8 +17,8 @@
 #include <mrs_uav_status/tui/constants.hpp>
 #include <mrs_uav_status/tui/colors.hpp>
 
-// <curses.h> (transitively included above by the TUI helpers) defines OK as a
-// preprocessor macro (0), colliding with symbols named OK elsewhere in this header.
+// <curses.h> (transitively included above by the TUI helpers) #defines OK as 0 -- undo that
+// here so it can't collide with an OK enumerator/identifier used by this header's includers.
 #ifdef OK
 #undef OK
 #endif
@@ -54,9 +54,8 @@ public:
   // Sets up the default panes; all outbound ROS actions are dispatched through command_sink.
   TUI(rclcpp::Clock::SharedPtr clock, const TUI::TUIParams &params, CommandSink command_sink);
 
-  // Puts the terminal into ncurses raw/no-echo mode. Must run once, before constructing any
-  // TUI and before any window is created. Call before ParamLoader/TUI construction, matching
-  // today's Status ctor ordering.
+  // Puts the terminal into ncurses raw/no-echo mode. Call once, before constructing any TUI
+  // and before any window is created.
   static void initTerminal();
   // Restores the terminal to normal mode. Call after the TUI instance (and its windows) is
   // destroyed.
@@ -218,8 +217,7 @@ private:
   void renderStringsGnssPane(WINDOW *win);
 
   // Computed once per render tick from last_general_robot_info_/last_collision_avoidance_info_/
-  // last_control_info_ under mutex_status_msg_; replaces the 6 call sites that used to
-  // re-extract these same 4 fields independently.
+  // last_control_info_ under mutex_status_msg_.
   status::BorderStatus computeBorderStatus();
 
   TUIParams   params_;

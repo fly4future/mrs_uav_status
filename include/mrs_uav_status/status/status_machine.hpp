@@ -17,8 +17,7 @@ enum class StatusState
 
 // Owns the STANDARD/REMOTE/menu FSM. No ROS Node, no ncurses, no messages -- takes a plain
 // TickInput and drives a tui::TuiActions each render tick. rclcpp::Time (inside TickInput) is
-// the one allowed ROS dependency, for parity with ros_wrapper's clock; StatusMachine itself
-// does not read TickInput::now today.
+// the one allowed ROS dependency.
 class StatusMachine {
 public:
   void handleTick(const TickInput &input, tui::TuiActions &tui);

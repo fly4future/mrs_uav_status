@@ -8,10 +8,8 @@
 namespace mrs_uav_status::utils
 {
 
-// Mirrors mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_* -- named locally (rather than pulling in
-// <mrs_msgs/msg/general_robot_info.hpp>) so utils/ keeps no dependency on ROS message types,
-// matching findSensor()/lookupDetail() below. Same rationale as data_types.hpp's
-// SENSOR_STATUS_*/SENSOR_TYPE_*/STATE_RC_MODE constants.
+// Mirrors mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_* -- named locally so utils/ keeps no
+// dependency on ROS message types.
 inline constexpr uint8_t ROBOT_TYPE_DRONE        = 0;
 inline constexpr uint8_t ROBOT_TYPE_BOAT         = 1;
 inline constexpr uint8_t ROBOT_TYPE_GROUND_ROBOT = 2;
@@ -70,8 +68,7 @@ inline std::string robotTypeToString(uint8_t robot_type) {
 }
 
 // Find the first SensorStatus of a given type. Returns nullptr if not present.
-// Templated (rather than fixed to mrs_msgs::msg::SensorStatus) so this keeps working for
-// status::SensorStatusData without giving utils/ a dependency on status/ or mrs_msgs.
+// Templated so this works for status::SensorStatusData without a dependency on status/ or mrs_msgs.
 template <typename SensorT>
 inline const SensorT *findSensor(const std::vector<SensorT> &sensors, uint8_t type) {
   for (const auto &s : sensors) {

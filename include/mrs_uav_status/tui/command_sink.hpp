@@ -8,8 +8,7 @@ namespace mrs_uav_status::tui
 {
 
 // Outbound ROS actions TUI can trigger, injected by ros_wrapper so TUI never links against
-// rclcpp service/message types. Every call is synchronous (matches today's callSync() usage)
-// and returns/reports success+message the same way a ROS service response would.
+// rclcpp service/message types. Every call is synchronous.
 struct CommandSink
 {
   struct ServiceResult

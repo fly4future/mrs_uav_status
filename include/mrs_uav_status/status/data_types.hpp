@@ -17,20 +17,16 @@ struct CpuLoadData
 };
 
 // Mirrors mrs_msgs::msg::SensorStatus, trimmed: `ready`, `topic` are never read by this package.
-// `details` is retained (as KeyValueData below) -- gnss/magnetometer detail lookups
-// (fix_type/num_satellites/position_accuracy/quality/norm_gauss) read it via utils::lookupDetail().
-// `type`/`level` reuse the same numeric values as the ROS enums
-// (mrs_msgs::msg::SensorStatus::{OK,WARN,ERROR,STALE}, ::TYPE_*) so existing comparisons against
-// those constants keep working unchanged.
-// Named to match mrs_msgs::msg::SensorStatus's level constants, since SensorStatusData is a
-// trimmed plain struct with no room for the message's own enum members.
+// `details` is retained (as KeyValueData below) for the gnss/magnetometer detail lookups via
+// utils::lookupDetail(). `type`/`level` reuse the ROS enums' numeric values
+// (mrs_msgs::msg::SensorStatus::{OK,WARN,ERROR,STALE}, ::TYPE_*) so existing comparisons work unchanged.
 inline constexpr uint8_t SENSOR_STATUS_OK    = 0;
 inline constexpr uint8_t SENSOR_STATUS_WARN  = 1;
 inline constexpr uint8_t SENSOR_STATUS_ERROR = 2;
 inline constexpr uint8_t SENSOR_STATUS_STALE = 3;
 
-// Same rationale as SENSOR_STATUS_* above, but for the subset of mrs_msgs::msg::SensorStatus's
-// `type` constants actually read by this package (utils::findSensor() call sites).
+// Subset of mrs_msgs::msg::SensorStatus's `type` constants actually read by this package
+// (utils::findSensor() call sites).
 inline constexpr uint8_t SENSOR_TYPE_AUTOPILOT    = 0;
 inline constexpr uint8_t SENSOR_TYPE_GNSS         = 2;
 inline constexpr uint8_t SENSOR_TYPE_MAGNETOMETER = 5;
@@ -165,7 +161,7 @@ struct StateData
 
 // Derived, not pushed directly from a message: the 4 fields used for printBox() border
 // coloring, computed once per render tick from GeneralRobotInfoData/CollisionAvoidanceInfoData/
-// ControlInfoData instead of being re-extracted at each of the 6 call sites that need it.
+// ControlInfoData.
 struct BorderStatus
 {
   bool avoiding_collision = false;
@@ -174,9 +170,8 @@ struct BorderStatus
   bool null_tracker       = false;
 };
 
-// Per-topic "has this ever arrived and not gone stale" flags, computed by ros_wrapper from its
-// SubscriberHandlers (hasMsg() && elapsed-since-last-message < timeout) and pushed once per
-// render tick.
+// Per-topic "has this ever arrived and not gone stale" flags, computed by ros_wrapper and
+// pushed once per render tick.
 struct Freshness
 {
   bool general_robot_info       = false;
@@ -187,8 +182,7 @@ struct Freshness
 };
 
 // One render tick's input to StatusMachine::handleTick(): the pressed key (possibly -1/ERR if
-// none), the current per-topic freshness, and the current time (unused by StatusMachine today,
-// carried for parity with ros_wrapper's own now and future use).
+// none), the current per-topic freshness, and the current time.
 struct TickInput
 {
   int          key = -1;
