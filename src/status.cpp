@@ -1,4 +1,5 @@
 #include <mrs_uav_status/status.hpp>
+#include <mrs_uav_status/utils/helpers.hpp>
 
 namespace
 {
@@ -199,6 +200,64 @@ void Status::initialize() {
       .goto_values              = goto_values,
   };
 
+  tui::CommandSink command_sink = buildCommandSink(service_list, uav_name);
+
+  tui_ = std::make_unique<tui::TUI>(clock_, tui_params, std::move(command_sink));
+  tui_->updateTermSize();
+  tui_->setupWindows();
+  tui_->loadDisplayConfig();
+
+  // | ------------------------- Timers ------------------------- |
+
+  mrs_lib::TimerHandlerOptions timer_opts_start;
+  timer_opts_start.node           = node_;
+  timer_opts_start.autostart      = true;
+  timer_opts_start.callback_group = cbkgrp_timers_;
+
+  timer_render_ = std::make_shared<TimerType>(timer_opts_start, rclcpp::Rate(update_rate, clock_), std::bind(&Status::timerRender, this));
+
+  slow_period_       = rclcpp::Duration::from_seconds(1.0 / update_rate_slow);
+  resize_period_     = rclcpp::Duration::from_seconds(1.0 / resize_rate);
+  last_slow_run_     = rclcpp::Time(0, 0, clock_->get_clock_type());
+  last_resize_check_ = rclcpp::Time(0, 0, clock_->get_clock_type());
+
+  // | ------------------------ Subscribers ------------------------ |
+
+  mrs_lib::SubscriberHandlerOptions shopts;
+  shopts.node                                = node_;
+  shopts.no_message_timeout                  = mrs_lib::no_timeout;
+  shopts.threadsafe                          = true;
+  shopts.autostart                           = true;
+  shopts.subscription_options.callback_group = cbkgrp_subs_;
+
+  sh_general_robot_info_ =
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::GeneralRobotInfo>(shopts, "~/general_robot_info_in", &Status::callbackGeneralRobotInfo, this);
+  sh_state_estimation_info_ =
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::StateEstimationInfo>(shopts, "~/state_estimation_info_in", &Status::callbackStateEstimationInfo, this);
+  sh_control_info_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::ControlInfo>(shopts, "~/control_info_in", &Status::callbackControlInfo, this);
+  sh_collision_avoidance_info_ =
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::CollisionAvoidanceInfo>(shopts, "~/collision_avoidance_info_in", &Status::callbackCollisionAvoidanceInfo, this);
+  sh_uav_info_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavInfo>(shopts, "~/uav_info_in", &Status::callbackUavInfo, this);
+  sh_system_health_info_ =
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::SystemHealthInfo>(shopts, "~/system_health_info_in", &Status::callbackSystemHealthInfo, this);
+  sh_uav_state_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::State>(shopts, "~/uav_state_in", &Status::callbackUavState, this);
+  // Custom-display string topic — anything published here lands in the TUI's
+  // Strings window. Supports "-id <key> -p <space-separated text>" preamble.
+  sh_display_string_ = mrs_lib::SubscriberHandler<std_msgs::msg::String>(shopts, "~/display_string_in", &Status::callbackDisplayString, this);
+
+  profiler_ = mrs_lib::Profiler(node_, "Status", _profiler_enabled_);
+
+  is_initialized_ = true;
+
+  RCLCPP_INFO(node_->get_logger(), "initialized");
+}
+
+//}
+
+/* buildCommandSink() //{ */
+
+tui::CommandSink Status::buildCommandSink(const std::vector<std::string> &service_list, const std::string &uav_name) {
+
   sc_goto_reference_     = mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>(node_, "~/goto_reference_out", cbkgrp_sc_);
   sc_velocity_reference_ = mrs_lib::ServiceClientHandler<mrs_msgs::srv::VelocityReferenceStampedSrv>(node_, "~/velocity_reference_out", cbkgrp_sc_);
   sc_set_constraints_    = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_constraints_out", cbkgrp_sc_);
@@ -304,54 +363,7 @@ void Status::initialize() {
                                            }});
   }
 
-  tui_ = std::make_unique<tui::TUI>(clock_, tui_params, std::move(command_sink));
-  tui_->updateTermSize();
-  tui_->setupWindows();
-  tui_->loadDisplayConfig();
-
-  // | ------------------------- Timers ------------------------- |
-
-  mrs_lib::TimerHandlerOptions timer_opts_start;
-  timer_opts_start.node           = node_;
-  timer_opts_start.autostart      = true;
-  timer_opts_start.callback_group = cbkgrp_timers_;
-
-  timer_render_ = std::make_shared<TimerType>(timer_opts_start, rclcpp::Rate(update_rate, clock_), std::bind(&Status::timerRender, this));
-
-  slow_period_       = rclcpp::Duration::from_seconds(1.0 / update_rate_slow);
-  resize_period_     = rclcpp::Duration::from_seconds(1.0 / resize_rate);
-  last_slow_run_     = rclcpp::Time(0, 0, clock_->get_clock_type());
-  last_resize_check_ = rclcpp::Time(0, 0, clock_->get_clock_type());
-
-  // | ------------------------ Subscribers ------------------------ |
-
-  mrs_lib::SubscriberHandlerOptions shopts;
-  shopts.node                                = node_;
-  shopts.no_message_timeout                  = mrs_lib::no_timeout;
-  shopts.threadsafe                          = true;
-  shopts.autostart                           = true;
-  shopts.subscription_options.callback_group = cbkgrp_subs_;
-
-  sh_general_robot_info_ =
-      mrs_lib::SubscriberHandler<mrs_msgs::msg::GeneralRobotInfo>(shopts, "~/general_robot_info_in", &Status::callbackGeneralRobotInfo, this);
-  sh_state_estimation_info_ =
-      mrs_lib::SubscriberHandler<mrs_msgs::msg::StateEstimationInfo>(shopts, "~/state_estimation_info_in", &Status::callbackStateEstimationInfo, this);
-  sh_control_info_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::ControlInfo>(shopts, "~/control_info_in", &Status::callbackControlInfo, this);
-  sh_collision_avoidance_info_ =
-      mrs_lib::SubscriberHandler<mrs_msgs::msg::CollisionAvoidanceInfo>(shopts, "~/collision_avoidance_info_in", &Status::callbackCollisionAvoidanceInfo, this);
-  sh_uav_info_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavInfo>(shopts, "~/uav_info_in", &Status::callbackUavInfo, this);
-  sh_system_health_info_ =
-      mrs_lib::SubscriberHandler<mrs_msgs::msg::SystemHealthInfo>(shopts, "~/system_health_info_in", &Status::callbackSystemHealthInfo, this);
-  sh_uav_state_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::State>(shopts, "~/uav_state_in", &Status::callbackUavState, this);
-  // Custom-display string topic — anything published here lands in the TUI's
-  // Strings window. Supports "-id <key> -p <space-separated text>" preamble.
-  sh_display_string_ = mrs_lib::SubscriberHandler<std_msgs::msg::String>(shopts, "~/display_string_in", &Status::callbackDisplayString, this);
-
-  profiler_ = mrs_lib::Profiler(node_, "Status", _profiler_enabled_);
-
-  is_initialized_ = true;
-
-  RCLCPP_INFO(node_->get_logger(), "initialized");
+  return command_sink;
 }
 
 //}
