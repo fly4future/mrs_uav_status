@@ -112,11 +112,11 @@ status::BorderStatus TUI::computeBorderStatus() {
   };
 }
 
-void TUI::onString(const std_msgs::msg::String &msg) {
+void TUI::onString(const std::string &data) {
   // Parse leading flags ("-id <key>" optional dedupe key, "-p" mark persistent),
   // rejoin remaining tokens as the display text, then dedupe-or-append in
   // string_info_vec_. Mirrors the legacy data_acquisition.cpp::callbackString.
-  std::stringstream                  ss(msg.data);
+  std::stringstream                  ss(data);
   std::istream_iterator<std::string> begin(ss);
   std::istream_iterator<std::string> end;
   std::vector<std::string>           tokens(begin, end);

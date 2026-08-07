@@ -25,9 +25,7 @@
 
 #include <mrs_uav_status/status/data_types.hpp>
 #include <mrs_uav_status/tui/command_sink.hpp>
-#include <std_msgs/msg/string.hpp>
-
-#include <mrs_lib/publisher_handler.h>
+#include <mrs_uav_status/tui/tui_actions.hpp>
 
 namespace mrs_uav_status::tui
 {
@@ -35,7 +33,7 @@ namespace mrs_uav_status::tui
 // Owns the ncurses windows, renders them from the latest received diagnostics, and drives the
 // menus/goto/remote-control key handling. Status pushes messages in via the on*() setters and
 // drives rendering/input via the rest of this public API.
-class TUI {
+class TUI : public TuiActions {
 public:
   struct TUIParams
   {
@@ -63,7 +61,7 @@ public:
   // Wraps getch(): reads one keypress (non-blocking, per initTerminal()'s nodelay(true)).
   int pollKey();
   // Wraps flushinp(): discards any buffered keypresses.
-  void flushInput();
+  void flushInput() override;
   // Wraps doupdate(): flushes all pending ncurses window updates to the physical screen.
   void commitFrame();
 
@@ -78,36 +76,36 @@ public:
   void onUavState(const status::StateData &data);
   // Parses an optional "-id <key>" / "-p" (persistent) preamble, then dedupes-or-appends the
   // remaining text into string_info_vec_ (shown in the GNSS & strings pane).
-  void onString(const std_msgs::msg::String &msg);
+  void onString(const std::string &data);
 
   // Pushed once per render tick from Status; true if the topic has ever arrived and hasn't timed out.
-  void setDataFreshness(bool general_robot_info, bool collision_avoidance_info, bool uav_info, bool system_health_info, bool state_estimation_info);
+  void setDataFreshness(bool general_robot_info, bool collision_avoidance_info, bool uav_info, bool system_health_info, bool state_estimation_info) override;
 
   // | --------------------- Window lifecycle ------------------- |
   // (Re)creates all ncurses windows, sized/positioned for the current minimized/full layout, and
   // reapplies the colorscheme.
-  void setupWindows();
+  void setupWindows() override;
   // If the terminal size changed and is wide enough, resizes the ncurses term and calls setupWindows(). Returns whether it resized.
   bool resize();
   // Queries tmux for the current pane size; returns whether it changed since the last call.
   bool updateTermSize();
   // Flips between minimized and full layout (next setupWindows() picks it up).
-  void toggleMini();
+  void toggleMini() override;
   // Flips the help overlay on/off.
-  void toggleHelp();
+  void toggleHelp() override;
   bool isMini() const {
     return params_.start_minimized;
   }
   // True if the control manager reports flying_normally (gates remote mode / turbo remote).
-  bool isFlyingNormally();
+  bool isFlyingNormally() override;
   void refreshTopBar();
-  void setRemoteMode(bool in_remote_mode);
+  void setRemoteMode(bool in_remote_mode) override;
 
   // | --------------------- Window Handlers -------------------- |
   // Redraws the windows that need to update every tick: top bar, tmux/help overlay, UAV state box.
-  void renderFast();
+  void renderFast() override;
   // Redraws the throttled windows (called at update_rate_slow): counters/pruning, HW API, control manager, pane, general info.
-  void renderSlow();
+  void renderSlow() override;
   // Draws position/heading, commanded-vs-estimated error, and current estimator names.
   void uavStateHandler();
   // Draws armed state, flight mode, battery, thrust, mass estimate, and GNSS/magnetometer readouts.
@@ -122,10 +120,10 @@ public:
   void topLineHandler();
 
   // Cycle the preset panel to the next preset (bound to the 'p' key).
-  void cyclePanes();
+  void cyclePanes() override;
 
   // Jump the preset panel directly to preset idx (bound to number keys). No-op if out of range.
-  void selectPane(std::size_t idx);
+  void selectPane(std::size_t idx) override;
 
   // Advances the 3-way rotation used to cycle which estimator name (hor/ver/hdg) uavStateHandler() shows.
   void tickSlowCounter();
@@ -136,35 +134,35 @@ public:
   // | --------------------- Bottom-window helpers --------------- |
   // Clears the bottom window 3s after the last renderServiceResult(), so results don't linger forever.
   void blankBottomWindow();
-  void refreshBottomWindow();
+  void refreshBottomWindow() override;
   // Prints a service call's success/failure message and marks the clear-time for blankBottomWindow().
   void renderServiceResult(bool success, const std::string &msg);
 
   // | ------------------- Menu (public entry) ------------------- |
   // Builds the top-level menu: per-service actions, toggle output, and set constraints/gains/controller/tracker/estimator submenus.
-  void setupMainMenu();
+  void setupMainMenu() override;
   // Builds the goto menu's X/Y/Z/heading input boxes, seeded from the last-entered values.
-  void setupGotoMenu();
+  void setupGotoMenu() override;
   // Builds the tmux-window picker menu from the current tmux window list.
-  void setupDisplayMenu();
+  void setupDisplayMenu() override;
   // Drives main-menu/submenu navigation; on Enter runs the selected action. Returns true when the whole menu should close.
-  bool mainMenuHandler(int key);
+  bool mainMenuHandler(int key) override;
   // Drives the 4 numeric input boxes; on Enter calls the goto-reference service. Returns true when done.
-  bool gotoMenuHandler(int key);
+  bool gotoMenuHandler(int key) override;
   // Toggles a tmux window's selection (max MAX_SELECTED_TMUX_WINDOWS) and persists the choice to disk. Returns true when done.
-  bool displayMenuHandler(int key);
-  void clearMenus();
+  bool displayMenuHandler(int key) override;
+  void clearMenus() override;
   // Reads the persisted tmux window selection from display_config_filename, if it exists.
   void loadDisplayConfig();
   // Draws the bottom debug window: remote-mode help, the selected tmux panes, or the keybinding help.
   void renderTmuxOrHelp();
-  void refreshAfterMenu();
+  void refreshAfterMenu() override;
 
   // | -------------------------- Remote -------------------------- |
   // Dispatches one keypress in remote mode: 'T' toggles turbo, 'G' toggles local/global frame, else flies/hovers.
-  void remoteHandler(int key);
+  void remoteHandler(int key) override;
   // Resets remote_hover_ when entering remote mode.
-  void enterRemoteMode();
+  void enterRemoteMode() override;
 
 private:
   // | ------------------------- ROS Core ----------------------- |

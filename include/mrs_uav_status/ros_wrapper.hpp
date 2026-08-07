@@ -4,6 +4,7 @@
 #include <atomic>
 
 #include <mrs_uav_status/tui/tui.hpp>
+#include <mrs_uav_status/status/status_machine.hpp>
 
 #include <mrs_msgs/msg/collision_avoidance_info.hpp>
 #include <mrs_msgs/msg/control_info.hpp>
@@ -37,13 +38,13 @@ namespace mrs_uav_status
 
 // ROS2 node wrapping the ncurses TUI: subscribes to the diagnostics topics, drives the render
 // timer, and dispatches keyboard input through a menu/remote-mode state machine.
-class Status : public mrs_lib::Node {
+class RosWrapper : public mrs_lib::Node {
 
 public:
   // Calls tui::TUI::initTerminal(), then initialize().
-  Status();
+  RosWrapper();
   // Stops the render timer, then calls tui::TUI::shutdownTerminal().
-  ~Status();
+  ~RosWrapper();
 
 private:
   // Loads params, constructs the TUI, starts the render timer, and subscribes to all topics.
@@ -55,16 +56,7 @@ private:
 
   bool _profiler_enabled_ = false;
 
-  enum class StatusState
-  {
-    STANDARD,
-    REMOTE,
-    MAIN_MENU,
-    GOTO_MENU,
-    DISPLAY_MENU
-  };
-
-  StatusState state_ = StatusState::STANDARD;
+  status::StatusMachine status_machine_;
 
   rclcpp::Node::SharedPtr          node_;
   rclcpp::Clock::SharedPtr         clock_;
@@ -101,7 +93,7 @@ private:
   double           data_timeout_s_ = 0.0; // Seconds without a message before data is considered stale.
 
   // Per-tick entry point: updates freshness/resize/render, reads one key, and routes it through
-  // the state_ state machine (STANDARD/REMOTE/MAIN_MENU/GOTO_MENU/DISPLAY_MENU).
+  // status_machine_'s STANDARD/REMOTE/MAIN_MENU/GOTO_MENU/DISPLAY_MENU state machine.
   void timerRender();
   // Forwards the message to the matching tui::TUI::on*() setter.
   void callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::ConstSharedPtr msg);

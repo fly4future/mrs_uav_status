@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include <rclcpp/time.hpp>
+
 namespace mrs_uav_status::status
 {
 
@@ -170,6 +172,28 @@ struct BorderStatus
   bool bumper_active      = false;
   bool can_takeoff        = false;
   bool null_tracker       = false;
+};
+
+// Per-topic "has this ever arrived and not gone stale" flags, computed by ros_wrapper from its
+// SubscriberHandlers (hasMsg() && elapsed-since-last-message < timeout) and pushed once per
+// render tick.
+struct Freshness
+{
+  bool general_robot_info       = false;
+  bool collision_avoidance_info = false;
+  bool uav_info                 = false;
+  bool system_health_info       = false;
+  bool state_estimation_info    = false;
+};
+
+// One render tick's input to StatusMachine::handleTick(): the pressed key (possibly -1/ERR if
+// none), the current per-topic freshness, and the current time (unused by StatusMachine today,
+// carried for parity with ros_wrapper's own now and future use).
+struct TickInput
+{
+  int          key = -1;
+  Freshness    freshness;
+  rclcpp::Time now;
 };
 
 } // namespace mrs_uav_status::status
