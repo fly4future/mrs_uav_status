@@ -1,18 +1,22 @@
-#include <mrs_uav_status/status/status_machine.hpp>
+#include <mrs_uav_status/status/status_model.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
 
 namespace mrs_uav_status::status
 {
 
-void StatusMachine::handleTick(const TickInput &input, tui::TuiActions &tui) {
+void StatusModel::setFreshness(const Freshness &freshness) {
+  freshness_ = freshness;
+}
 
-  tui.setDataFreshness(input.freshness.general_robot_info, input.freshness.collision_avoidance_info, input.freshness.uav_info,
-                       input.freshness.system_health_info, input.freshness.state_estimation_info);
+void StatusModel::tick([[maybe_unused]] double now_seconds, int key, tui::TuiActions &tui) {
+
+  tui.setDataFreshness(freshness_.general_robot_info, freshness_.collision_avoidance_info, freshness_.uav_info, freshness_.system_health_info,
+                       freshness_.state_estimation_info);
 
   switch (state_) {
 
   case StatusState::STANDARD: {
-    switch (input.key) {
+    switch (key) {
 
     case 'R': {
       if (tui.isFlyingNormally()) {
@@ -50,7 +54,7 @@ void StatusMachine::handleTick(const TickInput &input, tui::TuiActions &tui) {
     case '7':
     case '8':
     case '9':
-      tui.selectPane(static_cast<std::size_t>(input.key - '1'));
+      tui.selectPane(static_cast<std::size_t>(key - '1'));
       break;
 
     case 'M':
@@ -74,8 +78,8 @@ void StatusMachine::handleTick(const TickInput &input, tui::TuiActions &tui) {
 
   case StatusState::REMOTE: {
     tui.flushInput();
-    tui.remoteHandler(input.key);
-    if (input.key == 'R' || input.key == static_cast<int>(mrs_uav_status::tui::Key::Escape)) {
+    tui.remoteHandler(key);
+    if (key == 'R' || key == static_cast<int>(mrs_uav_status::tui::Key::Escape)) {
       tui.setRemoteMode(false);
       state_ = StatusState::STANDARD;
     }
@@ -84,7 +88,7 @@ void StatusMachine::handleTick(const TickInput &input, tui::TuiActions &tui) {
 
   case StatusState::MAIN_MENU: {
     tui.flushInput();
-    if (tui.mainMenuHandler(input.key)) {
+    if (tui.mainMenuHandler(key)) {
       tui.clearMenus();
       tui.refreshAfterMenu();
       state_ = StatusState::STANDARD;
@@ -94,7 +98,7 @@ void StatusMachine::handleTick(const TickInput &input, tui::TuiActions &tui) {
 
   case StatusState::GOTO_MENU: {
     tui.flushInput();
-    if (tui.gotoMenuHandler(input.key)) {
+    if (tui.gotoMenuHandler(key)) {
       tui.clearMenus();
       state_ = StatusState::STANDARD;
     }
@@ -103,7 +107,7 @@ void StatusMachine::handleTick(const TickInput &input, tui::TuiActions &tui) {
 
   case StatusState::DISPLAY_MENU: {
     tui.flushInput();
-    if (tui.displayMenuHandler(input.key)) {
+    if (tui.displayMenuHandler(key)) {
       tui.clearMenus();
       state_ = StatusState::STANDARD;
     }

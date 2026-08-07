@@ -5,7 +5,7 @@
 namespace mrs_uav_status::tui
 {
 
-// The subset of TUI's public API StatusMachine drives. TUI implements this; tests substitute a
+// The subset of TUI's public API StatusModel drives. TUI implements this; tests substitute a
 // fake instead of constructing a real (ncurses-backed) TUI.
 class TuiActions {
 public:

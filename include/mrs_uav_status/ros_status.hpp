@@ -4,7 +4,7 @@
 #include <atomic>
 
 #include <mrs_uav_status/tui/tui.hpp>
-#include <mrs_uav_status/status/status_machine.hpp>
+#include <mrs_uav_status/status/status_model.hpp>
 
 #include <mrs_msgs/msg/collision_avoidance_info.hpp>
 #include <mrs_msgs/msg/control_info.hpp>
@@ -56,8 +56,6 @@ private:
 
   bool _profiler_enabled_ = false;
 
-  status::StatusMachine status_machine_;
-
   rclcpp::Node::SharedPtr          node_;
   rclcpp::Clock::SharedPtr         clock_;
   rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
@@ -93,7 +91,7 @@ private:
   double           data_timeout_s_ = 0.0; // Seconds without a message before data is considered stale.
 
   // Per-tick entry point: updates freshness/resize/render, reads one key, and routes it through
-  // status_machine_'s STANDARD/REMOTE/MAIN_MENU/GOTO_MENU/DISPLAY_MENU state machine.
+  // model_'s STANDARD/REMOTE/MAIN_MENU/GOTO_MENU/DISPLAY_MENU state machine.
   void timerRender();
   // Forwards the message to the matching tui::TUI::on*() setter.
   void callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::ConstSharedPtr msg);
@@ -107,8 +105,9 @@ private:
 
   std::atomic<bool> is_initialized_ = false;
 
-  mrs_lib::Profiler         profiler_;
-  std::unique_ptr<tui::TUI> tui_;
+  mrs_lib::Profiler                    profiler_;
+  std::unique_ptr<tui::TUI>            tui_;
+  std::unique_ptr<status::StatusModel> model_;
 };
 
 } // namespace mrs_uav_status

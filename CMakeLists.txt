@@ -53,14 +53,14 @@ add_executable(MrsUavStatus_Status)
 target_sources(MrsUavStatus_Status
   PRIVATE
     "src/ros_status.cpp"
-    "src/status/status_machine.cpp"
+    "src/status/status_model.cpp"
     "src/tui/tui.cpp"
     "src/tui/control_bar.cpp"
     "src/tui/status_window.cpp"
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
   FILES
     "include/mrs_uav_status/ros_status.hpp"
-    "include/mrs_uav_status/status/status_machine.hpp"
+    "include/mrs_uav_status/status/status_model.hpp"
     "include/mrs_uav_status/status/data_types.hpp"
     "include/mrs_uav_status/tui/tui_actions.hpp"
     "include/mrs_uav_status/tui/command_sink.hpp"
@@ -106,13 +106,13 @@ if(ENABLE_TESTS)
   find_package(ament_cmake_test REQUIRED)
 
   find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_status_machine test/status_machine/test_status_machine.cpp src/status/status_machine.cpp)
-  target_include_directories(test_status_machine PRIVATE include)
-  target_link_libraries(test_status_machine
+  ament_add_gtest(test_status_model test/status/test_status_model.cpp src/status/status_model.cpp)
+  target_include_directories(test_status_model PRIVATE include)
+  target_link_libraries(test_status_model
     rclcpp::rclcpp
     mrs_lib::mrs_lib
   )
-  target_compile_definitions(test_status_machine PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
+  target_compile_definitions(test_status_model PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
   add_test(
     NAME check_tui_ros_free

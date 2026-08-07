@@ -205,6 +205,8 @@ void RosStatus::initialize() {
   tui_->setupWindows();
   tui_->loadDisplayConfig();
 
+  model_ = std::make_unique<status::StatusModel>();
+
   // | ------------------------- Timers ------------------------- |
 
   mrs_lib::TimerHandlerOptions timer_opts_start;
@@ -404,7 +406,8 @@ void RosStatus::timerRender() {
   tui_->blankBottomWindow();
 
   const int key = tui_->pollKey();
-  status_machine_.handleTick(status::TickInput{key, freshness, now.seconds()}, *tui_);
+  model_->setFreshness(freshness);
+  model_->tick(now.seconds(), key, *tui_);
 
   tui_->refreshTopBar();
   tui_->commitFrame();

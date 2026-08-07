@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <mrs_uav_status/status/status_machine.hpp>
+#include <mrs_uav_status/status/status_model.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
 
 namespace mrs_uav_status::status
@@ -96,92 +96,93 @@ public:
   }
 };
 
-TickInput keyTick(int key) {
-  return TickInput{key, Freshness{}, 0.0};
+void tick(StatusModel &model, FakeTui &tui, int key) {
+  model.setFreshness(Freshness{});
+  model.tick(0.0, key, tui);
 }
 
 } // namespace
 
-TEST(StatusMachine, StartsInStandardState) {
-  StatusMachine sm;
+TEST(StatusModel, StartsInStandardState) {
+  StatusModel sm;
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
 }
 
-TEST(StatusMachine, EntersRemoteModeOnRWhenFlyingNormally) {
-  StatusMachine sm;
-  FakeTui       tui;
+TEST(StatusModel, EntersRemoteModeOnRWhenFlyingNormally) {
+  StatusModel sm;
+  FakeTui     tui;
   tui.flying_normally = true;
 
-  sm.handleTick(keyTick('R'), tui);
+  tick(sm, tui, 'R');
 
   EXPECT_EQ(sm.state(), StatusState::REMOTE);
   EXPECT_EQ(tui.remote_mode_calls, 1);
   EXPECT_TRUE(tui.remote_mode_active);
 }
 
-TEST(StatusMachine, DoesNotEnterRemoteModeWhenNotFlyingNormally) {
-  StatusMachine sm;
-  FakeTui       tui;
+TEST(StatusModel, DoesNotEnterRemoteModeWhenNotFlyingNormally) {
+  StatusModel sm;
+  FakeTui     tui;
   tui.flying_normally = false;
 
-  sm.handleTick(keyTick('R'), tui);
+  tick(sm, tui, 'R');
 
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
   EXPECT_EQ(tui.remote_mode_calls, 0);
 }
 
-TEST(StatusMachine, ExitsRemoteModeOnSecondR) {
-  StatusMachine sm;
-  FakeTui       tui;
+TEST(StatusModel, ExitsRemoteModeOnSecondR) {
+  StatusModel sm;
+  FakeTui     tui;
 
-  sm.handleTick(keyTick('R'), tui);
+  tick(sm, tui, 'R');
   ASSERT_EQ(sm.state(), StatusState::REMOTE);
 
-  sm.handleTick(keyTick('R'), tui);
+  tick(sm, tui, 'R');
 
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
   EXPECT_FALSE(tui.remote_mode_active);
 }
 
-TEST(StatusMachine, ExitsRemoteModeOnEscape) {
-  StatusMachine sm;
-  FakeTui       tui;
+TEST(StatusModel, ExitsRemoteModeOnEscape) {
+  StatusModel sm;
+  FakeTui     tui;
 
-  sm.handleTick(keyTick('R'), tui);
+  tick(sm, tui, 'R');
   ASSERT_EQ(sm.state(), StatusState::REMOTE);
 
-  sm.handleTick(keyTick(static_cast<int>(mrs_uav_status::tui::Key::Escape)), tui);
+  tick(sm, tui, static_cast<int>(mrs_uav_status::tui::Key::Escape));
 
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
   EXPECT_FALSE(tui.remote_mode_active);
 }
 
-TEST(StatusMachine, MainMenuOpensAndClosesOnHandlerReturningTrue) {
-  StatusMachine sm;
-  FakeTui       tui;
+TEST(StatusModel, MainMenuOpensAndClosesOnHandlerReturningTrue) {
+  StatusModel sm;
+  FakeTui     tui;
 
-  sm.handleTick(keyTick('m'), tui);
+  tick(sm, tui, 'm');
   ASSERT_EQ(sm.state(), StatusState::MAIN_MENU);
   EXPECT_EQ(tui.setup_main_menu_calls, 1);
 
   tui.main_menu_should_close = true;
-  sm.handleTick(keyTick(static_cast<int>(mrs_uav_status::tui::Key::Enter)), tui);
+  tick(sm, tui, static_cast<int>(mrs_uav_status::tui::Key::Enter));
 
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
   EXPECT_EQ(tui.clear_menus_calls, 1);
   EXPECT_EQ(tui.refresh_after_menu_calls, 1);
 }
 
-TEST(StatusMachine, GotoMenuOpensAndClosesOnHandlerReturningTrue) {
-  StatusMachine sm;
-  FakeTui       tui;
+TEST(StatusModel, GotoMenuOpensAndClosesOnHandlerReturningTrue) {
+  StatusModel sm;
+  FakeTui     tui;
 
-  sm.handleTick(keyTick('g'), tui);
+  tick(sm, tui, 'g');
   ASSERT_EQ(sm.state(), StatusState::GOTO_MENU);
   EXPECT_EQ(tui.setup_goto_menu_calls, 1);
 
   tui.goto_menu_should_close = true;
-  sm.handleTick(keyTick(static_cast<int>(mrs_uav_status::tui::Key::Enter)), tui);
+  tick(sm, tui, static_cast<int>(mrs_uav_status::tui::Key::Enter));
 
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
   EXPECT_EQ(tui.clear_menus_calls, 1);
@@ -189,16 +190,16 @@ TEST(StatusMachine, GotoMenuOpensAndClosesOnHandlerReturningTrue) {
   EXPECT_EQ(tui.refresh_after_menu_calls, 0);
 }
 
-TEST(StatusMachine, DisplayMenuOpensAndClosesOnHandlerReturningTrue) {
-  StatusMachine sm;
-  FakeTui       tui;
+TEST(StatusModel, DisplayMenuOpensAndClosesOnHandlerReturningTrue) {
+  StatusModel sm;
+  FakeTui     tui;
 
-  sm.handleTick(keyTick('D'), tui);
+  tick(sm, tui, 'D');
   ASSERT_EQ(sm.state(), StatusState::DISPLAY_MENU);
   EXPECT_EQ(tui.setup_display_menu_calls, 1);
 
   tui.display_menu_should_close = true;
-  sm.handleTick(keyTick(static_cast<int>(mrs_uav_status::tui::Key::Enter)), tui);
+  tick(sm, tui, static_cast<int>(mrs_uav_status::tui::Key::Enter));
 
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
   EXPECT_EQ(tui.clear_menus_calls, 1);
@@ -206,33 +207,33 @@ TEST(StatusMachine, DisplayMenuOpensAndClosesOnHandlerReturningTrue) {
   EXPECT_EQ(tui.refresh_after_menu_calls, 0);
 }
 
-TEST(StatusMachine, UnrecognizedKeyInStandardFlushesInput) {
-  StatusMachine sm;
-  FakeTui       tui;
+TEST(StatusModel, UnrecognizedKeyInStandardFlushesInput) {
+  StatusModel sm;
+  FakeTui     tui;
 
-  sm.handleTick(keyTick('z'), tui);
+  tick(sm, tui, 'z');
 
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
   EXPECT_EQ(tui.flush_input_calls, 1);
 }
 
-TEST(StatusMachine, NumberKeySelectsPaneByZeroBasedIndex) {
-  StatusMachine sm;
-  FakeTui       tui;
+TEST(StatusModel, NumberKeySelectsPaneByZeroBasedIndex) {
+  StatusModel sm;
+  FakeTui     tui;
 
-  sm.handleTick(keyTick('3'), tui);
+  tick(sm, tui, '3');
 
   EXPECT_EQ(tui.select_pane_last_idx, 2);
 }
 
-TEST(StatusMachine, RefreshesBottomWindowOnlyOutsideMenuStates) {
-  StatusMachine sm;
-  FakeTui       tui;
+TEST(StatusModel, RefreshesBottomWindowOnlyOutsideMenuStates) {
+  StatusModel sm;
+  FakeTui     tui;
 
-  sm.handleTick(keyTick('h'), tui); // STANDARD -> STANDARD
+  tick(sm, tui, 'h'); // STANDARD -> STANDARD
   EXPECT_EQ(tui.refresh_bottom_window_calls, 1);
 
-  sm.handleTick(keyTick('m'), tui);              // STANDARD -> MAIN_MENU
+  tick(sm, tui, 'm');                            // STANDARD -> MAIN_MENU
   EXPECT_EQ(tui.refresh_bottom_window_calls, 1); // unchanged: now in a menu state
 }
 

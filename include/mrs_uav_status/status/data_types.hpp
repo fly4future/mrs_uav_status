@@ -179,14 +179,4 @@ struct Freshness
   bool state_estimation_info    = false;
 };
 
-// One render tick's input to the state machine: the pressed key (possibly -1/ERR if none), the
-// current per-topic freshness, and the current time as plain seconds (no rclcpp::Time -- status/
-// must stay ROS-free).
-struct TickInput
-{
-  int       key = -1;
-  Freshness freshness;
-  double    now_seconds = 0.0;
-};
-
 } // namespace mrs_uav_status::status
