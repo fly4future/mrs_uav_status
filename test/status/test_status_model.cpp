@@ -272,4 +272,51 @@ TEST(StatusModel, SnapshotCarriesLatestDataFreshnessAndBorderStatus) {
   EXPECT_TRUE(snap.border_status.bumper_active);
 }
 
+TEST(StatusModel, DisplayStringIsStoredWithoutItsFlagPreamble) {
+  StatusModel sm;
+
+  sm.onString(1.0, "-id gps -p hello world");
+
+  const RenderSnapshot snap = sm.snapshot(1.0);
+  ASSERT_EQ(snap.display_strings.size(), 1u);
+  EXPECT_EQ(snap.display_strings[0], "hello world");
+}
+
+TEST(StatusModel, DisplayStringIsDedupedById) {
+  StatusModel sm;
+
+  sm.onString(1.0, "-id gps first");
+  sm.onString(2.0, "-id gps second");
+
+  const RenderSnapshot snap = sm.snapshot(2.0);
+  ASSERT_EQ(snap.display_strings.size(), 1u);
+  EXPECT_EQ(snap.display_strings[0], "second");
+}
+
+TEST(StatusModel, NonPersistentDisplayStringExpiresAfterTenSeconds) {
+  StatusModel sm;
+  FakeTui     tui;
+
+  sm.onString(1.0, "-id gps transient");
+  ASSERT_EQ(sm.snapshot(1.0).display_strings.size(), 1u);
+
+  sm.setFreshness(Freshness{});
+  sm.tick(12.0, -1, tui); // pruning runs at the top of tick()
+
+  EXPECT_TRUE(sm.snapshot(12.0).display_strings.empty());
+}
+
+TEST(StatusModel, PersistentDisplayStringSurvivesExpiry) {
+  StatusModel sm;
+  FakeTui     tui;
+
+  sm.onString(1.0, "-id gps -p forever");
+
+  sm.setFreshness(Freshness{});
+  sm.tick(120.0, -1, tui);
+
+  ASSERT_EQ(sm.snapshot(120.0).display_strings.size(), 1u);
+  EXPECT_EQ(sm.snapshot(120.0).display_strings[0], "forever");
+}
+
 } // namespace mrs_uav_status::status

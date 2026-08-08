@@ -2,12 +2,7 @@
 #include <string>
 #include <vector>
 #include <functional>
-#include <mutex>
 #include <memory>
-
-// rclcpp::Time/Clock/Duration are the one ROS dependency allowed in tui/ (local UI timing only,
-// no node/topic/service graph access).
-#include <rclcpp/clock.hpp>
 
 // --- Internal Package Includes ---
 #include <mrs_uav_status/tui/system_info.hpp>
@@ -24,7 +19,6 @@
 #endif
 
 #include <mrs_uav_status/utils/helpers.hpp>
-#include <mrs_uav_status/utils/string_info.hpp>
 #include <mrs_uav_status/utils/terminal.hpp>
 
 #include <mrs_uav_status/status/data_types.hpp>
@@ -49,7 +43,7 @@ public:
   };
 
   // Sets up the default panes; all outbound ROS actions are dispatched through command_sink.
-  TUI(rclcpp::Clock::SharedPtr clock, const TUI::TUIParams &params, CommandSink command_sink);
+  TUI(const TUI::TUIParams &params, CommandSink command_sink);
 
   // Puts the terminal into ncurses raw/no-echo mode. Call once, before constructing any TUI
   // and before any window is created.
@@ -69,12 +63,6 @@ public:
   // render*/handler call. snapshot_ is render-thread-private, so no locking is needed here or
   // in any handler that reads it.
   void setSnapshot(const status::RenderSnapshot &snapshot);
-
-  // | --------------------- Data push --------------------- |
-  // Parses an optional "-id <key>" / "-p" (persistent) preamble, then dedupes-or-appends the
-  // remaining text into string_info_vec_ (shown in the GNSS & strings pane). Called from the ROS
-  // subscriber thread; string_info_vec_ is guarded by mutex_status_msg_ until Task 4 moves it too.
-  void onString(const std::string &data);
 
   // | --------------------- Window lifecycle ------------------- |
   // (Re)creates all ncurses windows, sized/positioned for the current minimized/full layout, and
@@ -121,9 +109,6 @@ public:
   // Advances the 3-way rotation used to cycle which estimator name (hor/ver/hdg) uavStateHandler() shows.
   void tickSlowCounter();
 
-  // Evict non-persistent display_string entries older than 10s. Runs every slow tick, independent of the currently selected pane.
-  void pruneStrings();
-
   // | --------------------- Bottom-window helpers --------------- |
   // Clears the bottom window 3s after the last renderServiceResult(), so results don't linger forever.
   void blankBottomWindow();
@@ -158,23 +143,8 @@ public:
   void enterRemoteMode() override;
 
 private:
-  // | ------------------------- ROS Core ----------------------- |
-  rclcpp::Clock::SharedPtr clock_;
-
   // Everything the handlers render from, refreshed once per fast tick by setSnapshot().
   status::RenderSnapshot snapshot_;
-
-  // | ----------------------- Display strings --------------- |
-  // Guards string_info_vec_ below, written from the ROS subscriber thread by onString() and
-  // read/pruned on the render thread. All other message state moved to StatusModel in this task;
-  // this one mutex/member pair moves too, in Task 4.
-  std::mutex mutex_status_msg_;
-
-  // Custom strings published via std_msgs/String. Each entry tracks its own
-  // freshness — entries older than 10 s are pruned in pruneStrings() (called
-  // every slow tick, independent of the selected pane) unless marked
-  // persistent (`-p` flag). Deduped by id (parsed from `-id <key>`).
-  std::vector<utils::StringInfo> string_info_vec_;
 
   // | -------------------- Panes ---------------- |
   // The pane box cycles through pluggable panes ('p' key). To add a pane,

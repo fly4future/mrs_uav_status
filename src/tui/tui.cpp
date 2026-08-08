@@ -5,7 +5,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
-#include <iterator>
 #include <sstream>
 
 #include <mrs_lib/geometry/cyclic.h>
@@ -16,8 +15,7 @@ namespace mrs_uav_status::tui
 using radians = mrs_lib::geometry::radians;
 
 
-TUI::TUI(rclcpp::Clock::SharedPtr clock, const TUI::TUIParams &params, CommandSink command_sink)
-    : clock_(clock), params_(params), command_sink_(std::move(command_sink)) {
+TUI::TUI(const TUI::TUIParams &params, CommandSink command_sink) : params_(params), command_sink_(std::move(command_sink)) {
 
   light_scheme_ = (params_.colorscheme.find("COLORSCHEME_LIGHT") != std::string::npos);
 
@@ -61,74 +59,11 @@ void TUI::setSnapshot(const status::RenderSnapshot &snapshot) {
   snapshot_ = snapshot;
 }
 
-void TUI::onString(const std::string &data) {
-  // Parse leading flags ("-id <key>" optional dedupe key, "-p" mark persistent), rejoin
-  // remaining tokens as the display text, then dedupe-or-append in string_info_vec_.
-  std::stringstream                  ss(data);
-  std::istream_iterator<std::string> begin(ss);
-  std::istream_iterator<std::string> end;
-  std::vector<std::string>           tokens(begin, end);
-  if (tokens.empty()) {
-    return;
-  }
-
-  std::string id;
-  bool        persistent = false;
-  bool        flags_done = false;
-  size_t      i          = 0;
-  while (!flags_done && i < tokens.size()) {
-    if (tokens[i] == "-id" && i + 1 < tokens.size()) {
-      id = tokens[i + 1];
-      tokens.erase(tokens.begin() + i, tokens.begin() + i + 2);
-    } else if (tokens[i] == "-p") {
-      persistent = true;
-      tokens.erase(tokens.begin() + i);
-    } else if (!tokens[i].empty() && tokens[i].front() != '-') {
-      flags_done = true;
-    } else {
-      ++i;
-    }
-  }
-
-  std::string display;
-  for (size_t k = 0; k < tokens.size(); ++k) {
-    if (k > 0) {
-      display += ' ';
-    }
-    display += tokens[k];
-  }
-
-  std::scoped_lock   lock(mutex_status_msg_);
-  const rclcpp::Time now = clock_->now();
-  // Dedupe by id.
-  for (auto &entry : string_info_vec_) {
-    if (entry.id == id) {
-      entry.display_string = display;
-      entry.persistent     = persistent;
-      entry.last_time      = now;
-      return;
-    }
-  }
-  string_info_vec_.emplace_back(now, display, id, persistent);
-}
-
 void TUI::tickSlowCounter() {
   increment_counter_ = !increment_counter_;
   estimator_display_counter_ += int(increment_counter_);
   if (estimator_display_counter_ >= 3) {
     estimator_display_counter_ = 0;
-  }
-}
-
-void TUI::pruneStrings() {
-  std::scoped_lock   lock(mutex_status_msg_);
-  const rclcpp::Time now = clock_->now();
-  for (auto it = string_info_vec_.begin(); it != string_info_vec_.end();) {
-    if (!it->persistent && (now - it->last_time).seconds() > 10.0) {
-      it = string_info_vec_.erase(it);
-    } else {
-      ++it;
-    }
   }
 }
 
@@ -251,7 +186,6 @@ void TUI::renderFast() {
 
 void TUI::renderSlow() {
   tickSlowCounter();
-  pruneStrings();
   hwApiStateHandler();
   controlManagerHandler();
   paneHandler();
@@ -324,11 +258,10 @@ void TUI::renderStringsGnssPane(WINDOW *win) {
       gnss_status_rate               = gnss->rate;
     }
 
-    // Eviction happens unconditionally in pruneStrings() (every slow tick);
-    // here we just collect whatever's currently live for display.
-    std::scoped_lock lock(mutex_status_msg_);
-    for (const auto &entry : string_info_vec_) {
-      string_vector.push_back(entry.display_string);
+    // Eviction already happened in StatusModel::pruneStrings() (top of every tick());
+    // snapshot_.display_strings is whatever's currently live for display.
+    for (const auto &entry : snapshot_.display_strings) {
+      string_vector.push_back(entry);
     }
   }
 
@@ -1611,7 +1544,8 @@ void TUI::blankBottomWindow() {
 
 void TUI::renderServiceResult(bool success, const std::string &msg) {
   printServiceResult(bottom_window_.get(), light_scheme_, success, msg);
-  bottom_window_clear_time_s_ = clock_->now().seconds();
+  // Post-call wall clock, not the stale tick-start snapshot_.now_seconds -- see CommandSink::nowSeconds.
+  bottom_window_clear_time_s_ = command_sink_.nowSeconds();
 }
 
 // | --------------------- Menu helpers ----------------------- |

@@ -194,6 +194,9 @@ struct RenderSnapshot
   UavInfoData                uav_info;
   SystemHealthInfoData       system_health_info;
   StateData                  uav_state;
+
+  // Live display_string entries (already pruned), in insertion order.
+  std::vector<std::string> display_strings;
 };
 
 } // namespace mrs_uav_status::status

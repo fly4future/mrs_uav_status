@@ -1,8 +1,11 @@
 #pragma once
 
 #include <mutex>
+#include <string>
+#include <vector>
 
 #include <mrs_uav_status/status/data_types.hpp>
+#include <mrs_uav_status/status/string_info.hpp>
 #include <mrs_uav_status/tui/tui_actions.hpp>
 
 namespace mrs_uav_status::status
@@ -44,6 +47,11 @@ public:
   void onSystemHealthInfo(const SystemHealthInfoData &data);
   void onUavState(const StateData &data);
 
+  // Parses an optional "-id <key>" / "-p" (persistent) preamble, then dedupes-or-appends the
+  // remaining text into string_info_vec_ (shown in the GNSS & strings pane). Called from a ROS
+  // subscriber thread; now_seconds is the node clock at reception.
+  void onString(double now_seconds, const std::string &data);
+
   // Deep-copies everything the renderer needs, under mutex_status_msg_. Call once per fast tick,
   // after setFreshness() and before any TUI render call.
   RenderSnapshot snapshot(double now_seconds) const;
@@ -51,6 +59,9 @@ public:
 private:
   // True if ControlInfo reports flying_normally (gates remote mode and turbo remote).
   bool isFlyingNormally() const;
+
+  // Evict non-persistent display_string entries older than 10 s. Runs at the top of every tick().
+  void pruneStrings(double now_seconds);
 
   StatusState state_ = StatusState::STANDARD;
 
@@ -67,6 +78,10 @@ private:
   UavInfoData                last_uav_info_;
   SystemHealthInfoData       last_system_health_info_;
   StateData                  last_uav_state_;
+
+  // Custom strings published via std_msgs/String, guarded by mutex_status_msg_. Deduped by the id
+  // parsed from "-id <key>"; entries older than 10 s are pruned unless marked persistent ("-p").
+  std::vector<StringInfo> string_info_vec_;
 };
 
 } // namespace mrs_uav_status::status

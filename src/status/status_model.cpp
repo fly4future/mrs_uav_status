@@ -1,3 +1,6 @@
+#include <iterator>
+#include <sstream>
+
 #include <mrs_uav_status/status/status_model.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
 
@@ -49,6 +52,67 @@ bool StatusModel::isFlyingNormally() const {
   return last_control_info_.flying_normally;
 }
 
+void StatusModel::onString(double now_seconds, const std::string &data) {
+  // Parse leading flags ("-id <key>" optional dedupe key, "-p" mark persistent), rejoin
+  // remaining tokens as the display text, then dedupe-or-append in string_info_vec_.
+  std::stringstream                  ss(data);
+  std::istream_iterator<std::string> begin(ss);
+  std::istream_iterator<std::string> end;
+  std::vector<std::string>           tokens(begin, end);
+  if (tokens.empty()) {
+    return;
+  }
+
+  std::string id;
+  bool        persistent = false;
+  bool        flags_done = false;
+  size_t      i          = 0;
+  while (!flags_done && i < tokens.size()) {
+    if (tokens[i] == "-id" && i + 1 < tokens.size()) {
+      id = tokens[i + 1];
+      tokens.erase(tokens.begin() + i, tokens.begin() + i + 2);
+    } else if (tokens[i] == "-p") {
+      persistent = true;
+      tokens.erase(tokens.begin() + i);
+    } else if (!tokens[i].empty() && tokens[i].front() != '-') {
+      flags_done = true;
+    } else {
+      ++i;
+    }
+  }
+
+  std::string display;
+  for (size_t k = 0; k < tokens.size(); ++k) {
+    if (k > 0) {
+      display += ' ';
+    }
+    display += tokens[k];
+  }
+
+  std::scoped_lock lock(mutex_status_msg_);
+  // Dedupe by id.
+  for (auto &entry : string_info_vec_) {
+    if (entry.id == id) {
+      entry.display_string = display;
+      entry.persistent     = persistent;
+      entry.last_time      = now_seconds;
+      return;
+    }
+  }
+  string_info_vec_.emplace_back(now_seconds, display, id, persistent);
+}
+
+void StatusModel::pruneStrings(double now_seconds) {
+  std::scoped_lock lock(mutex_status_msg_);
+  for (auto it = string_info_vec_.begin(); it != string_info_vec_.end();) {
+    if (!it->persistent && (now_seconds - it->last_time) > 10.0) {
+      it = string_info_vec_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
+
 RenderSnapshot StatusModel::snapshot(double now_seconds) const {
   std::scoped_lock lock(mutex_status_msg_);
 
@@ -68,10 +132,16 @@ RenderSnapshot StatusModel::snapshot(double now_seconds) const {
                  .can_takeoff        = last_general_robot_info_.ready_to_start,
                  .null_tracker       = (last_control_info_.active_tracker == "NullTracker"),
   };
+  out.display_strings.reserve(string_info_vec_.size());
+  for (const auto &entry : string_info_vec_) {
+    out.display_strings.push_back(entry.display_string);
+  }
   return out;
 }
 
-void StatusModel::tick([[maybe_unused]] double now_seconds, int key, tui::TuiActions &tui) {
+void StatusModel::tick(double now_seconds, int key, tui::TuiActions &tui) {
+
+  pruneStrings(now_seconds);
 
   switch (state_) {
 

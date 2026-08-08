@@ -7,8 +7,8 @@
 namespace mrs_uav_status::tui
 {
 
-// Outbound ROS actions TUI can trigger, injected by ros_status so TUI never links against
-// rclcpp service/message types. Every call is synchronous.
+// Outbound ROS actions TUI can trigger, injected by ros_status so TUI never links against ROS
+// client-library service/message types. Every call is synchronous.
 struct CommandSink
 {
   struct ServiceResult
@@ -36,6 +36,13 @@ struct CommandSink
   std::function<ServiceResult()>                                                                         toggleOutput;
 
   std::vector<NamedService> extra_services;
+
+  // Wall-clock "now" in seconds, straight from the node clock. Not a service call, but routed
+  // through CommandSink for the same reason as everything else here: it lets TUI read the node
+  // clock without linking against any ROS client-library type itself. Used where the tick-start
+  // snapshot_.now_seconds is too stale -- e.g. stamping renderServiceResult()'s clear-time after
+  // a blocking service call returns.
+  std::function<double()> nowSeconds;
 };
 
 } // namespace mrs_uav_status::tui

@@ -72,7 +72,7 @@ target_sources(MrsUavStatus_Status
     "include/mrs_uav_status/tui/constants.hpp"
     "include/mrs_uav_status/tui/tui.hpp"
     "include/mrs_uav_status/utils/helpers.hpp"
-    "include/mrs_uav_status/utils/string_info.hpp"
+    "include/mrs_uav_status/status/string_info.hpp"
 )
 
 target_link_libraries(MrsUavStatus_Status

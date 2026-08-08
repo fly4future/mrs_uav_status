@@ -200,7 +200,7 @@ void RosStatus::initialize() {
 
   tui::CommandSink command_sink = buildCommandSink(service_list, uav_name);
 
-  tui_ = std::make_unique<tui::TUI>(clock_, tui_params, std::move(command_sink));
+  tui_ = std::make_unique<tui::TUI>(tui_params, std::move(command_sink));
   tui_->updateTermSize();
   tui_->setupWindows();
   tui_->loadDisplayConfig();
@@ -331,6 +331,8 @@ tui::CommandSink RosStatus::buildCommandSink(const std::vector<std::string> &ser
     }
     return {response.value()->success, response.value()->message};
   };
+
+  command_sink.nowSeconds = [this]() { return clock_->now().seconds(); };
 
   sc_extra_services_.reserve(service_list.size());
   for (const auto &service_input : service_list) {
@@ -473,7 +475,7 @@ void RosStatus::callbackDisplayString(const std_msgs::msg::String::ConstSharedPt
   if (!is_initialized_) {
     return;
   }
-  tui_->onString(msg->data);
+  model_->onString(clock_->now().seconds(), msg->data);
 }
 
 //}
