@@ -11,14 +11,22 @@ namespace
 
 class FakeTui : public tui::TuiActions {
 public:
-  bool main_menu_should_close    = false;
-  bool goto_menu_should_close    = false;
-  bool display_menu_should_close = false;
+  // programmable responses
+  tui::MenuEvent next_menu_event;
+  tui::GotoEvent next_goto_event;
+  bool           display_menu_should_close = false;
 
-  int  remote_mode_calls           = 0;
-  bool remote_mode_active          = false;
-  int  setup_main_menu_calls       = 0;
-  int  setup_goto_menu_calls       = 0;
+  // recorded calls
+  std::vector<std::string> main_menu_labels;
+  std::vector<std::string> sub_menu_labels;
+  std::vector<std::string> goto_menu_labels;
+  std::vector<double>      goto_initial_values;
+  std::vector<std::string> service_results;
+
+  int  show_main_menu_calls        = 0;
+  int  show_sub_menu_calls         = 0;
+  int  close_sub_menu_calls        = 0;
+  int  show_goto_menu_calls        = 0;
   int  setup_display_menu_calls    = 0;
   int  clear_menus_calls           = 0;
   int  refresh_after_menu_calls    = 0;
@@ -28,27 +36,32 @@ public:
   int  select_pane_last_idx        = -1;
   int  toggle_mini_calls           = 0;
   int  flush_input_calls           = 0;
+  int  remote_banner_calls         = 0;
+  bool remote_banner_turbo         = false;
+  bool remote_banner_global        = false;
+  bool remote_mode_active          = false;
 
-  void enterRemoteMode() override {
-    remote_mode_calls++;
+  void showMainMenu(const std::vector<std::string> &labels) override {
+    main_menu_labels = labels;
+    show_main_menu_calls++;
   }
-  void setRemoteMode(bool in_remote_mode) override {
-    remote_mode_active = in_remote_mode;
+  void showSubMenu(const std::vector<std::string> &labels) override {
+    sub_menu_labels = labels;
+    show_sub_menu_calls++;
   }
-  void remoteHandler(int) override {
+  void closeSubMenu() override {
+    close_sub_menu_calls++;
   }
-
-  void setupMainMenu() override {
-    setup_main_menu_calls++;
+  tui::MenuEvent handleMainMenuKey(int) override {
+    return next_menu_event;
   }
-  bool mainMenuHandler(int) override {
-    return main_menu_should_close;
+  void showGotoMenu(const std::vector<std::string> &labels, const std::vector<double> &initial_values) override {
+    goto_menu_labels    = labels;
+    goto_initial_values = initial_values;
+    show_goto_menu_calls++;
   }
-  void setupGotoMenu() override {
-    setup_goto_menu_calls++;
-  }
-  bool gotoMenuHandler(int) override {
-    return goto_menu_should_close;
+  tui::GotoEvent handleGotoMenuKey(int) override {
+    return next_goto_event;
   }
   void setupDisplayMenu() override {
     setup_display_menu_calls++;
@@ -62,7 +75,17 @@ public:
   void refreshAfterMenu() override {
     refresh_after_menu_calls++;
   }
-
+  void setRemoteMode(bool in_remote_mode) override {
+    remote_mode_active = in_remote_mode;
+  }
+  void renderRemoteBanner(bool turbo, bool global) override {
+    remote_banner_turbo  = turbo;
+    remote_banner_global = global;
+    remote_banner_calls++;
+  }
+  void renderServiceResult(bool success, const std::string &message, double) override {
+    service_results.push_back((success ? "OK: " : "FAIL: ") + message);
+  }
   void toggleHelp() override {
     toggle_help_calls++;
   }
@@ -81,7 +104,6 @@ public:
   }
   void renderSlow() override {
   }
-
   void flushInput() override {
     flush_input_calls++;
   }
@@ -89,6 +111,25 @@ public:
     refresh_bottom_window_calls++;
   }
 };
+
+tui::CommandSink emptySink() {
+  tui::CommandSink sink;
+  sink.sendGoto              = [](double, double, double, double, const std::string &) { return tui::CommandSink::ServiceResult{true, ""}; };
+  sink.sendVelocityReference = [](double, double, double, double, const std::string &) {};
+  sink.setConstraints        = [](const std::string &) { return tui::CommandSink::ServiceResult{true, ""}; };
+  sink.setGains              = [](const std::string &) { return tui::CommandSink::ServiceResult{true, ""}; };
+  sink.setController         = [](const std::string &) { return tui::CommandSink::ServiceResult{true, ""}; };
+  sink.setTracker            = [](const std::string &) { return tui::CommandSink::ServiceResult{true, ""}; };
+  sink.setEstimator          = [](const std::string &) { return tui::CommandSink::ServiceResult{true, ""}; };
+  sink.hover                 = []() { return tui::CommandSink::ServiceResult{true, ""}; };
+  sink.toggleOutput          = []() { return tui::CommandSink::ServiceResult{true, ""}; };
+  sink.nowSeconds            = []() { return 0.0; };
+  return sink;
+}
+
+StatusModel::Params defaultParams() {
+  return StatusModel::Params{.turbo_remote_constraints = "fast", .goto_values = {0.0, 0.0, 2.0, 1.57}};
+}
 
 void tick(StatusModel &model, FakeTui &tui, int key) {
   model.setFreshness(Freshness{});
@@ -98,12 +139,12 @@ void tick(StatusModel &model, FakeTui &tui, int key) {
 } // namespace
 
 TEST(StatusModel, StartsInStandardState) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
 }
 
 TEST(StatusModel, EntersRemoteModeOnRWhenFlyingNormally) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
   FakeTui     tui;
 
   ControlInfoData ci;
@@ -113,22 +154,20 @@ TEST(StatusModel, EntersRemoteModeOnRWhenFlyingNormally) {
   tick(sm, tui, 'R');
 
   EXPECT_EQ(sm.state(), StatusState::REMOTE);
-  EXPECT_EQ(tui.remote_mode_calls, 1);
   EXPECT_TRUE(tui.remote_mode_active);
 }
 
 TEST(StatusModel, DoesNotEnterRemoteModeWhenNotFlyingNormally) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
   FakeTui     tui;
 
   tick(sm, tui, 'R'); // flying_normally defaults to false
 
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
-  EXPECT_EQ(tui.remote_mode_calls, 0);
 }
 
 TEST(StatusModel, ExitsRemoteModeOnSecondR) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
   FakeTui     tui;
 
   ControlInfoData ci;
@@ -145,7 +184,7 @@ TEST(StatusModel, ExitsRemoteModeOnSecondR) {
 }
 
 TEST(StatusModel, ExitsRemoteModeOnEscape) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
   FakeTui     tui;
 
   ControlInfoData ci;
@@ -162,14 +201,14 @@ TEST(StatusModel, ExitsRemoteModeOnEscape) {
 }
 
 TEST(StatusModel, MainMenuOpensAndClosesOnHandlerReturningTrue) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
   FakeTui     tui;
 
   tick(sm, tui, 'm');
   ASSERT_EQ(sm.state(), StatusState::MAIN_MENU);
-  EXPECT_EQ(tui.setup_main_menu_calls, 1);
+  EXPECT_EQ(tui.show_main_menu_calls, 1);
 
-  tui.main_menu_should_close = true;
+  tui.next_menu_event = tui::MenuEvent{tui::MenuEvent::Kind::Exit, false, -1};
   tick(sm, tui, static_cast<int>(mrs_uav_status::tui::Key::Enter));
 
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
@@ -178,14 +217,14 @@ TEST(StatusModel, MainMenuOpensAndClosesOnHandlerReturningTrue) {
 }
 
 TEST(StatusModel, GotoMenuOpensAndClosesOnHandlerReturningTrue) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
   FakeTui     tui;
 
   tick(sm, tui, 'g');
   ASSERT_EQ(sm.state(), StatusState::GOTO_MENU);
-  EXPECT_EQ(tui.setup_goto_menu_calls, 1);
+  EXPECT_EQ(tui.show_goto_menu_calls, 1);
 
-  tui.goto_menu_should_close = true;
+  tui.next_goto_event = tui::GotoEvent{tui::GotoEvent::Kind::Exit, 0.0, 0.0, 0.0, 0.0};
   tick(sm, tui, static_cast<int>(mrs_uav_status::tui::Key::Enter));
 
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
@@ -195,7 +234,7 @@ TEST(StatusModel, GotoMenuOpensAndClosesOnHandlerReturningTrue) {
 }
 
 TEST(StatusModel, DisplayMenuOpensAndClosesOnHandlerReturningTrue) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
   FakeTui     tui;
 
   tick(sm, tui, 'D');
@@ -212,7 +251,7 @@ TEST(StatusModel, DisplayMenuOpensAndClosesOnHandlerReturningTrue) {
 }
 
 TEST(StatusModel, UnrecognizedKeyInStandardFlushesInput) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
   FakeTui     tui;
 
   tick(sm, tui, 'z');
@@ -222,7 +261,7 @@ TEST(StatusModel, UnrecognizedKeyInStandardFlushesInput) {
 }
 
 TEST(StatusModel, NumberKeySelectsPaneByZeroBasedIndex) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
   FakeTui     tui;
 
   tick(sm, tui, '3');
@@ -231,7 +270,7 @@ TEST(StatusModel, NumberKeySelectsPaneByZeroBasedIndex) {
 }
 
 TEST(StatusModel, RefreshesBottomWindowOnlyOutsideMenuStates) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
   FakeTui     tui;
 
   tick(sm, tui, 'h'); // STANDARD -> STANDARD
@@ -242,7 +281,7 @@ TEST(StatusModel, RefreshesBottomWindowOnlyOutsideMenuStates) {
 }
 
 TEST(StatusModel, SnapshotCarriesLatestDataFreshnessAndBorderStatus) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
 
   GeneralRobotInfoData gri;
   gri.robot_name     = "uav1";
@@ -273,7 +312,7 @@ TEST(StatusModel, SnapshotCarriesLatestDataFreshnessAndBorderStatus) {
 }
 
 TEST(StatusModel, DisplayStringIsStoredWithoutItsFlagPreamble) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
 
   sm.onString(1.0, "-id gps -p hello world");
 
@@ -283,7 +322,7 @@ TEST(StatusModel, DisplayStringIsStoredWithoutItsFlagPreamble) {
 }
 
 TEST(StatusModel, DisplayStringIsDedupedById) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
 
   sm.onString(1.0, "-id gps first");
   sm.onString(2.0, "-id gps second");
@@ -294,7 +333,7 @@ TEST(StatusModel, DisplayStringIsDedupedById) {
 }
 
 TEST(StatusModel, NonPersistentDisplayStringExpiresAfterTenSeconds) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
   FakeTui     tui;
 
   sm.onString(1.0, "-id gps transient");
@@ -307,7 +346,7 @@ TEST(StatusModel, NonPersistentDisplayStringExpiresAfterTenSeconds) {
 }
 
 TEST(StatusModel, PersistentDisplayStringSurvivesExpiry) {
-  StatusModel sm;
+  StatusModel sm(emptySink(), defaultParams());
   FakeTui     tui;
 
   sm.onString(1.0, "-id gps -p forever");

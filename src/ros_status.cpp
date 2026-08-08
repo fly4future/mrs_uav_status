@@ -190,22 +190,25 @@ void RosStatus::initialize() {
   const std::vector<double> goto_values(goto_values_mat.data(), goto_values_mat.data() + goto_values_mat.size());
 
   const tui::TUI::TUIParams tui_params{
-      .colorscheme              = colorscheme,
-      .colorblind_mode          = colorblind_mode,
-      .start_minimized          = start_minimized,
-      .display_config_filename  = display_config_filename,
+      .colorscheme             = colorscheme,
+      .colorblind_mode         = colorblind_mode,
+      .start_minimized         = start_minimized,
+      .display_config_filename = display_config_filename,
+  };
+
+  const status::StatusModel::Params model_params{
       .turbo_remote_constraints = turbo_remote_constraints,
       .goto_values              = goto_values,
   };
 
   tui::CommandSink command_sink = buildCommandSink(service_list, uav_name);
 
-  tui_ = std::make_unique<tui::TUI>(tui_params, std::move(command_sink));
+  tui_ = std::make_unique<tui::TUI>(tui_params);
   tui_->updateTermSize();
   tui_->setupWindows();
   tui_->loadDisplayConfig();
 
-  model_ = std::make_unique<status::StatusModel>();
+  model_ = std::make_unique<status::StatusModel>(std::move(command_sink), model_params);
 
   // | ------------------------- Timers ------------------------- |
 

@@ -4,12 +4,18 @@ namespace mrs_uav_status::tui
 {
 
 // --- Keyboard Input Constants ---
-// Represents specific key codes used for terminal navigation.
+// Represents specific key codes used for terminal navigation. The arrow/delete values mirror
+// ncurses' KEY_* macros so that ROS- and ncurses-free code (StatusModel) can compare against them
+// without including <curses.h>; src/tui/tui.cpp static_asserts that they still match.
 enum class Key : int
 {
   Enter  = 10,
   Escape = 27,
-  Delete = 330
+  Delete = 330, // KEY_DC
+  Down   = 258, // KEY_DOWN
+  Up     = 259, // KEY_UP
+  Left   = 260, // KEY_LEFT
+  Right  = 261  // KEY_RIGHT
 };
 
 // --- Terminal UI Color Pairs ---

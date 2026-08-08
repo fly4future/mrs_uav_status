@@ -1,11 +1,14 @@
 #pragma once
 
+#include <cstddef>
+#include <functional>
 #include <mutex>
 #include <string>
 #include <vector>
 
 #include <mrs_uav_status/status/data_types.hpp>
 #include <mrs_uav_status/status/string_info.hpp>
+#include <mrs_uav_status/tui/command_sink.hpp>
 #include <mrs_uav_status/tui/tui_actions.hpp>
 
 namespace mrs_uav_status::status
@@ -20,11 +23,21 @@ enum class StatusState
   DISPLAY_MENU
 };
 
-// The package's decision layer: owns the STANDARD/REMOTE/menu state machine and (from later
-// tasks) every received message snapshot plus all menu/goto/remote logic. No ROS, no ncurses --
-// it only ever drives an abstract tui::TuiActions, so tests can substitute a fake.
+// The package's decision layer: owns the STANDARD/REMOTE/menu state machine, every received
+// message snapshot and all menu/goto/remote logic. No ROS, no ncurses -- it only ever drives an
+// abstract tui::TuiActions, so tests can substitute a fake.
 class StatusModel {
 public:
+  // Node params this layer needs. Loaded by RosStatus from mrs_uav_status/.
+  struct Params
+  {
+    std::string         turbo_remote_constraints; // constraint set swapped in by turbo remote ("fast")
+    std::vector<double> goto_values;              // initial X/Y/Z/heading offered by the goto menu
+  };
+
+  // All outbound ROS actions are dispatched through command_sink.
+  StatusModel(tui::CommandSink command_sink, Params params);
+
   // Stores the per-topic freshness for this tick. Call once before every tick().
   void setFreshness(const Freshness &freshness);
 
@@ -62,6 +75,65 @@ private:
 
   // Evict non-persistent display_string entries older than 10 s. Runs at the top of every tick().
   void pruneStrings(double now_seconds);
+
+  // | ----------------------- Menu / goto ---------------------- |
+  // One main-menu row: its label, and the submenu it opens when selected. The submenu's contents
+  // are built inside open_submenu (i.e. at selection time), so they always reflect live data.
+  struct MainMenuRow
+  {
+    std::string                               label;
+    std::function<void(tui::TuiActions &tui)> open_submenu;
+  };
+
+  // One submenu row: its label, and the service it calls when selected. A null action means
+  // "no-op" and is used for the CANCEL row.
+  struct SubMenuRow
+  {
+    std::string                                      label;
+    std::function<tui::CommandSink::ServiceResult()> action;
+  };
+
+  // Builds main_menu_rows_ from the configured services + the five setter submenus, then hands
+  // the labels to tui.showMainMenu().
+  void setupMainMenu(tui::TuiActions &tui);
+  // Dispatches one keypress through tui.handleMainMenuKey(). Returns true when the whole menu closes.
+  bool mainMenuHandler(int key, tui::TuiActions &tui);
+  // Fills sub_menu_rows_ with one row per label, each calling call(label), then shows the submenu.
+  void buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels,
+                    const std::function<tui::CommandSink::ServiceResult(const std::string &)> &call);
+  // Same, for a no-argument service; a "CANCEL" label becomes a no-op row instead of a call.
+  void buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels, const std::function<tui::CommandSink::ServiceResult()> &call);
+  // Builds the goto window's labels (X/Y/Z/hdg + the current frame) and shows it seeded with goto_values_.
+  void setupGotoMenu(tui::TuiActions &tui);
+  // Dispatches one keypress through tui.handleGotoMenuKey(); on commit calls sendGoto. Returns true when done.
+  bool gotoMenuHandler(int key, tui::TuiActions &tui);
+
+  // | -------------------------- Remote ------------------------ |
+  // Resets remote_hover_ when entering remote mode.
+  void enterRemoteMode();
+  // Dispatches one keypress in remote mode: 'T' toggles turbo, 'G' toggles local/global frame, else flies/hovers.
+  void remoteHandler(int key, tui::TuiActions &tui);
+  // Maps a keypress to a velocity command (wasd/hjkl/arrows for xy, r/f for z, q/e for heading); any
+  // other key triggers hover() if a motion command was previously sent.
+  void handleRemoteMotion(int key, tui::TuiActions &tui);
+  // Toggles turbo_remote_constraints on/off via the set-constraints service, remembering the previous set.
+  void toggleTurboRemote(tui::TuiActions &tui);
+  // Sends one velocity reference, in the world frame if remote_global_ else the fcu_untilted frame.
+  void remoteModeFly(double vx, double vy, double vz, double heading_rate);
+
+  static bool isValidIndex(int index, std::size_t container_size);
+
+  tui::CommandSink command_sink_;
+  Params           params_;
+
+  std::vector<MainMenuRow> main_menu_rows_;
+  std::vector<SubMenuRow>  sub_menu_rows_;
+  std::vector<double>      goto_values_;
+
+  bool        remote_hover_  = false;
+  bool        turbo_remote_  = false;
+  bool        remote_global_ = false;
+  std::string old_constraints_;
 
   StatusState state_ = StatusState::STANDARD;
 

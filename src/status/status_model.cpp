@@ -1,11 +1,19 @@
+#include <algorithm>
 #include <iterator>
 #include <sstream>
+#include <utility>
 
 #include <mrs_uav_status/status/status_model.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
+#include <mrs_uav_status/utils/helpers.hpp>
 
 namespace mrs_uav_status::status
 {
+
+StatusModel::StatusModel(tui::CommandSink command_sink, Params params)
+    : command_sink_(std::move(command_sink)), params_(std::move(params)), goto_values_(params_.goto_values) {
+  goto_values_.resize(4, 0.0);
+}
 
 void StatusModel::setFreshness(const Freshness &freshness) {
   std::scoped_lock lock(mutex_status_msg_);
@@ -139,6 +147,310 @@ RenderSnapshot StatusModel::snapshot(double now_seconds) const {
   return out;
 }
 
+// | ----------------------- Menu / goto ---------------------- |
+
+bool StatusModel::isValidIndex(int index, std::size_t container_size) {
+  return index >= 0 && static_cast<std::size_t>(index) < container_size;
+}
+
+void StatusModel::buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels,
+                               const std::function<tui::CommandSink::ServiceResult(const std::string &)> &call) {
+  sub_menu_rows_.clear();
+  for (const auto &label : labels) {
+    sub_menu_rows_.push_back({label, [label, call]() { return call(label); }});
+  }
+  tui.showSubMenu(labels);
+}
+
+void StatusModel::buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels, const std::function<tui::CommandSink::ServiceResult()> &call) {
+  sub_menu_rows_.clear();
+  for (const auto &label : labels) {
+    if (label == "CANCEL") {
+      sub_menu_rows_.push_back({label, nullptr});
+      continue;
+    }
+    sub_menu_rows_.push_back({label, call});
+  }
+  tui.showSubMenu(labels);
+}
+
+void StatusModel::setupMainMenu(tui::TuiActions &tui) {
+  main_menu_rows_.clear();
+  sub_menu_rows_.clear();
+
+  bool null_tracker;
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    null_tracker = (last_control_info_.active_tracker == "NullTracker");
+  }
+
+  // Config-driven Trigger services. Landing is pointless with the null tracker engaged and
+  // taking off is pointless without it, so drop whichever can't apply.
+  for (const auto &service : command_sink_.extra_services) {
+    std::string name = service.display_name;
+    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+    if (null_tracker && (name.find("land") != std::string::npos)) {
+      continue;
+    }
+    if (!null_tracker && (name.find("takeoff") != std::string::npos)) {
+      continue;
+    }
+    main_menu_rows_.push_back({service.display_name, [this, service](tui::TuiActions &t) { buildSubMenu(t, {"CANCEL", service.display_name}, service.call); }});
+  }
+
+  main_menu_rows_.push_back({"Toggle Output", [this](tui::TuiActions &t) { buildSubMenu(t, {"CANCEL", "Toggle Output"}, command_sink_.toggleOutput); }});
+
+  // Each of these reads the *live* available_* list when the row is selected, not now.
+  main_menu_rows_.push_back({"Set Constraints", [this](tui::TuiActions &t) {
+                               std::vector<std::string> labels;
+                               {
+                                 std::scoped_lock lock(mutex_status_msg_);
+                                 labels = utils::withActiveFirst(last_control_info_.active_constraints, last_control_info_.available_constraints);
+                               }
+                               buildSubMenu(t, labels, command_sink_.setConstraints);
+                             }});
+
+  main_menu_rows_.push_back({"Set Gains", [this](tui::TuiActions &t) {
+                               std::vector<std::string> labels;
+                               {
+                                 std::scoped_lock lock(mutex_status_msg_);
+                                 labels = utils::withActiveFirst(last_control_info_.active_gains, last_control_info_.available_gains);
+                               }
+                               buildSubMenu(t, labels, command_sink_.setGains);
+                             }});
+
+  main_menu_rows_.push_back({"Set Controller", [this](tui::TuiActions &t) {
+                               std::vector<std::string> labels;
+                               {
+                                 std::scoped_lock lock(mutex_status_msg_);
+                                 labels = utils::withActiveFirst(last_control_info_.active_controller, last_control_info_.available_controllers);
+                               }
+                               buildSubMenu(t, labels, command_sink_.setController);
+                             }});
+
+  main_menu_rows_.push_back({"Set Tracker", [this](tui::TuiActions &t) {
+                               std::vector<std::string> labels;
+                               {
+                                 std::scoped_lock lock(mutex_status_msg_);
+                                 labels = utils::withActiveFirst(last_control_info_.active_tracker, last_control_info_.available_trackers);
+                               }
+                               buildSubMenu(t, labels, command_sink_.setTracker);
+                             }});
+
+  main_menu_rows_.push_back({"Set Estimator", [this](tui::TuiActions &t) {
+                               std::vector<std::string> labels;
+                               {
+                                 std::scoped_lock lock(mutex_status_msg_);
+                                 labels =
+                                     utils::withActiveFirst(last_state_estimation_info_.current_estimator, last_state_estimation_info_.switchable_estimators);
+                               }
+                               buildSubMenu(t, labels, command_sink_.setEstimator);
+                             }});
+
+  std::vector<std::string> labels;
+  labels.reserve(main_menu_rows_.size());
+  for (const auto &row : main_menu_rows_) {
+    labels.push_back(row.label);
+  }
+  tui.showMainMenu(labels);
+}
+
+bool StatusModel::mainMenuHandler(int key, tui::TuiActions &tui) {
+
+  const tui::MenuEvent event = tui.handleMainMenuKey(key);
+
+  if (event.in_submenu) {
+
+    if (event.kind == tui::MenuEvent::Kind::Exit) {
+      // Escape here only backs out of the submenu, back to the main menu.
+      tui.closeSubMenu();
+      return false;
+    }
+
+    if (event.kind == tui::MenuEvent::Kind::Selected && isValidIndex(event.index, sub_menu_rows_.size())) {
+      const SubMenuRow &row = sub_menu_rows_[event.index];
+      tui.closeSubMenu();
+
+      if (!row.action) {
+        // Cancel backs out to the main menu, it shouldn't close the whole thing.
+        return false;
+      }
+
+      const auto result = row.action();
+      tui.renderServiceResult(result.success, result.message, command_sink_.nowSeconds());
+      sub_menu_rows_.clear();
+      return true;
+    }
+    return false;
+  }
+
+  if (event.kind == tui::MenuEvent::Kind::Exit) {
+    return true;
+  }
+
+  if (event.kind == tui::MenuEvent::Kind::Selected && isValidIndex(event.index, main_menu_rows_.size())) {
+    main_menu_rows_[event.index].open_submenu(tui);
+  }
+
+  return false;
+}
+
+void StatusModel::setupGotoMenu(tui::TuiActions &tui) {
+  std::string odom_frame;
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    odom_frame = last_state_estimation_info_.frame_id;
+  }
+
+  const std::vector<std::string> labels{
+      " X:                ", " Y:                ", " Z:                ", " hdg:              ", " " + odom_frame + " ",
+  };
+
+  tui.showGotoMenu(labels, goto_values_);
+}
+
+bool StatusModel::gotoMenuHandler(int key, tui::TuiActions &tui) {
+
+  const tui::GotoEvent event = tui.handleGotoMenuKey(key);
+
+  if (event.kind == tui::GotoEvent::Kind::Exit) {
+    return true;
+  }
+
+  if (event.kind == tui::GotoEvent::Kind::Committed) {
+    // Remembered so the next 'g' reopens pre-filled with what was last entered.
+    goto_values_ = {event.x, event.y, event.z, event.heading};
+
+    std::string frame_id;
+    {
+      std::scoped_lock lock(mutex_status_msg_);
+      frame_id = last_state_estimation_info_.frame_id;
+    }
+
+    const auto result = command_sink_.sendGoto(event.x, event.y, event.z, event.heading, frame_id);
+    tui.renderServiceResult(result.success, result.message, command_sink_.nowSeconds());
+    return true;
+  }
+
+  return false;
+}
+
+// | -------------------------- Remote ------------------------ |
+
+void StatusModel::enterRemoteMode() {
+  remote_hover_ = false;
+}
+
+void StatusModel::remoteHandler(int key, tui::TuiActions &tui) {
+  tui.renderRemoteBanner(turbo_remote_, remote_global_);
+
+  if (key == 'T') {
+    toggleTurboRemote(tui);
+    return;
+  }
+
+  if (key == 'G') {
+    if (isFlyingNormally()) {
+      remote_global_ = !remote_global_;
+    }
+    return;
+  }
+
+  handleRemoteMotion(key, tui);
+}
+
+void StatusModel::handleRemoteMotion(int key, tui::TuiActions &tui) {
+  (void)tui;
+
+  const double xy_step  = turbo_remote_ ? 5.0 : 2.0;
+  const double z_step   = turbo_remote_ ? 2.0 : 1.0;
+  const double hdg_step = turbo_remote_ ? 1.0 : 0.5;
+
+  auto fly = [&](double vx, double vy, double vz, double vhdg) {
+    remoteModeFly(vx, vy, vz, vhdg);
+    remote_hover_ = true;
+  };
+
+  switch (key) {
+  case 'w':
+  case 'k':
+  case static_cast<int>(tui::Key::Up):
+    fly(xy_step, 0, 0, 0);
+    break;
+  case 's':
+  case 'j':
+  case static_cast<int>(tui::Key::Down):
+    fly(-xy_step, 0, 0, 0);
+    break;
+  case 'a':
+  case 'h':
+  case static_cast<int>(tui::Key::Left):
+    fly(0, xy_step, 0, 0);
+    break;
+  case 'd':
+  case 'l':
+  case static_cast<int>(tui::Key::Right):
+    fly(0, -xy_step, 0, 0);
+    break;
+
+  case 'r':
+    fly(0, 0, z_step, 0);
+    break;
+  case 'f':
+    fly(0, 0, -z_step, 0);
+    break;
+
+  case 'q':
+    fly(0, 0, 0, hdg_step);
+    break;
+  case 'e':
+    fly(0, 0, 0, -hdg_step);
+    break;
+
+  default:
+    if (remote_hover_) {
+      command_sink_.hover();
+      remote_hover_ = false;
+    }
+    break;
+  }
+}
+
+void StatusModel::toggleTurboRemote(tui::TuiActions &tui) {
+  if (!isFlyingNormally()) {
+    return;
+  }
+
+  if (turbo_remote_) {
+    // Toggle down turbo remote after new pressed T
+    turbo_remote_     = false;
+    const auto result = command_sink_.setConstraints(old_constraints_);
+    tui.renderServiceResult(result.success, result.message, command_sink_.nowSeconds());
+    return;
+  }
+
+  // Enable turbo remote constraints
+  turbo_remote_ = true;
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    old_constraints_ = last_control_info_.active_constraints;
+  }
+  const auto result = command_sink_.setConstraints(params_.turbo_remote_constraints);
+  tui.renderServiceResult(result.success, result.message, command_sink_.nowSeconds());
+}
+
+void StatusModel::remoteModeFly(double vx, double vy, double vz, double heading_rate) {
+  std::string uav_name;
+  {
+    std::scoped_lock lock(mutex_status_msg_);
+    uav_name = last_general_robot_info_.robot_name;
+  }
+
+  const std::string frame_id = uav_name + (remote_global_ ? "/world_origin" : "/fcu_untilted");
+
+  command_sink_.sendVelocityReference(vx, vy, vz, heading_rate, frame_id);
+}
+
 void StatusModel::tick(double now_seconds, int key, tui::TuiActions &tui) {
 
   pruneStrings(now_seconds);
@@ -150,7 +462,7 @@ void StatusModel::tick(double now_seconds, int key, tui::TuiActions &tui) {
 
     case 'R': {
       if (isFlyingNormally()) {
-        tui.enterRemoteMode();
+        enterRemoteMode();
         tui.setRemoteMode(true);
         state_ = StatusState::REMOTE;
       }
@@ -158,12 +470,12 @@ void StatusModel::tick(double now_seconds, int key, tui::TuiActions &tui) {
     }
 
     case 'm':
-      tui.setupMainMenu();
+      setupMainMenu(tui);
       state_ = StatusState::MAIN_MENU;
       break;
 
     case 'g':
-      tui.setupGotoMenu();
+      setupGotoMenu(tui);
       state_ = StatusState::GOTO_MENU;
       break;
 
@@ -208,7 +520,7 @@ void StatusModel::tick(double now_seconds, int key, tui::TuiActions &tui) {
 
   case StatusState::REMOTE: {
     tui.flushInput();
-    tui.remoteHandler(key);
+    remoteHandler(key, tui);
     if (key == 'R' || key == static_cast<int>(mrs_uav_status::tui::Key::Escape)) {
       tui.setRemoteMode(false);
       state_ = StatusState::STANDARD;
@@ -218,7 +530,7 @@ void StatusModel::tick(double now_seconds, int key, tui::TuiActions &tui) {
 
   case StatusState::MAIN_MENU: {
     tui.flushInput();
-    if (tui.mainMenuHandler(key)) {
+    if (mainMenuHandler(key, tui)) {
       tui.clearMenus();
       tui.refreshAfterMenu();
       state_ = StatusState::STANDARD;
@@ -228,7 +540,7 @@ void StatusModel::tick(double now_seconds, int key, tui::TuiActions &tui) {
 
   case StatusState::GOTO_MENU: {
     tui.flushInput();
-    if (tui.gotoMenuHandler(key)) {
+    if (gotoMenuHandler(key, tui)) {
       tui.clearMenus();
       state_ = StatusState::STANDARD;
     }

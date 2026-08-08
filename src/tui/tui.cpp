@@ -14,14 +14,19 @@ namespace mrs_uav_status::tui
 
 using radians = mrs_lib::geometry::radians;
 
+// tui::Key hardcodes ncurses' KEY_* values so StatusModel can use them without <curses.h>.
+static_assert(static_cast<int>(Key::Up) == KEY_UP, "tui::Key::Up drifted from ncurses KEY_UP");
+static_assert(static_cast<int>(Key::Down) == KEY_DOWN, "tui::Key::Down drifted from ncurses KEY_DOWN");
+static_assert(static_cast<int>(Key::Left) == KEY_LEFT, "tui::Key::Left drifted from ncurses KEY_LEFT");
+static_assert(static_cast<int>(Key::Right) == KEY_RIGHT, "tui::Key::Right drifted from ncurses KEY_RIGHT");
+static_assert(static_cast<int>(Key::Delete) == KEY_DC, "tui::Key::Delete drifted from ncurses KEY_DC");
 
-TUI::TUI(const TUI::TUIParams &params, CommandSink command_sink) : params_(params), command_sink_(std::move(command_sink)) {
+
+TUI::TUI(const TUI::TUIParams &params) : params_(params) {
 
   light_scheme_ = (params_.colorscheme.find("COLORSCHEME_LIGHT") != std::string::npos);
 
   setupPanes();
-
-  goto_double_vec_ = params_.goto_values;
 }
 
 void TUI::initTerminal() {
@@ -1542,10 +1547,10 @@ void TUI::blankBottomWindow() {
   }
 }
 
-void TUI::renderServiceResult(bool success, const std::string &msg) {
-  printServiceResult(bottom_window_.get(), light_scheme_, success, msg);
-  // Post-call wall clock, not the stale tick-start snapshot_.now_seconds -- see CommandSink::nowSeconds.
-  bottom_window_clear_time_s_ = command_sink_.nowSeconds();
+void TUI::renderServiceResult(bool success, const std::string &message, double now_seconds) {
+  printServiceResult(bottom_window_.get(), light_scheme_, success, message);
+  // Stamped from the caller's post-call wall clock, not the stale tick-start snapshot_.now_seconds.
+  bottom_window_clear_time_s_ = now_seconds;
 }
 
 // | --------------------- Menu helpers ----------------------- |
@@ -1576,194 +1581,104 @@ void TUI::createSubMenu(std::vector<std::string> &submenu_entries) {
   }
 }
 
-void TUI::createSubMenuActions(std::vector<std::string> &submenu_entries, const std::function<CommandSink::ServiceResult(const std::string &)> &call) {
-  sub_menu_rows_.clear();
-  for (const auto &entry : submenu_entries) {
-    sub_menu_rows_.push_back({entry, [this, entry, call]() {
-                                const auto result = call(entry);
-                                renderServiceResult(result.success, result.message);
-                              }});
-  }
-}
-
-void TUI::createSubMenuActions(std::vector<std::string> &submenu_entries, const std::function<CommandSink::ServiceResult()> &call) {
-  sub_menu_rows_.clear();
-  for (const auto &entry : submenu_entries) {
-    if (entry == "CANCEL") {
-      sub_menu_rows_.push_back({"CANCEL", []() {}});
-      continue;
-    }
-    sub_menu_rows_.push_back({entry, [this, call]() {
-                                const auto result = call();
-                                renderServiceResult(result.success, result.message);
-                              }});
-  }
-}
-
 // | --------------------- Main menu ----------------------- |
 
-void TUI::setupMainMenu() {
-  main_menu_rows_.clear();
-  main_menu_text_.clear();
-
-  const bool null_tracker = (snapshot_.control_info.active_tracker == "NullTracker");
-
-  // Create menu entries for trigger services
-  for (const auto &service : command_sink_.extra_services) {
-    std::string name = service.display_name;
-    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-    if (null_tracker && (name.find("land") != std::string::npos)) {
-      continue;
-    }
-    if (!null_tracker && (name.find("takeoff") != std::string::npos)) {
-      continue;
-    }
-    main_menu_rows_.push_back({service.display_name, [this, service]() {
-                                 std::vector<std::string> menu_text{"CANCEL", service.display_name};
-                                 createSubMenu(menu_text);
-                                 createSubMenuActions(menu_text, service.call);
-                               }});
-  }
-
-  // Toggle output service
-  main_menu_rows_.push_back({"Toggle Output", [this]() {
-                               std::vector<std::string> menu_text{"CANCEL", "Toggle Output"};
-                               createSubMenu(menu_text);
-                               createSubMenuActions(menu_text, command_sink_.toggleOutput);
-                             }});
-
-  // Create menu entries for setting controller, tracker, gains, constraints, estimator
-  main_menu_rows_.push_back({"Set Constraints", [this]() {
-                               std::vector<std::string> constraints_text =
-                                   utils::withActiveFirst(snapshot_.control_info.active_constraints, snapshot_.control_info.available_constraints);
-                               sub_menu_rows_.clear();
-                               createSubMenu(constraints_text);
-                               createSubMenuActions(constraints_text, command_sink_.setConstraints);
-                             }});
-
-  main_menu_rows_.push_back({"Set Gains", [this]() {
-                               std::vector<std::string> gains_text =
-                                   utils::withActiveFirst(snapshot_.control_info.active_gains, snapshot_.control_info.available_gains);
-                               createSubMenu(gains_text);
-                               createSubMenuActions(gains_text, command_sink_.setGains);
-                             }});
-
-  main_menu_rows_.push_back({"Set Controller", [this]() {
-                               std::vector<std::string> controllers_text =
-                                   utils::withActiveFirst(snapshot_.control_info.active_controller, snapshot_.control_info.available_controllers);
-                               createSubMenu(controllers_text);
-                               createSubMenuActions(controllers_text, command_sink_.setController);
-                             }});
-
-  main_menu_rows_.push_back({"Set Tracker", [this]() {
-                               std::vector<std::string> trackers_text =
-                                   utils::withActiveFirst(snapshot_.control_info.active_tracker, snapshot_.control_info.available_trackers);
-                               createSubMenu(trackers_text);
-                               createSubMenuActions(trackers_text, command_sink_.setTracker);
-                             }});
-
-  main_menu_rows_.push_back({"Set Estimator", [this]() {
-                               std::vector<std::string> odometry_lat_sources_text = utils::withActiveFirst(
-                                   snapshot_.state_estimation_info.current_estimator, snapshot_.state_estimation_info.switchable_estimators);
-                               createSubMenu(odometry_lat_sources_text);
-                               createSubMenuActions(odometry_lat_sources_text, command_sink_.setEstimator);
-                             }});
-
-  for (const auto &rows : main_menu_rows_) {
-    main_menu_text_.push_back(rows.label);
-  }
-
+void TUI::showMainMenu(const std::vector<std::string> &labels) {
+  main_menu_text_ = labels;
+  submenu_vec_.clear();
   StatusWindow menu(1, 32, main_menu_text_);
   menu_vec_.push_back(menu);
 }
 
-bool TUI::mainMenuHandler(int key) {
+void TUI::showSubMenu(const std::vector<std::string> &labels) {
+  std::vector<std::string> entries = labels;
+  createSubMenu(entries);
+}
 
-  if (!submenu_vec_.empty()) {
+void TUI::closeSubMenu() {
+  submenu_vec_.clear();
+}
 
-    menu_vec_[0].iterate(main_menu_text_, -1, true);
+MenuEvent TUI::handleMainMenuKey(int key) {
+  MenuEvent event;
 
-    auto result = submenu_vec_[0].iterate(key, true);
-
-    if (result.action == StatusWindow::Result::Action::Exit) {
-      // Escape here only backs out of the submenu, back to the main menu.
-      submenu_vec_.clear();
-      return false;
-    }
-
-    if (key == static_cast<int>(Key::Enter)) {
-      const bool is_cancel = sub_menu_rows_[result.selected_line].label == "CANCEL";
-      sub_menu_rows_[result.selected_line].on_open();
-      submenu_vec_.clear();
-      if (is_cancel) {
-        // Cancel backs out to the main menu, it shouldn't close the whole thing.
-        return false;
-      }
-      sub_menu_rows_.clear();
-      return true;
-    }
-    return false;
+  if (menu_vec_.empty()) {
+    return event;
   }
 
-  auto result = menu_vec_[0].iterate(main_menu_text_, key, true);
+  if (!submenu_vec_.empty()) {
+    event.in_submenu = true;
+
+    // Redraw the main menu underneath (key -1 == navigate nothing) so it doesn't go stale.
+    menu_vec_[0].iterate(main_menu_text_, -1, true);
+
+    const auto result = submenu_vec_[0].iterate(key, true);
+
+    if (result.action == StatusWindow::Result::Action::Exit) {
+      event.kind = MenuEvent::Kind::Exit;
+      return event;
+    }
+    if (result.pressed_key == static_cast<int>(Key::Enter)) {
+      event.kind  = MenuEvent::Kind::Selected;
+      event.index = result.selected_line;
+    }
+    return event;
+  }
+
+  const auto result = menu_vec_[0].iterate(main_menu_text_, key, true);
 
   if (result.action == StatusWindow::Result::Action::Exit) {
     menu_vec_.clear();
     submenu_vec_.clear();
-    return true;
+    event.kind = MenuEvent::Kind::Exit;
+    return event;
   }
 
-  if (result.pressed_key == static_cast<int>(Key::Enter) && isValidMenuIndex(result.selected_line, main_menu_rows_.size())) {
-    main_menu_rows_[result.selected_line].on_open();
+  if (result.pressed_key == static_cast<int>(Key::Enter)) {
+    event.kind  = MenuEvent::Kind::Selected;
+    event.index = result.selected_line;
   }
-
-  return false;
+  return event;
 }
 
 // | --------------------- Goto menu ----------------------- |
 
-void TUI::setupGotoMenu() {
-  const std::string odom_frame = snapshot_.state_estimation_info.frame_id;
-
+void TUI::showGotoMenu(const std::vector<std::string> &labels, const std::vector<double> &initial_values) {
   goto_menu_inputs_.clear();
-  goto_menu_text_.clear();
-  goto_menu_text_.push_back(" X:                ");
-  goto_menu_text_.push_back(" Y:                ");
-  goto_menu_text_.push_back(" Z:                ");
-  goto_menu_text_.push_back(" hdg:              ");
-  goto_menu_text_.push_back(" " + odom_frame + " ");
+  goto_menu_text_ = labels;
 
   StatusWindow menu(1, 32, goto_menu_text_);
   menu_vec_.push_back(menu);
 
-  for (int i = 0; i < 4; i++) {
-    ControlBar tmpbox(8, menu.getWin(), goto_double_vec_[i]);
-    goto_menu_inputs_.push_back(tmpbox);
+  for (std::size_t i = 0; i < 4; i++) {
+    const double seed = (i < initial_values.size()) ? initial_values[i] : 0.0;
+    goto_menu_inputs_.push_back(ControlBar(8, menu.getWin(), seed));
   }
 }
 
-bool TUI::gotoMenuHandler(int key) {
+GotoEvent TUI::handleGotoMenuKey(int key) {
+  GotoEvent event;
 
-  auto result = menu_vec_[0].iterate(goto_menu_text_, key, false);
+  if (menu_vec_.empty()) {
+    return event;
+  }
+
+  const auto result = menu_vec_[0].iterate(goto_menu_text_, key, false);
 
   if (result.action == StatusWindow::Result::Action::Exit) {
     menu_vec_.clear();
-    return true;
+    event.kind = GotoEvent::Kind::Exit;
+    return event;
   }
 
   if (result.pressed_key == static_cast<int>(Key::Enter)) {
-
-    goto_double_vec_[0] = goto_menu_inputs_[0].getDouble();
-    goto_double_vec_[1] = goto_menu_inputs_[1].getDouble();
-    goto_double_vec_[2] = goto_menu_inputs_[2].getDouble();
-    goto_double_vec_[3] = goto_menu_inputs_[3].getDouble();
-
-    const std::string frame_id = snapshot_.state_estimation_info.frame_id;
-
-    const auto result_service = command_sink_.sendGoto(goto_double_vec_[0], goto_double_vec_[1], goto_double_vec_[2], goto_double_vec_[3], frame_id);
-    renderServiceResult(result_service.success, result_service.message);
+    event.kind    = GotoEvent::Kind::Committed;
+    event.x       = goto_menu_inputs_[0].getDouble();
+    event.y       = goto_menu_inputs_[1].getDouble();
+    event.z       = goto_menu_inputs_[2].getDouble();
+    event.heading = goto_menu_inputs_[3].getDouble();
     menu_vec_.clear();
-    return true;
+    return event;
 
   } else if (isValidMenuIndex(result.selected_line, goto_menu_inputs_.size())) {
 
@@ -1771,15 +1686,11 @@ bool TUI::gotoMenuHandler(int key) {
   }
 
   for (size_t i = 0; i < goto_menu_inputs_.size(); i++) {
-    if (int(i) == menu_vec_[0].getLine()) {
-      goto_menu_inputs_[i].print(i + 1, true);
-    } else {
-      goto_menu_inputs_[i].print(i + 1, false);
-    }
+    goto_menu_inputs_[i].print(i + 1, int(i) == menu_vec_[0].getLine());
   }
 
   wnoutrefresh(menu_vec_[0].getWin());
-  return false;
+  return event;
 }
 
 // | --------------------- Display menu ----------------------- |
@@ -1875,29 +1786,9 @@ void TUI::loadDisplayConfig() {
 
 // | -------------------------- Remote -------------------------- |
 
-void TUI::enterRemoteMode() {
-  remote_hover_ = false;
-}
+void TUI::renderRemoteBanner(bool turbo, bool global) {
+  WINDOW *win = top_bar_window_.get();
 
-void TUI::remoteHandler(int key) {
-  drawRemoteBanner(top_bar_window_.get());
-
-  if (key == 'T') {
-    toggleTurboRemote();
-    return;
-  }
-
-  if (key == 'G') {
-    if (snapshot_.control_info.flying_normally) {
-      remote_global_ = !remote_global_;
-    }
-    return;
-  }
-
-  handleRemoteMotion(key);
-}
-
-void TUI::drawRemoteBanner(WINDOW *win) {
   if (light_scheme_) {
     wattron(win, A_STANDOUT);
   }
@@ -1907,7 +1798,7 @@ void TUI::drawRemoteBanner(WINDOW *win) {
   const int turbo_x = params_.start_minimized ? 39 : 74;
 
   const char *rem_text   = params_.start_minimized ? "REM" : "REMOTE MODE";
-  const char *mode_text  = remote_global_ ? (params_.start_minimized ? "G" : "GLOBAL MODE") : (params_.start_minimized ? "L" : "LOCAL MODE");
+  const char *mode_text  = global ? (params_.start_minimized ? "G" : "GLOBAL MODE") : (params_.start_minimized ? "L" : "LOCAL MODE");
   const char *turbo_text = params_.start_minimized ? "!T!" : "!TURBO!";
 
   wattron(win, A_BOLD);
@@ -1916,7 +1807,7 @@ void TUI::drawRemoteBanner(WINDOW *win) {
   mvwprintw(win, 0, rem_x, "%s", rem_text);
   mvwprintw(win, 0, mode_x, "%s", mode_text);
 
-  if (turbo_remote_) {
+  if (turbo) {
     wattron(win, A_BLINK);
     mvwprintw(win, 0, turbo_x, "%s", turbo_text);
     wattroff(win, A_BLINK);
@@ -1924,91 +1815,6 @@ void TUI::drawRemoteBanner(WINDOW *win) {
 
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   wattroff(win, A_BOLD);
-}
-
-void TUI::handleRemoteMotion(int key) {
-  const double xy_step  = turbo_remote_ ? 5.0 : 2.0;
-  const double z_step   = turbo_remote_ ? 2.0 : 1.0;
-  const double hdg_step = turbo_remote_ ? 1.0 : 0.5;
-
-  auto fly = [&](double vx, double vy, double vz, double vhdg) {
-    remoteModeFly(vx, vy, vz, vhdg);
-    remote_hover_ = true;
-  };
-
-  switch (key) {
-  case 'w':
-  case 'k':
-  case KEY_UP:
-    fly(xy_step, 0, 0, 0);
-    break;
-  case 's':
-  case 'j':
-  case KEY_DOWN:
-    fly(-xy_step, 0, 0, 0);
-    break;
-  case 'a':
-  case 'h':
-  case KEY_LEFT:
-    fly(0, xy_step, 0, 0);
-    break;
-  case 'd':
-  case 'l':
-  case KEY_RIGHT:
-    fly(0, -xy_step, 0, 0);
-    break;
-
-  case 'r':
-    fly(0, 0, z_step, 0);
-    break;
-  case 'f':
-    fly(0, 0, -z_step, 0);
-    break;
-
-  case 'q':
-    fly(0, 0, 0, hdg_step);
-    break;
-  case 'e':
-    fly(0, 0, 0, -hdg_step);
-    break;
-
-  default:
-    if (remote_hover_) {
-      command_sink_.hover();
-      remote_hover_ = false;
-    }
-    break;
-  }
-}
-
-void TUI::toggleTurboRemote() {
-  const bool is_flying_normally = snapshot_.control_info.flying_normally;
-
-  if (!is_flying_normally) {
-    return;
-  }
-
-  if (turbo_remote_) {
-    // Toggle down turbo remote after new pressed T
-    turbo_remote_     = false;
-    const auto result = command_sink_.setConstraints(old_constraints_);
-    renderServiceResult(result.success, result.message);
-    return;
-  }
-
-  // Enable turbo remote constraints
-  turbo_remote_     = true;
-  old_constraints_  = snapshot_.control_info.active_constraints;
-  const auto result = command_sink_.setConstraints(params_.turbo_remote_constraints);
-  renderServiceResult(result.success, result.message);
-}
-
-void TUI::remoteModeFly(double vx, double vy, double vz, double heading_rate) {
-  const std::string uav_name = snapshot_.general_robot_info.robot_name;
-
-  const std::string frame_id = uav_name + (remote_global_ ? "/world_origin" : "/fcu_untilted");
-
-  command_sink_.sendVelocityReference(vx, vy, vz, heading_rate, frame_id);
 }
 
 void TUI::renderTmuxOrHelp() {

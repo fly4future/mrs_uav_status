@@ -22,7 +22,6 @@
 #include <mrs_uav_status/utils/terminal.hpp>
 
 #include <mrs_uav_status/status/data_types.hpp>
-#include <mrs_uav_status/tui/command_sink.hpp>
 #include <mrs_uav_status/tui/tui_actions.hpp>
 
 namespace mrs_uav_status::tui
@@ -34,16 +33,14 @@ class TUI : public TuiActions {
 public:
   struct TUIParams
   {
-    std::string         colorscheme;
-    bool                colorblind_mode;
-    bool                start_minimized;
-    std::string         display_config_filename;
-    std::string         turbo_remote_constraints;
-    std::vector<double> goto_values;
+    std::string colorscheme;
+    bool        colorblind_mode;
+    bool        start_minimized;
+    std::string display_config_filename;
   };
 
-  // Sets up the default panes; all outbound ROS actions are dispatched through command_sink.
-  TUI(const TUI::TUIParams &params, CommandSink command_sink);
+  // Sets up the default panes.
+  TUI(const TUI::TUIParams &params);
 
   // Puts the terminal into ncurses raw/no-echo mode. Call once, before constructing any TUI
   // and before any window is created.
@@ -114,19 +111,23 @@ public:
   void blankBottomWindow();
   void refreshBottomWindow() override;
   // Prints a service call's success/failure message and marks the clear-time for blankBottomWindow().
-  void renderServiceResult(bool success, const std::string &msg);
+  void renderServiceResult(bool success, const std::string &message, double now_seconds) override;
 
   // | ------------------- Menu (public entry) ------------------- |
-  // Builds the top-level menu: per-service actions, toggle output, and set constraints/gains/controller/tracker/estimator submenus.
-  void setupMainMenu() override;
-  // Builds the goto menu's X/Y/Z/heading input boxes, seeded from the last-entered values.
-  void setupGotoMenu() override;
+  // Creates the main-menu window listing labels.
+  void showMainMenu(const std::vector<std::string> &labels) override;
+  // Creates the submenu window next to the main menu, listing labels.
+  void showSubMenu(const std::vector<std::string> &labels) override;
+  // Destroys the submenu window, leaving the main menu up.
+  void closeSubMenu() override;
+  // Drives main-menu/submenu navigation and reports the resulting MenuEvent.
+  MenuEvent handleMainMenuKey(int key) override;
+  // Creates the goto window (labels) and its 4 numeric fields (initial_values).
+  void showGotoMenu(const std::vector<std::string> &labels, const std::vector<double> &initial_values) override;
+  // Drives the 4 numeric input boxes; on Enter parses all of them into the returned GotoEvent.
+  GotoEvent handleGotoMenuKey(int key) override;
   // Builds the tmux-window picker menu from the current tmux window list.
   void setupDisplayMenu() override;
-  // Drives main-menu/submenu navigation; on Enter runs the selected action. Returns true when the whole menu should close.
-  bool mainMenuHandler(int key) override;
-  // Drives the 4 numeric input boxes; on Enter calls the goto-reference service. Returns true when done.
-  bool gotoMenuHandler(int key) override;
   // Toggles a tmux window's selection (max MAX_SELECTED_TMUX_WINDOWS) and persists the choice to disk. Returns true when done.
   bool displayMenuHandler(int key) override;
   void clearMenus() override;
@@ -137,10 +138,8 @@ public:
   void refreshAfterMenu() override;
 
   // | -------------------------- Remote -------------------------- |
-  // Dispatches one keypress in remote mode: 'T' toggles turbo, 'G' toggles local/global frame, else flies/hovers.
-  void remoteHandler(int key) override;
-  // Resets remote_hover_ when entering remote mode.
-  void enterRemoteMode() override;
+  // Draws the REMOTE/LOCAL-GLOBAL/TURBO banner over the top bar.
+  void renderRemoteBanner(bool turbo, bool global) override;
 
 private:
   // Everything the handlers render from, refreshed once per fast tick by setSnapshot().
@@ -174,49 +173,15 @@ private:
   // Shows GNSS fix/accuracy and the current display_string entries.
   void renderStringsGnssPane(WINDOW *win);
 
-  TUIParams   params_;
-  CommandSink command_sink_;
-  bool        light_scheme_   = false;
-  bool        help_active_    = false;
-  bool        in_remote_mode_ = false;
-
-  // Holds one menu entry: its label, and an on_open action run when it's selected -- used for both
-  // the main menu (where on_open typically builds a submenu) and submenus (where it typically calls
-  // a service). Used by both main_menu_rows_ and sub_menu_rows_ below.
-  struct MenuRow
-  {
-    std::string           label;
-    std::function<void()> on_open;
-  };
-
-  std::vector<MenuRow> main_menu_rows_;
-  std::vector<MenuRow> sub_menu_rows_;
-
-  // | -------------------- Remote (private helpers) ------------ |
-  // Sends one velocity reference, in the world frame if remote_global_ else the fcu_untilted frame.
-  void remoteModeFly(double vx, double vy, double vz, double heading_rate);
-  // Draws the REMOTE/LOCAL-GLOBAL/TURBO banner over the top bar.
-  void drawRemoteBanner(WINDOW *win);
-  // Maps a keypress to a velocity command (wasd/hjkl/arrows for xy, r/f for z, q/e for heading); any
-  // other key triggers hover() if a motion command was previously sent.
-  void handleRemoteMotion(int key);
-  // Toggles turbo_remote_constraints on/off via the set-constraints service, remembering the previous set.
-  void toggleTurboRemote();
-
-  bool        remote_hover_  = false;
-  bool        turbo_remote_  = false;
-  bool        remote_global_ = false;
-  std::string old_constraints_;
+  TUIParams params_;
+  bool      light_scheme_   = false;
+  bool      help_active_    = false;
+  bool      in_remote_mode_ = false;
 
   // | ------------------- Menu (private helpers) --------------- |
   static bool isValidMenuIndex(int index, size_t container_size);
   // Creates the submenu window next to the main menu, listing submenu_entries.
   void createSubMenu(std::vector<std::string> &submenu_entries);
-  // Populates sub_menu_rows_ with one action per entry: calling it synchronously and rendering the
-  // response via renderServiceResult(). Overloaded per call arity; the no-arg overload treats a
-  // "CANCEL" entry as a no-op instead of calling the service.
-  void createSubMenuActions(std::vector<std::string> &submenu_entries, const std::function<CommandSink::ServiceResult(const std::string &)> &call);
-  void createSubMenuActions(std::vector<std::string> &submenu_entries, const std::function<CommandSink::ServiceResult()> &call);
 
   // | ---------------------- TMUX & Misc ----------------------- |
   std::vector<int> selected_tmux_window_;
@@ -263,7 +228,6 @@ private:
   std::vector<std::string> main_menu_text_;
   std::vector<std::string> display_menu_text_;
   std::vector<std::string> goto_menu_text_;
-  std::vector<double>      goto_double_vec_;
 };
 
 } // namespace mrs_uav_status::tui
