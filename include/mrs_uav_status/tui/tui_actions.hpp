@@ -11,9 +11,6 @@ class TuiActions {
 public:
   virtual ~TuiActions() = default;
 
-  virtual void setDataFreshness(bool general_robot_info, bool collision_avoidance_info, bool uav_info, bool system_health_info, bool state_estimation_info) = 0;
-
-  virtual bool isFlyingNormally()                 = 0;
   virtual void enterRemoteMode()                  = 0;
   virtual void setRemoteMode(bool in_remote_mode) = 0;
   virtual void remoteHandler(int key)             = 0;

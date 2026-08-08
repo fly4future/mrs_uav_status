@@ -5,13 +5,73 @@ namespace mrs_uav_status::status
 {
 
 void StatusModel::setFreshness(const Freshness &freshness) {
+  std::scoped_lock lock(mutex_status_msg_);
   freshness_ = freshness;
 }
 
-void StatusModel::tick([[maybe_unused]] double now_seconds, int key, tui::TuiActions &tui) {
+void StatusModel::onGeneralRobotInfo(const GeneralRobotInfoData &data) {
+  std::scoped_lock lock(mutex_status_msg_);
+  last_general_robot_info_ = data;
+}
 
-  tui.setDataFreshness(freshness_.general_robot_info, freshness_.collision_avoidance_info, freshness_.uav_info, freshness_.system_health_info,
-                       freshness_.state_estimation_info);
+void StatusModel::onStateEstimationInfo(const StateEstimationInfoData &data) {
+  std::scoped_lock lock(mutex_status_msg_);
+  last_state_estimation_info_ = data;
+}
+
+void StatusModel::onControlInfo(const ControlInfoData &data) {
+  std::scoped_lock lock(mutex_status_msg_);
+  last_control_info_ = data;
+}
+
+void StatusModel::onCollisionAvoidanceInfo(const CollisionAvoidanceInfoData &data) {
+  std::scoped_lock lock(mutex_status_msg_);
+  last_collision_avoidance_info_ = data;
+}
+
+void StatusModel::onUavInfo(const UavInfoData &data) {
+  std::scoped_lock lock(mutex_status_msg_);
+  last_uav_info_ = data;
+}
+
+void StatusModel::onSystemHealthInfo(const SystemHealthInfoData &data) {
+  std::scoped_lock lock(mutex_status_msg_);
+  last_system_health_info_ = data;
+}
+
+void StatusModel::onUavState(const StateData &data) {
+  std::scoped_lock lock(mutex_status_msg_);
+  last_uav_state_ = data;
+}
+
+bool StatusModel::isFlyingNormally() const {
+  std::scoped_lock lock(mutex_status_msg_);
+  return last_control_info_.flying_normally;
+}
+
+RenderSnapshot StatusModel::snapshot(double now_seconds) const {
+  std::scoped_lock lock(mutex_status_msg_);
+
+  RenderSnapshot out;
+  out.now_seconds              = now_seconds;
+  out.freshness                = freshness_;
+  out.general_robot_info       = last_general_robot_info_;
+  out.state_estimation_info    = last_state_estimation_info_;
+  out.control_info             = last_control_info_;
+  out.collision_avoidance_info = last_collision_avoidance_info_;
+  out.uav_info                 = last_uav_info_;
+  out.system_health_info       = last_system_health_info_;
+  out.uav_state                = last_uav_state_;
+  out.border_status            = BorderStatus{
+                 .avoiding_collision = last_collision_avoidance_info_.avoiding_collision,
+                 .bumper_active      = last_collision_avoidance_info_.bumper_active,
+                 .can_takeoff        = last_general_robot_info_.ready_to_start,
+                 .null_tracker       = (last_control_info_.active_tracker == "NullTracker"),
+  };
+  return out;
+}
+
+void StatusModel::tick([[maybe_unused]] double now_seconds, int key, tui::TuiActions &tui) {
 
   switch (state_) {
 
@@ -19,7 +79,7 @@ void StatusModel::tick([[maybe_unused]] double now_seconds, int key, tui::TuiAct
     switch (key) {
 
     case 'R': {
-      if (tui.isFlyingNormally()) {
+      if (isFlyingNormally()) {
         tui.enterRemoteMode();
         tui.setRemoteMode(true);
         state_ = StatusState::REMOTE;

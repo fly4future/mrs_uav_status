@@ -23,8 +23,6 @@ TUI::TUI(rclcpp::Clock::SharedPtr clock, const TUI::TUIParams &params, CommandSi
 
   setupPanes();
 
-  bottom_window_clear_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
-
   goto_double_vec_ = params_.goto_values;
 }
 
@@ -59,58 +57,8 @@ void TUI::commitFrame() {
   doupdate();
 }
 
-void TUI::onGeneralRobotInfo(const status::GeneralRobotInfoData &data) {
-  std::scoped_lock lock(mutex_status_msg_);
-  last_general_robot_info_ = data;
-}
-
-void TUI::onStateEstimationInfo(const status::StateEstimationInfoData &data) {
-  std::scoped_lock lock(mutex_status_msg_);
-  last_state_estimation_info_ = data;
-}
-
-void TUI::onControlInfo(const status::ControlInfoData &data) {
-  std::scoped_lock lock(mutex_status_msg_);
-  last_control_info_ = data;
-}
-
-void TUI::onCollisionAvoidanceInfo(const status::CollisionAvoidanceInfoData &data) {
-  std::scoped_lock lock(mutex_status_msg_);
-  last_collision_avoidance_info_ = data;
-}
-
-void TUI::onUavInfo(const status::UavInfoData &data) {
-  std::scoped_lock lock(mutex_status_msg_);
-  last_uav_info_ = data;
-}
-
-void TUI::onSystemHealthInfo(const status::SystemHealthInfoData &data) {
-  std::scoped_lock lock(mutex_status_msg_);
-  last_system_health_info_ = data;
-}
-
-void TUI::setDataFreshness(bool general_robot_info, bool collision_avoidance_info, bool uav_info, bool system_health_info, bool state_estimation_info) {
-  std::scoped_lock lock(mutex_status_msg_);
-  have_general_robot_info_       = general_robot_info;
-  have_collision_avoidance_info_ = collision_avoidance_info;
-  have_uav_info_                 = uav_info;
-  have_system_health_info_       = system_health_info;
-  have_state_estimation_info_    = state_estimation_info;
-}
-
-void TUI::onUavState(const status::StateData &data) {
-  std::scoped_lock lock(mutex_status_msg_);
-  last_uav_state_ = data;
-}
-
-status::BorderStatus TUI::computeBorderStatus() {
-  std::scoped_lock lock(mutex_status_msg_);
-  return status::BorderStatus{
-      .avoiding_collision = last_collision_avoidance_info_.avoiding_collision,
-      .bumper_active      = last_collision_avoidance_info_.bumper_active,
-      .can_takeoff        = last_general_robot_info_.ready_to_start,
-      .null_tracker       = (last_control_info_.active_tracker == "NullTracker"),
-  };
+void TUI::setSnapshot(const status::RenderSnapshot &snapshot) {
+  snapshot_ = snapshot;
 }
 
 void TUI::onString(const std::string &data) {
@@ -282,11 +230,6 @@ void TUI::setRemoteMode(bool in_remote_mode) {
   in_remote_mode_ = in_remote_mode;
 }
 
-bool TUI::isFlyingNormally() {
-  std::scoped_lock lock(mutex_status_msg_);
-  return last_control_info_.flying_normally;
-}
-
 void TUI::refreshTopBar() {
   wnoutrefresh(top_bar_window_.get());
 }
@@ -323,20 +266,19 @@ void TUI::generalInfoHandler() {
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
   wattroff(win, A_STANDOUT);
 
-  const status::BorderStatus bs = computeBorderStatus();
+  const status::BorderStatus bs = snapshot_.border_status;
 
   double cpu_load, cpu_ghz, free_ram, total_ram;
   int    free_hdd;
   bool   have_system_health_info;
   {
-    std::scoped_lock lock(mutex_status_msg_);
-    const auto      &oc     = last_system_health_info_.onboard_computer_info;
+    const auto &oc          = snapshot_.system_health_info.onboard_computer_info;
     cpu_load                = oc.cpu_load;
     cpu_ghz                 = oc.cpu_ghz;
     free_ram                = oc.free_ram;
     total_ram               = oc.total_ram;
     free_hdd                = oc.free_hdd;
-    have_system_health_info = have_system_health_info_;
+    have_system_health_info = snapshot_.freshness.system_health_info;
   }
 
   printBox(win, bs.avoiding_collision, bs.bumper_active, bs.can_takeoff, bs.null_tracker);
@@ -372,9 +314,8 @@ void TUI::renderStringsGnssPane(WINDOW *win) {
   bool                     have_system_health_info;
 
   {
-    std::scoped_lock lock(mutex_status_msg_);
-    have_system_health_info = have_system_health_info_;
-    if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, status::SENSOR_TYPE_GNSS); gnss) {
+    have_system_health_info = snapshot_.freshness.system_health_info;
+    if (const auto *gnss = utils::findSensor(snapshot_.system_health_info.available_sensors, status::SENSOR_TYPE_GNSS); gnss) {
       const std::string fix_type_raw = utils::lookupDetail(gnss->details, "fix_type");
       gnss_status_msg_ok             = (fix_type_raw != "nan");
       gnss_fix_type                  = static_cast<uint8_t>(utils::parseLongOr(fix_type_raw, 0));
@@ -385,6 +326,7 @@ void TUI::renderStringsGnssPane(WINDOW *win) {
 
     // Eviction happens unconditionally in pruneStrings() (every slow tick);
     // here we just collect whatever's currently live for display.
+    std::scoped_lock lock(mutex_status_msg_);
     for (const auto &entry : string_info_vec_) {
       string_vector.push_back(entry.display_string);
     }
@@ -509,10 +451,9 @@ void TUI::setupPanes() {
   // Problems + errors. Auto-focused when either becomes non-empty
   panes_.push_back({"Problems & errors", [this](WINDOW *win) { renderProblemsPane(win); },
                     [this]() {
-                      std::scoped_lock lock(mutex_status_msg_);
                       // Avoid auto-focusing on frozen stale problems/errors.
-                      return have_general_robot_info_ &&
-                             (!last_general_robot_info_.problems_preventing_start.empty() || !last_general_robot_info_.errors.empty());
+                      return snapshot_.freshness.general_robot_info &&
+                             (!snapshot_.general_robot_info.problems_preventing_start.empty() || !snapshot_.general_robot_info.errors.empty());
                     }});
 
   // To add a pane push another Pane with a title and a render lambda that
@@ -558,7 +499,7 @@ void TUI::paneHandler() {
 // a numbered tab bar (active tab bracketed in green, others in red) into the
 // top border. Returns the first usable content row (1).
 int TUI::drawPaneChrome(WINDOW *win) {
-  const status::BorderStatus bs = computeBorderStatus();
+  const status::BorderStatus bs = snapshot_.border_status;
 
   werase(win);
   wattron(win, A_BOLD);
@@ -598,15 +539,9 @@ int TUI::drawPaneChrome(WINDOW *win) {
 void TUI::renderProblemsPane(WINDOW *win) {
   int row = drawPaneChrome(win);
 
-  std::vector<std::string> problems;
-  std::vector<std::string> errors;
-  bool                     have_general_robot_info;
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    problems                = last_general_robot_info_.problems_preventing_start;
-    errors                  = last_general_robot_info_.errors;
-    have_general_robot_info = have_general_robot_info_;
-  }
+  const std::vector<std::string> &problems                = snapshot_.general_robot_info.problems_preventing_start;
+  const std::vector<std::string> &errors                  = snapshot_.general_robot_info.errors;
+  const bool                      have_general_robot_info = snapshot_.freshness.general_robot_info;
 
   // Empty vectors are indistinguishable from "genuinely zero problems" without this check.
   if (!have_general_robot_info) {
@@ -660,13 +595,8 @@ void TUI::renderProblemsPane(WINDOW *win) {
 void TUI::renderSensorsPane(WINDOW *win) {
   int row = drawPaneChrome(win);
 
-  std::vector<status::SensorStatusData> sensors;
-  bool                                  have_system_health_info;
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    sensors                 = last_system_health_info_.available_sensors;
-    have_system_health_info = have_system_health_info_;
-  }
+  std::vector<status::SensorStatusData> sensors                 = snapshot_.system_health_info.available_sensors;
+  const bool                            have_system_health_info = snapshot_.freshness.system_health_info;
 
   if (!have_system_health_info) {
     // Otherwise the last real sensor list/rates/statuses render forever, looking healthy.
@@ -755,13 +685,8 @@ void TUI::renderSensorsPane(WINDOW *win) {
 void TUI::renderNodeCpuPane(WINDOW *win) {
   int row = drawPaneChrome(win);
 
-  std::vector<status::CpuLoadData> node_cpu_loads;
-  bool                             have_system_health_info;
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    node_cpu_loads          = last_system_health_info_.onboard_computer_info.node_cpu_loads;
-    have_system_health_info = have_system_health_info_;
-  }
+  std::vector<status::CpuLoadData> node_cpu_loads          = snapshot_.system_health_info.onboard_computer_info.node_cpu_loads;
+  const bool                       have_system_health_info = snapshot_.freshness.system_health_info;
 
   if (!have_system_health_info) {
     // Otherwise an empty node_cpu_loads sums to 0.0, rendering as a healthy-looking 0% CPU.
@@ -827,23 +752,22 @@ void TUI::uavStateHandler() {
   double      max_flight_z;
   bool        null_tracker, have_control_info, have_state_estimation_info;
 
-  const status::BorderStatus bs = computeBorderStatus();
+  const status::BorderStatus bs = snapshot_.border_status;
 
   {
-    std::scoped_lock lock(mutex_status_msg_);
-    const auto      &est       = last_state_estimation_info_;
-    have_state_estimation_info = have_state_estimation_info_;
-    avg_rate                   = last_system_health_info_.state_estimation_rate;
+    const auto &est            = snapshot_.state_estimation_info;
+    have_state_estimation_info = snapshot_.freshness.state_estimation_info;
+    avg_rate                   = snapshot_.system_health_info.state_estimation_rate;
     heading                    = est.heading;
     state_x                    = est.pos_x;
     state_y                    = est.pos_y;
     state_z                    = est.pos_z;
     odom_frame                 = est.frame_id;
 
-    cmd_x   = last_control_info_.cmd_pose_x;
-    cmd_y   = last_control_info_.cmd_pose_y;
-    cmd_z   = last_control_info_.cmd_pose_z;
-    cmd_hdg = last_control_info_.cmd_pose_heading;
+    cmd_x   = snapshot_.control_info.cmd_pose_x;
+    cmd_y   = snapshot_.control_info.cmd_pose_y;
+    cmd_z   = snapshot_.control_info.cmd_pose_z;
+    cmd_hdg = snapshot_.control_info.cmd_pose_heading;
 
     // DiagnosticsManager's default for current_estimator is the literal string "unknown", not empty.
     main_estimator       = (est.current_estimator.empty() || est.current_estimator == "unknown") ? std::string("NONE") : est.current_estimator;
@@ -855,7 +779,7 @@ void TUI::uavStateHandler() {
     max_flight_z = est.max_flight_z;
     null_tracker = bs.null_tracker;
     // "unknown" means no TrackerCommand yet, so cmd_pose is still (0,0,0).
-    have_control_info = (last_control_info_.active_tracker != "unknown");
+    have_control_info = (snapshot_.control_info.active_tracker != "unknown");
   }
   // Nominal MRS estimation rate is 100 Hz; threshold the color band off that.
   color = rateColor(avg_rate, 100.0);
@@ -1028,14 +952,13 @@ void TUI::controlManagerHandler() {
   std::string curr_controller, curr_tracker, curr_gains, curr_constraints;
   bool        callbacks_enabled, rc_mode, have_goal, tracking_trajectory;
 
-  const status::BorderStatus bs = computeBorderStatus();
+  const status::BorderStatus bs = snapshot_.border_status;
 
   {
-    std::scoped_lock lock(mutex_status_msg_);
-    const auto      &ci = last_control_info_;
+    const auto &ci = snapshot_.control_info;
 
-    rate                    = last_system_health_info_.control_manager_rate;
-    have_system_health_info = have_system_health_info_;
+    rate                    = snapshot_.system_health_info.control_manager_rate;
+    have_system_health_info = snapshot_.freshness.system_health_info;
 
     // "unknown" self-corrects only while DiagnosticsManager stays alive; !have_system_health_info
     // catches it dying entirely, which would otherwise freeze these at their last real names.
@@ -1047,7 +970,7 @@ void TUI::controlManagerHandler() {
         (!have_system_health_info || ci.active_constraints.empty() || ci.active_constraints == "unknown") ? std::string("NO DATA") : ci.active_constraints;
 
     callbacks_enabled   = ci.callbacks_enabled;
-    rc_mode             = (last_uav_state_.state == status::STATE_RC_MODE);
+    rc_mode             = (snapshot_.uav_state.state == status::STATE_RC_MODE);
     have_goal           = ci.have_goal;
     tracking_trajectory = ci.tracking_trajectory;
     null_tracker        = bs.null_tracker;
@@ -1201,21 +1124,20 @@ void TUI::hwApiStateHandler() {
   double      battery_volt, battery_curr, battery_wh_drained;
   double      thrust, mass_estimate, mass_set, gnss_qual, mag_norm, mag_norm_rate;
 
-  const status::BorderStatus bs = computeBorderStatus();
+  const status::BorderStatus bs = snapshot_.border_status;
 
   {
-    std::scoped_lock lock(mutex_status_msg_);
-    const auto      &bat = last_general_robot_info_.battery_state;
+    const auto &bat = snapshot_.general_robot_info.battery_state;
 
-    hw_api_rate             = last_system_health_info_.hw_api_rate;
-    cmd_rate                = last_system_health_info_.control_manager_rate;
-    have_uav_info           = have_uav_info_;
-    have_system_health_info = have_system_health_info_;
-    have_general_robot_info = have_general_robot_info_;
+    hw_api_rate             = snapshot_.system_health_info.hw_api_rate;
+    cmd_rate                = snapshot_.system_health_info.control_manager_rate;
+    have_uav_info           = snapshot_.freshness.uav_info;
+    have_system_health_info = snapshot_.freshness.system_health_info;
+    have_general_robot_info = snapshot_.freshness.general_robot_info;
 
     // have_system_health_info catches a frozen sensor list from before DiagnosticsManager died.
     gnss_ok = false;
-    if (const auto *gnss = utils::findSensor(last_system_health_info_.available_sensors, status::SENSOR_TYPE_GNSS); gnss) {
+    if (const auto *gnss = utils::findSensor(snapshot_.system_health_info.available_sensors, status::SENSOR_TYPE_GNSS); gnss) {
       gnss_ok   = have_system_health_info && (gnss->level == status::SENSOR_STATUS_OK);
       gnss_qual = utils::parseDoubleOr(utils::lookupDetail(gnss->details, "quality"), 0.0);
     }
@@ -1223,26 +1145,26 @@ void TUI::hwApiStateHandler() {
     // Catches HwApiStatus (armed/offboard) going stale on its own; have_uav_info alone can't, since
     // DiagnosticsManager keeps republishing UavInfo. Defaults true if the AUTOPILOT handler isn't configured.
     autopilot_ok = true;
-    if (const auto *autopilot = utils::findSensor(last_system_health_info_.available_sensors, status::SENSOR_TYPE_AUTOPILOT); autopilot) {
+    if (const auto *autopilot = utils::findSensor(snapshot_.system_health_info.available_sensors, status::SENSOR_TYPE_AUTOPILOT); autopilot) {
       autopilot_ok = (autopilot->level == status::SENSOR_STATUS_OK);
     }
 
     mag_norm      = 0.0;
     mag_norm_rate = 0.0;
-    if (const auto *mag = utils::findSensor(last_system_health_info_.available_sensors, status::SENSOR_TYPE_MAGNETOMETER); mag) {
+    if (const auto *mag = utils::findSensor(snapshot_.system_health_info.available_sensors, status::SENSOR_TYPE_MAGNETOMETER); mag) {
       mag_norm      = utils::parseDoubleOr(utils::lookupDetail(mag->details, "norm_gauss"), 0.0);
       mag_norm_rate = have_system_health_info ? mag->rate : 0.0;
     }
 
-    armed = last_uav_info_.armed;
-    mode  = last_uav_info_.flight_state;
+    armed = snapshot_.uav_info.armed;
+    mode  = snapshot_.uav_info.flight_state;
     // Forced to the same -1.0 sentinel used below; a frozen GeneralRobotInfo wouldn't reset it on its own.
     battery_volt       = have_general_robot_info ? bat.voltage : -1.0;
     battery_curr       = bat.current;
     battery_wh_drained = bat.wh_drained;
-    thrust             = last_control_info_.thrust / 100.0;
-    mass_estimate      = last_uav_info_.mass_estimate;
-    mass_set           = last_uav_info_.mass_nominal;
+    thrust             = snapshot_.control_info.thrust / 100.0;
+    mass_estimate      = snapshot_.uav_info.mass_estimate;
+    mass_set           = snapshot_.uav_info.mass_nominal;
   }
   // Nominal MRS hw_api rate is 100 Hz.
   color = rateColor(hw_api_rate, 100.0);
@@ -1568,17 +1490,16 @@ void TUI::topLineHandler() {
   bool        have_general_robot_info, have_collision_avoidance_info, have_uav_info;
 
   {
-    std::scoped_lock lock(mutex_status_msg_);
-    uav_name                      = last_general_robot_info_.robot_name;
-    uav_type                      = utils::robotTypeToString(last_general_robot_info_.robot_type);
-    collision_avoidance_enabled   = last_collision_avoidance_info_.collision_avoidance_enabled;
-    avoiding_collision            = last_collision_avoidance_info_.avoiding_collision;
-    bumper_active                 = last_collision_avoidance_info_.bumper_active;
-    num_other_uavs                = static_cast<uint16_t>(last_collision_avoidance_info_.num_other_robots_visible);
-    secs_flown                    = static_cast<int>(std::max(0.0f, last_uav_info_.flight_duration));
-    have_general_robot_info       = have_general_robot_info_;
-    have_collision_avoidance_info = have_collision_avoidance_info_;
-    have_uav_info                 = have_uav_info_;
+    uav_name                      = snapshot_.general_robot_info.robot_name;
+    uav_type                      = utils::robotTypeToString(snapshot_.general_robot_info.robot_type);
+    collision_avoidance_enabled   = snapshot_.collision_avoidance_info.collision_avoidance_enabled;
+    avoiding_collision            = snapshot_.collision_avoidance_info.avoiding_collision;
+    bumper_active                 = snapshot_.collision_avoidance_info.bumper_active;
+    num_other_uavs                = static_cast<uint16_t>(snapshot_.collision_avoidance_info.num_other_robots_visible);
+    secs_flown                    = static_cast<int>(std::max(0.0f, snapshot_.uav_info.flight_duration));
+    have_general_robot_info       = snapshot_.freshness.general_robot_info;
+    have_collision_avoidance_info = snapshot_.freshness.collision_avoidance_info;
+    have_uav_info                 = snapshot_.freshness.uav_info;
   }
 
   if (light_scheme_) {
@@ -1683,14 +1604,14 @@ void TUI::topLineHandler() {
 // | --------------------- Bottom-window helpers --------------- |
 
 void TUI::blankBottomWindow() {
-  if ((clock_->now() - bottom_window_clear_time_).seconds() > 3.0) {
+  if (snapshot_.now_seconds - bottom_window_clear_time_s_ > 3.0) {
     werase(bottom_window_.get());
   }
 }
 
 void TUI::renderServiceResult(bool success, const std::string &msg) {
   printServiceResult(bottom_window_.get(), light_scheme_, success, msg);
-  bottom_window_clear_time_ = clock_->now();
+  bottom_window_clear_time_s_ = snapshot_.now_seconds;
 }
 
 // | --------------------- Menu helpers ----------------------- |
@@ -1751,12 +1672,7 @@ void TUI::setupMainMenu() {
   main_menu_rows_.clear();
   main_menu_text_.clear();
 
-  bool null_tracker;
-
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    null_tracker = (last_control_info_.active_tracker == "NullTracker");
-  }
+  const bool null_tracker = (snapshot_.control_info.active_tracker == "NullTracker");
 
   // Create menu entries for trigger services
   for (const auto &service : command_sink_.extra_services) {
@@ -1784,53 +1700,37 @@ void TUI::setupMainMenu() {
 
   // Create menu entries for setting controller, tracker, gains, constraints, estimator
   main_menu_rows_.push_back({"Set Constraints", [this]() {
-                               std::vector<std::string> constraints_text;
-                               {
-                                 std::scoped_lock lock(mutex_status_msg_);
-                                 constraints_text = utils::withActiveFirst(last_control_info_.active_constraints, last_control_info_.available_constraints);
-                               }
+                               std::vector<std::string> constraints_text =
+                                   utils::withActiveFirst(snapshot_.control_info.active_constraints, snapshot_.control_info.available_constraints);
                                sub_menu_rows_.clear();
                                createSubMenu(constraints_text);
                                createSubMenuActions(constraints_text, command_sink_.setConstraints);
                              }});
 
   main_menu_rows_.push_back({"Set Gains", [this]() {
-                               std::vector<std::string> gains_text;
-                               {
-                                 std::scoped_lock lock(mutex_status_msg_);
-                                 gains_text = utils::withActiveFirst(last_control_info_.active_gains, last_control_info_.available_gains);
-                               }
+                               std::vector<std::string> gains_text =
+                                   utils::withActiveFirst(snapshot_.control_info.active_gains, snapshot_.control_info.available_gains);
                                createSubMenu(gains_text);
                                createSubMenuActions(gains_text, command_sink_.setGains);
                              }});
 
   main_menu_rows_.push_back({"Set Controller", [this]() {
-                               std::vector<std::string> controllers_text;
-                               {
-                                 std::scoped_lock lock(mutex_status_msg_);
-                                 controllers_text = utils::withActiveFirst(last_control_info_.active_controller, last_control_info_.available_controllers);
-                               }
+                               std::vector<std::string> controllers_text =
+                                   utils::withActiveFirst(snapshot_.control_info.active_controller, snapshot_.control_info.available_controllers);
                                createSubMenu(controllers_text);
                                createSubMenuActions(controllers_text, command_sink_.setController);
                              }});
 
   main_menu_rows_.push_back({"Set Tracker", [this]() {
-                               std::vector<std::string> trackers_text;
-                               {
-                                 std::scoped_lock lock(mutex_status_msg_);
-                                 trackers_text = utils::withActiveFirst(last_control_info_.active_tracker, last_control_info_.available_trackers);
-                               }
+                               std::vector<std::string> trackers_text =
+                                   utils::withActiveFirst(snapshot_.control_info.active_tracker, snapshot_.control_info.available_trackers);
                                createSubMenu(trackers_text);
                                createSubMenuActions(trackers_text, command_sink_.setTracker);
                              }});
 
   main_menu_rows_.push_back({"Set Estimator", [this]() {
-                               std::vector<std::string> odometry_lat_sources_text;
-                               {
-                                 std::scoped_lock lock(mutex_status_msg_);
-                                 odometry_lat_sources_text =
-                                     utils::withActiveFirst(last_state_estimation_info_.current_estimator, last_state_estimation_info_.switchable_estimators);
-                               }
+                               std::vector<std::string> odometry_lat_sources_text = utils::withActiveFirst(
+                                   snapshot_.state_estimation_info.current_estimator, snapshot_.state_estimation_info.switchable_estimators);
                                createSubMenu(odometry_lat_sources_text);
                                createSubMenuActions(odometry_lat_sources_text, command_sink_.setEstimator);
                              }});
@@ -1889,12 +1789,7 @@ bool TUI::mainMenuHandler(int key) {
 // | --------------------- Goto menu ----------------------- |
 
 void TUI::setupGotoMenu() {
-  std::string odom_frame;
-
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    odom_frame = last_state_estimation_info_.frame_id;
-  }
+  const std::string odom_frame = snapshot_.state_estimation_info.frame_id;
 
   goto_menu_inputs_.clear();
   goto_menu_text_.clear();
@@ -1929,11 +1824,7 @@ bool TUI::gotoMenuHandler(int key) {
     goto_double_vec_[2] = goto_menu_inputs_[2].getDouble();
     goto_double_vec_[3] = goto_menu_inputs_[3].getDouble();
 
-    std::string frame_id;
-    {
-      std::scoped_lock lock(mutex_status_msg_);
-      frame_id = last_state_estimation_info_.frame_id;
-    }
+    const std::string frame_id = snapshot_.state_estimation_info.frame_id;
 
     const auto result_service = command_sink_.sendGoto(goto_double_vec_[0], goto_double_vec_[1], goto_double_vec_[2], goto_double_vec_[3], frame_id);
     renderServiceResult(result_service.success, result_service.message);
@@ -2063,8 +1954,7 @@ void TUI::remoteHandler(int key) {
   }
 
   if (key == 'G') {
-    std::scoped_lock lock(mutex_status_msg_);
-    if (last_control_info_.flying_normally) {
+    if (snapshot_.control_info.flying_normally) {
       remote_global_ = !remote_global_;
     }
     return;
@@ -2158,11 +2048,7 @@ void TUI::handleRemoteMotion(int key) {
 }
 
 void TUI::toggleTurboRemote() {
-  bool is_flying_normally;
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    is_flying_normally = last_control_info_.flying_normally;
-  }
+  const bool is_flying_normally = snapshot_.control_info.flying_normally;
 
   if (!is_flying_normally) {
     return;
@@ -2177,21 +2063,14 @@ void TUI::toggleTurboRemote() {
   }
 
   // Enable turbo remote constraints
-  turbo_remote_ = true;
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    old_constraints_ = last_control_info_.active_constraints;
-  }
+  turbo_remote_     = true;
+  old_constraints_  = snapshot_.control_info.active_constraints;
   const auto result = command_sink_.setConstraints(params_.turbo_remote_constraints);
   renderServiceResult(result.success, result.message);
 }
 
 void TUI::remoteModeFly(double vx, double vy, double vz, double heading_rate) {
-  std::string uav_name;
-  {
-    std::scoped_lock lock(mutex_status_msg_);
-    uav_name = last_general_robot_info_.robot_name;
-  }
+  const std::string uav_name = snapshot_.general_robot_info.robot_name;
 
   const std::string frame_id = uav_name + (remote_global_ ? "/world_origin" : "/fcu_untilted");
 
@@ -2216,7 +2095,7 @@ void TUI::renderTmuxOrHelp() {
   // The bottom region (y=13+) is now exclusively the help / tmux-dump overlay —
   // the pane panel moved up into the top-right, so there's no contention.
   if (!selected_tmux_window_.empty()) {
-    const status::BorderStatus bs = computeBorderStatus();
+    const status::BorderStatus bs = snapshot_.border_status;
     printTmuxDump(debug_window, sub1, sub2, selected_tmux_window_, session_name_, display_menu_text_, MAX_SELECTED_TMUX_WINDOWS, bs.avoiding_collision,
                   bs.bumper_active, bs.can_takeoff, bs.null_tracker);
   } else {

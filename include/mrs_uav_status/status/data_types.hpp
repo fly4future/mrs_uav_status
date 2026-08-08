@@ -179,4 +179,21 @@ struct Freshness
   bool state_estimation_info    = false;
 };
 
+// One render tick's complete view of the world, deep-copied out of StatusModel under its mutex
+// and handed to TUI::setSnapshot(). TUI reads this (render thread only, no locking) instead of
+// keeping its own message snapshots.
+struct RenderSnapshot
+{
+  double                     now_seconds = 0.0;
+  Freshness                  freshness;
+  BorderStatus               border_status;
+  GeneralRobotInfoData       general_robot_info;
+  StateEstimationInfoData    state_estimation_info;
+  ControlInfoData            control_info;
+  CollisionAvoidanceInfoData collision_avoidance_info;
+  UavInfoData                uav_info;
+  SystemHealthInfoData       system_health_info;
+  StateData                  uav_state;
+};
+
 } // namespace mrs_uav_status::status

@@ -93,7 +93,8 @@ private:
   // Per-tick entry point: updates freshness/resize/render, reads one key, and routes it through
   // model_'s STANDARD/REMOTE/MAIN_MENU/GOTO_MENU/DISPLAY_MENU state machine.
   void timerRender();
-  // Forwards the message to the matching tui::TUI::on*() setter.
+  // Forwards the message to the matching status::StatusModel::on*() setter (callbackDisplayString
+  // is the one exception -- it still pushes straight into tui::TUI until Task 4).
   void callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::ConstSharedPtr msg);
   void callbackStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo::ConstSharedPtr msg);
   void callbackControlInfo(const mrs_msgs::msg::ControlInfo::ConstSharedPtr msg);

@@ -11,7 +11,6 @@ namespace
 
 class FakeTui : public tui::TuiActions {
 public:
-  bool flying_normally           = true;
   bool main_menu_should_close    = false;
   bool goto_menu_should_close    = false;
   bool display_menu_should_close = false;
@@ -30,11 +29,6 @@ public:
   int  toggle_mini_calls           = 0;
   int  flush_input_calls           = 0;
 
-  void setDataFreshness(bool, bool, bool, bool, bool) override {
-  }
-  bool isFlyingNormally() override {
-    return flying_normally;
-  }
   void enterRemoteMode() override {
     remote_mode_calls++;
   }
@@ -111,7 +105,10 @@ TEST(StatusModel, StartsInStandardState) {
 TEST(StatusModel, EntersRemoteModeOnRWhenFlyingNormally) {
   StatusModel sm;
   FakeTui     tui;
-  tui.flying_normally = true;
+
+  ControlInfoData ci;
+  ci.flying_normally = true;
+  sm.onControlInfo(ci);
 
   tick(sm, tui, 'R');
 
@@ -123,9 +120,8 @@ TEST(StatusModel, EntersRemoteModeOnRWhenFlyingNormally) {
 TEST(StatusModel, DoesNotEnterRemoteModeWhenNotFlyingNormally) {
   StatusModel sm;
   FakeTui     tui;
-  tui.flying_normally = false;
 
-  tick(sm, tui, 'R');
+  tick(sm, tui, 'R'); // flying_normally defaults to false
 
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
   EXPECT_EQ(tui.remote_mode_calls, 0);
@@ -134,6 +130,10 @@ TEST(StatusModel, DoesNotEnterRemoteModeWhenNotFlyingNormally) {
 TEST(StatusModel, ExitsRemoteModeOnSecondR) {
   StatusModel sm;
   FakeTui     tui;
+
+  ControlInfoData ci;
+  ci.flying_normally = true;
+  sm.onControlInfo(ci);
 
   tick(sm, tui, 'R');
   ASSERT_EQ(sm.state(), StatusState::REMOTE);
@@ -147,6 +147,10 @@ TEST(StatusModel, ExitsRemoteModeOnSecondR) {
 TEST(StatusModel, ExitsRemoteModeOnEscape) {
   StatusModel sm;
   FakeTui     tui;
+
+  ControlInfoData ci;
+  ci.flying_normally = true;
+  sm.onControlInfo(ci);
 
   tick(sm, tui, 'R');
   ASSERT_EQ(sm.state(), StatusState::REMOTE);
@@ -235,6 +239,37 @@ TEST(StatusModel, RefreshesBottomWindowOnlyOutsideMenuStates) {
 
   tick(sm, tui, 'm');                            // STANDARD -> MAIN_MENU
   EXPECT_EQ(tui.refresh_bottom_window_calls, 1); // unchanged: now in a menu state
+}
+
+TEST(StatusModel, SnapshotCarriesLatestDataFreshnessAndBorderStatus) {
+  StatusModel sm;
+
+  GeneralRobotInfoData gri;
+  gri.robot_name     = "uav1";
+  gri.ready_to_start = true;
+  sm.onGeneralRobotInfo(gri);
+
+  ControlInfoData ci;
+  ci.active_tracker = "NullTracker";
+  sm.onControlInfo(ci);
+
+  CollisionAvoidanceInfoData cai;
+  cai.bumper_active = true;
+  sm.onCollisionAvoidanceInfo(cai);
+
+  Freshness freshness;
+  freshness.general_robot_info = true;
+  sm.setFreshness(freshness);
+
+  const RenderSnapshot snap = sm.snapshot(12.5);
+
+  EXPECT_DOUBLE_EQ(snap.now_seconds, 12.5);
+  EXPECT_EQ(snap.general_robot_info.robot_name, "uav1");
+  EXPECT_TRUE(snap.freshness.general_robot_info);
+  EXPECT_FALSE(snap.freshness.uav_info);
+  EXPECT_TRUE(snap.border_status.null_tracker);
+  EXPECT_TRUE(snap.border_status.can_takeoff);
+  EXPECT_TRUE(snap.border_status.bumper_active);
 }
 
 } // namespace mrs_uav_status::status

@@ -34,9 +34,8 @@
 namespace mrs_uav_status::tui
 {
 
-// Owns the ncurses windows, renders them from the latest received diagnostics, and drives the
-// menus/goto/remote-control key handling. RosStatus pushes messages in via the on*() setters and
-// drives rendering/input via the rest of this public API.
+// Owns the ncurses windows and renders them from the status::RenderSnapshot pushed in once per
+// tick by RosStatus. It stores no message state of its own -- StatusModel owns that.
 class TUI : public TuiActions {
 public:
   struct TUIParams
@@ -66,21 +65,16 @@ public:
   // Wraps doupdate(): flushes all pending ncurses window updates to the physical screen.
   void commitFrame();
 
-  // | --------------------- Data push (thread-safe) --------------------- |
-  // Each stores msg into its last_*_ snapshot under mutex_status_msg_, for the next render to read.
-  void onGeneralRobotInfo(const status::GeneralRobotInfoData &data);
-  void onStateEstimationInfo(const status::StateEstimationInfoData &data);
-  void onControlInfo(const status::ControlInfoData &data);
-  void onCollisionAvoidanceInfo(const status::CollisionAvoidanceInfoData &data);
-  void onUavInfo(const status::UavInfoData &data);
-  void onSystemHealthInfo(const status::SystemHealthInfoData &data);
-  void onUavState(const status::StateData &data);
-  // Parses an optional "-id <key>" / "-p" (persistent) preamble, then dedupes-or-appends the
-  // remaining text into string_info_vec_ (shown in the GNSS & strings pane).
-  void onString(const std::string &data);
+  // Installs the tick's render input. Called once per fast tick by RosStatus, before any
+  // render*/handler call. snapshot_ is render-thread-private, so no locking is needed here or
+  // in any handler that reads it.
+  void setSnapshot(const status::RenderSnapshot &snapshot);
 
-  // Pushed once per render tick from RosStatus; true if the topic has ever arrived and hasn't timed out.
-  void setDataFreshness(bool general_robot_info, bool collision_avoidance_info, bool uav_info, bool system_health_info, bool state_estimation_info) override;
+  // | --------------------- Data push --------------------- |
+  // Parses an optional "-id <key>" / "-p" (persistent) preamble, then dedupes-or-appends the
+  // remaining text into string_info_vec_ (shown in the GNSS & strings pane). Called from the ROS
+  // subscriber thread; string_info_vec_ is guarded by mutex_status_msg_ until Task 4 moves it too.
+  void onString(const std::string &data);
 
   // | --------------------- Window lifecycle ------------------- |
   // (Re)creates all ncurses windows, sized/positioned for the current minimized/full layout, and
@@ -97,8 +91,6 @@ public:
   bool isMini() const {
     return params_.start_minimized;
   }
-  // True if the control manager reports flying_normally (gates remote mode / turbo remote).
-  bool isFlyingNormally() override;
   void refreshTopBar();
   void setRemoteMode(bool in_remote_mode) override;
 
@@ -169,16 +161,14 @@ private:
   // | ------------------------- ROS Core ----------------------- |
   rclcpp::Clock::SharedPtr clock_;
 
-  // | ----------------------- UAV status snapshot --------------- |
-  // All last_*_ snapshots are guarded by this single mutex.
-  std::mutex                         mutex_status_msg_;
-  status::GeneralRobotInfoData       last_general_robot_info_;
-  status::StateEstimationInfoData    last_state_estimation_info_;
-  status::ControlInfoData            last_control_info_;
-  status::CollisionAvoidanceInfoData last_collision_avoidance_info_;
-  status::UavInfoData                last_uav_info_;
-  status::SystemHealthInfoData       last_system_health_info_;
-  status::StateData                  last_uav_state_;
+  // Everything the handlers render from, refreshed once per fast tick by setSnapshot().
+  status::RenderSnapshot snapshot_;
+
+  // | ----------------------- Display strings --------------- |
+  // Guards string_info_vec_ below, written from the ROS subscriber thread by onString() and
+  // read/pruned on the render thread. All other message state moved to StatusModel in this task;
+  // this one mutex/member pair moves too, in Task 4.
+  std::mutex mutex_status_msg_;
 
   // Custom strings published via std_msgs/String. Each entry tracks its own
   // freshness — entries older than 10 s are pruned in pruneStrings() (called
@@ -213,10 +203,6 @@ private:
   void renderNodeCpuPane(WINDOW *win);
   // Shows GNSS fix/accuracy and the current display_string entries.
   void renderStringsGnssPane(WINDOW *win);
-
-  // Computed once per render tick from last_general_robot_info_/last_collision_avoidance_info_/
-  // last_control_info_ under mutex_status_msg_.
-  status::BorderStatus computeBorderStatus();
 
   TUIParams   params_;
   CommandSink command_sink_;
@@ -272,17 +258,9 @@ private:
   // Rebuilds display_menu_text_ from tmux's current window list, marking previously-selected windows.
   void setupDisplayText();
 
-  int          estimator_display_counter_ = 0;
-  bool         increment_counter_         = false;
-  rclcpp::Time bottom_window_clear_time_;
-
-  // Per-topic freshness, pushed by RosStatus via setDataFreshness().
-  bool have_general_robot_info_       = false;
-  bool have_collision_avoidance_info_ = false;
-  bool have_uav_info_                 = false;
-  bool have_system_health_info_       = false;
-  bool have_state_estimation_info_    = false;
-
+  int    estimator_display_counter_  = 0;
+  bool   increment_counter_          = false;
+  double bottom_window_clear_time_s_ = 0.0;
 
   // | ---------------------- Window Pointers ------------------- |
   // RAII wrapper for ncurses windows — delwin() called on destruction.

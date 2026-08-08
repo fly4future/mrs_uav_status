@@ -376,8 +376,9 @@ void RosStatus::timerRender() {
     return;
   }
 
-  const rclcpp::Time now     = clock_->now();
-  bool               resized = false;
+  const rclcpp::Time now         = clock_->now();
+  const double       now_seconds = now.seconds();
+  bool               resized     = false;
 
   // hasMsg() guards against sim-time-near-zero at boot; the elapsed-time check catches mid-flight stalls.
   auto                    is_fresh = [&now, this](const auto &sh) { return sh.hasMsg() && (now - sh.lastMsgTime()).seconds() < data_timeout_s_; };
@@ -385,6 +386,9 @@ void RosStatus::timerRender() {
       is_fresh(sh_general_robot_info_), is_fresh(sh_collision_avoidance_info_), is_fresh(sh_uav_info_),
       is_fresh(sh_system_health_info_), is_fresh(sh_state_estimation_info_),
   };
+
+  model_->setFreshness(freshness);
+  tui_->setSnapshot(model_->snapshot(now_seconds));
 
   // Resize before anything else draws; force a slow redraw right after so it isn't left blank.
   if (now - last_resize_check_ >= resize_period_) {
@@ -406,8 +410,7 @@ void RosStatus::timerRender() {
   tui_->blankBottomWindow();
 
   const int key = tui_->pollKey();
-  model_->setFreshness(freshness);
-  model_->tick(now.seconds(), key, *tui_);
+  model_->tick(now_seconds, key, *tui_);
 
   tui_->refreshTopBar();
   tui_->commitFrame();
@@ -421,49 +424,49 @@ void RosStatus::callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::
   if (!is_initialized_) {
     return;
   }
-  tui_->onGeneralRobotInfo(toData(*msg));
+  model_->onGeneralRobotInfo(toData(*msg));
 }
 
 void RosStatus::callbackStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  tui_->onStateEstimationInfo(toData(*msg));
+  model_->onStateEstimationInfo(toData(*msg));
 }
 
 void RosStatus::callbackControlInfo(const mrs_msgs::msg::ControlInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  tui_->onControlInfo(toData(*msg));
+  model_->onControlInfo(toData(*msg));
 }
 
 void RosStatus::callbackCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  tui_->onCollisionAvoidanceInfo(toData(*msg));
+  model_->onCollisionAvoidanceInfo(toData(*msg));
 }
 
 void RosStatus::callbackUavInfo(const mrs_msgs::msg::UavInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  tui_->onUavInfo(toData(*msg));
+  model_->onUavInfo(toData(*msg));
 }
 
 void RosStatus::callbackSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  tui_->onSystemHealthInfo(toData(*msg));
+  model_->onSystemHealthInfo(toData(*msg));
 }
 
 void RosStatus::callbackUavState(const mrs_msgs::msg::State::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  tui_->onUavState(toData(*msg));
+  model_->onUavState(toData(*msg));
 }
 
 void RosStatus::callbackDisplayString(const std_msgs::msg::String::ConstSharedPtr msg) {
