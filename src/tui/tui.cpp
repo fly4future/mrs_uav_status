@@ -1611,7 +1611,7 @@ void TUI::blankBottomWindow() {
 
 void TUI::renderServiceResult(bool success, const std::string &msg) {
   printServiceResult(bottom_window_.get(), light_scheme_, success, msg);
-  bottom_window_clear_time_s_ = snapshot_.now_seconds;
+  bottom_window_clear_time_s_ = clock_->now().seconds();
 }
 
 // | --------------------- Menu helpers ----------------------- |
