@@ -1204,7 +1204,7 @@ void TUI::topLineHandler() {
   wattroff(win, A_BOLD);
 
   // btop-style hotkey hints on the right of the top bar — the trigger key (the
-  // red letter) maps directly to the STANDARD-mode key handler in status.cpp.
+  // red letter) maps directly to the STANDARD-mode key handler in ros_status.cpp.
   if (!params_.start_minimized && !in_remote_mode_) {
     int hx = 62;
     hx     = printHotkey(win, 0, hx, "menu");

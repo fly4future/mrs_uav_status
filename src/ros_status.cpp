@@ -8,6 +8,9 @@
 namespace
 {
 
+// Converts each subscribed mrs_msgs type to its plain status::*Data mirror (see data_types.hpp),
+// trimming unused fields along the way.
+
 mrs_uav_status::status::GeneralRobotInfoData toData(const mrs_msgs::msg::GeneralRobotInfo &msg) {
   return {
       .robot_name                = msg.robot_name,

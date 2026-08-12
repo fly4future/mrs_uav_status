@@ -70,6 +70,7 @@ inline void printLimitedString(WINDOW *win, int y, int x, const std::string &str
 
 /* printNoData(WINDOW *win, int y, int x, bool mini) //{ */
 
+// Prints a blinking red "NO DATA" marker at (y, x).
 inline void printNoData(WINDOW *win, int y, int x, [[maybe_unused]] bool mini) {
   // Save/restore instead of wattroff(): ncurses attributes aren't stacked, so a blind
   // wattroff() would clobber a color the caller turned on around this call.
@@ -88,6 +89,7 @@ inline void printNoData(WINDOW *win, int y, int x, [[maybe_unused]] bool mini) {
 
 /* printNoData(WINDOW *win, int y, int x, const std::string &text, bool mini) //{ */
 
+// Same as above, with a label printed before the "NO DATA" marker.
 inline void printNoData(WINDOW *win, int y, int x, const std::string &text, bool mini) {
   attr_t saved_attrs;
   short  saved_pair;
@@ -248,8 +250,7 @@ inline void printTmuxDump(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2, cons
 /* rateColor() //{ */
 
 // Map a measured Hz against an expected Hz to a ColorPair (Green ≥ 90% expected,
-// Yellow ≥ 50% expected, Red otherwise). Replaces the precomputed *_color fields
-// that the legacy UavStatus blob carried.
+// Yellow ≥ 50% expected, Red otherwise).
 inline int16_t rateColor(double rate, double expected) {
   if (expected <= 0.0) {
     return static_cast<int16_t>(ColorPair::Normal);
@@ -267,7 +268,7 @@ inline int16_t rateColor(double rate, double expected) {
 
 /* printHotkey() //{ */
 
-// btop-style hotkey hint: render @p word with its first character (the trigger
+// btop-style hotkey hint: render word with its first character (the trigger
 // key) in red+bold and the remainder in the normal colour. Returns the column
 // just past the word (plus one space) so hints can be chained left-to-right.
 inline int printHotkey(WINDOW *win, int y, int x, const std::string &word) {
