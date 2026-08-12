@@ -18,6 +18,8 @@ inline constexpr uint8_t ROBOT_TYPE_DRONE        = 0;
 inline constexpr uint8_t ROBOT_TYPE_BOAT         = 1;
 inline constexpr uint8_t ROBOT_TYPE_GROUND_ROBOT = 2;
 
+/* splitByChar() //{ */
+
 // Splits input on delimiter (returns {""} for an empty input).
 inline std::vector<std::string> splitByChar(const std::string &input, char delimiter) {
 
@@ -41,6 +43,10 @@ inline std::vector<std::string> splitByChar(const std::string &input, char delim
   return result;
 }
 
+//}
+
+/* withActiveFirst() //{ */
+
 // Returns {active, available\active} — the legacy UavStatus convention is
 // "first element is the active one, rest are alternates."
 inline std::vector<std::string> withActiveFirst(const std::string &active, const std::vector<std::string> &available) {
@@ -57,6 +63,10 @@ inline std::vector<std::string> withActiveFirst(const std::string &active, const
   return out;
 }
 
+//}
+
+/* robotTypeToString() //{ */
+
 // No UNKNOWN sentinel in the enum (0 == DRONE) — caller must check message freshness separately.
 inline std::string robotTypeToString(uint8_t robot_type) {
   switch (robot_type) {
@@ -71,6 +81,10 @@ inline std::string robotTypeToString(uint8_t robot_type) {
   }
 }
 
+//}
+
+/* findSensor() //{ */
+
 // Find the first SensorStatus of a given type. Returns nullptr if not present.
 // Templated so this works for status::SensorStatusData without a dependency on status/ or mrs_msgs.
 template <typename SensorT>
@@ -82,6 +96,10 @@ inline const SensorT *findSensor(const std::vector<SensorT> &sensors, uint8_t ty
   }
   return nullptr;
 }
+
+//}
+
+/* lookupDetail() //{ */
 
 // Look up a value in a KeyValue list. Returns fallback if the key isn't present.
 // Templated for the same reason as findSensor() above -- works for both
@@ -96,6 +114,10 @@ inline std::string lookupDetail(const std::vector<KeyValueT> &details, const std
   return fallback;
 }
 
+//}
+
+/* parseDoubleOr() //{ */
+
 // Parses s as a double; returns fallback if empty or unparseable.
 inline double parseDoubleOr(const std::string &s, double fallback) {
   if (s.empty()) {
@@ -109,6 +131,10 @@ inline double parseDoubleOr(const std::string &s, double fallback) {
   }
 }
 
+//}
+
+/* parseLongOr() //{ */
+
 // Parses s as a long; returns fallback if empty or unparseable.
 inline long parseLongOr(const std::string &s, long fallback) {
   if (s.empty()) {
@@ -121,5 +147,7 @@ inline long parseLongOr(const std::string &s, long fallback) {
     return fallback;
   }
 }
+
+//}
 
 } // namespace mrs_uav_status::utils

@@ -12,6 +12,8 @@
 namespace mrs_uav_status::tui
 {
 
+/* setupColors() //{ */
+
 // Returns whether the light colorscheme is active.
 inline bool setupColors(const std::string &colorscheme, bool colorblind_mode) {
   bool light = false;
@@ -41,5 +43,7 @@ inline bool setupColors(const std::string &colorscheme, bool colorblind_mode) {
 
   return light;
 }
+
+//}
 
 } // namespace mrs_uav_status::tui

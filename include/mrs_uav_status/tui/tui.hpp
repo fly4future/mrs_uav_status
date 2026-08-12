@@ -79,9 +79,15 @@ public:
   void toggleMini() override;
   // Flips the help overlay on/off.
   void toggleHelp() override;
+
+  /* isMini() //{ */
+
   bool isMini() const {
     return params_.start_minimized;
   }
+
+  //}
+
   void refreshTopBar();
   void setRemoteMode(bool in_remote_mode) override;
 
@@ -182,10 +188,14 @@ private:
   // RAII wrapper for ncurses windows — delwin() called on destruction.
   struct WindowDeleter
   {
+    /* operator() //{ */
+
     void operator()(WINDOW *w) const noexcept {
       if (w)
         delwin(w);
     }
+
+    //}
   };
 
   using WindowPtr = std::unique_ptr<WINDOW, WindowDeleter>;

@@ -49,9 +49,13 @@ public:
   // drives tui accordingly. now_seconds is the node clock in plain seconds.
   void tick(double now_seconds, int key, tui::TuiActions &tui);
 
+  /* state() //{ */
+
   StatusState state() const {
     return state_;
   }
+
+  //}
 
   // | --------------------- Data push (thread-safe) --------------------- |
   // Called from ROS subscriber threads; each stores data into its last_*_ snapshot under

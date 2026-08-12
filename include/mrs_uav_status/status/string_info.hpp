@@ -18,9 +18,13 @@ struct StringInfo
   bool        persistent = false;
   double      last_time  = 0.0;
 
+  /* StringInfo() //{ */
+
   StringInfo(double last_time_in, const std::string &display_string_in, const std::string &id_in, bool persistent_in)
       : id(id_in), display_string(display_string_in), persistent(persistent_in), last_time(last_time_in) {
   }
+
+  //}
 };
 
 } // namespace mrs_uav_status::status
