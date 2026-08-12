@@ -10,9 +10,10 @@ set -uo pipefail
 ROOT="$1"
 
 # Matches #include <..._msgs/...> / "..._srvs/..." for any ROS message/service package, any
-# rclcpp/* header (node, rclcpp, clock, time, ...), plus the mrs_lib ROS-handle helpers that imply
-# a live node/topic/service graph.
-FORBIDDEN='#include[[:space:]]*[<"]([a-z_]+_msgs|[a-z_]+_srvs|rclcpp)/|#include[[:space:]]*[<"]rclcpp\.hpp|service_client_handler\.h|subscriber_handler\.h|publisher_handler\.h|param_loader\.h'
+# rclcpp/* or rclcpp_*/* header (node, rclcpp, clock, time, components, ...), the low-level
+# rcl/rcl_interfaces/rosidl_* and builtin_interfaces/tf2/tf2_ros headers those transitively pull
+# in, plus the mrs_lib ROS-handle helpers that imply a live node/topic/service graph.
+FORBIDDEN='#include[[:space:]]*[<"](([a-z_]+_msgs|[a-z_]+_srvs|rclcpp_[a-z_]+|rclcpp|rcl_interfaces|rcl|rosidl_[a-z_]+|builtin_interfaces|tf2_ros|tf2)/)|#include[[:space:]]*[<"]rclcpp\.hpp|service_client_handler\.h|subscriber_handler\.h|publisher_handler\.h|param_loader\.h'
 
 # tui/ includes utils/ and status/ headers directly, so a forbidden dependency hiding in either
 # is just as much a layering violation as one written directly under tui/. status/ (StatusModel)

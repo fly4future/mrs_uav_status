@@ -51,7 +51,7 @@ private:
   // Loads params, constructs the TUI, starts the render timer, and subscribes to all topics.
   void initialize();
   // Constructs the sc_*_ service clients and builds the status::CommandSink that initialize()
-  // hands off to the TUI ctor.
+  // hands off to the StatusModel ctor.
   status::CommandSink buildCommandSink(const std::vector<std::string> &service_list, const std::string &uav_name);
 
   bool _profiler_enabled_ = false;
@@ -93,8 +93,7 @@ private:
   // Per-tick entry point: updates freshness/resize/render, reads one key, and routes it through
   // model_'s STANDARD/REMOTE/MAIN_MENU/GOTO_MENU/DISPLAY_MENU state machine.
   void timerRender();
-  // Forwards the message to the matching status::StatusModel::on*() setter (callbackDisplayString
-  // is the one exception -- it still pushes straight into tui::TUI until Task 4).
+  // Forwards the message to the matching status::StatusModel::on*() setter.
   void callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::ConstSharedPtr msg);
   void callbackStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo::ConstSharedPtr msg);
   void callbackControlInfo(const mrs_msgs::msg::ControlInfo::ConstSharedPtr msg);

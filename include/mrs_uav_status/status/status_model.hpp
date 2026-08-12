@@ -114,7 +114,7 @@ private:
   void remoteHandler(int key, tui::TuiActions &tui);
   // Maps a keypress to a velocity command (wasd/hjkl/arrows for xy, r/f for z, q/e for heading); any
   // other key triggers hover() if a motion command was previously sent.
-  void handleRemoteMotion(int key, tui::TuiActions &tui);
+  void handleRemoteMotion(int key);
   // Toggles turbo_remote_constraints on/off via the set-constraints service, remembering the previous set.
   void toggleTurboRemote(tui::TuiActions &tui);
   // Sends one velocity reference, in the world frame if remote_global_ else the fcu_untilted frame.

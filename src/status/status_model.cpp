@@ -13,6 +13,13 @@ namespace mrs_uav_status::status
 StatusModel::StatusModel(CommandSink command_sink, Params params)
     : command_sink_(std::move(command_sink)), params_(std::move(params)), goto_values_(params_.goto_values) {
   goto_values_.resize(4, 0.0);
+
+  // nowSeconds is a hard dependency of every service-result path (unlike command_sink_'s other
+  // std::function members, which are only reached via user interaction) -- guard against a caller
+  // leaving it unset so those call sites don't throw std::bad_function_call.
+  if (!command_sink_.nowSeconds) {
+    command_sink_.nowSeconds = [] { return 0.0; };
+  }
 }
 
 void StatusModel::setFreshness(const Freshness &freshness) {
@@ -356,12 +363,10 @@ void StatusModel::remoteHandler(int key, tui::TuiActions &tui) {
     return;
   }
 
-  handleRemoteMotion(key, tui);
+  handleRemoteMotion(key);
 }
 
-void StatusModel::handleRemoteMotion(int key, tui::TuiActions &tui) {
-  (void)tui;
-
+void StatusModel::handleRemoteMotion(int key) {
   const double xy_step  = turbo_remote_ ? 5.0 : 2.0;
   const double z_step   = turbo_remote_ ? 2.0 : 1.0;
   const double hdg_step = turbo_remote_ ? 1.0 : 0.5;

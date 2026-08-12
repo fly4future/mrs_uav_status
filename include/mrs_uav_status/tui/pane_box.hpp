@@ -12,7 +12,7 @@ namespace mrs_uav_status::tui
 {
 
 // The cycleable top-right box. Holds a list of pluggable panes and renders whichever one is
-// selected into the window it is handed. To add a pane, push one in setupPanes(): give it a
+// selected into the window it is handed. To add a pane, push one in PaneBox::PaneBox(): give it a
 // title, a render callback that calls drawPaneChrome(win) itself (for the box + tab bar) before
 // drawing its own content rows, and optionally a wants_focus() predicate to auto-switch to it
 // when it has something important to show.
@@ -21,6 +21,13 @@ public:
   // Populates the pane list with the 4 built-in panes (Sensors, ROS Node CPU, GNSS & strings,
   // Problems & errors).
   PaneBox();
+
+  // panes_ holds std::functions (including a wants_focus lambda) that capture `this` -- a copy or
+  // move would silently leave every callback pointing at the source object.
+  PaneBox(const PaneBox &)            = delete;
+  PaneBox &operator=(const PaneBox &) = delete;
+  PaneBox(PaneBox &&)                 = delete;
+  PaneBox &operator=(PaneBox &&)      = delete;
 
   // Advance to the next pane (bound to the 'p' key).
   void cycle();

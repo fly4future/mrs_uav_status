@@ -1352,8 +1352,6 @@ void TUI::loadDisplayConfig() {
   setupDisplayText();
 }
 
-// | --------------------- Tmux/help rendering --------------- |
-
 // | -------------------------- Remote -------------------------- |
 
 void TUI::renderRemoteBanner(bool turbo, bool global) {
@@ -1412,6 +1410,5 @@ void TUI::renderTmuxOrHelp() {
     printHelp(debug_window, help_active_);
   }
 }
-
 
 } // namespace mrs_uav_status::tui
