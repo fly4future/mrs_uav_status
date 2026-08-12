@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Fails if tui/ or status/ (or the utils/ headers they depend on) pull in ROS message/service/Node
-# types, directly or transitively. rclcpp::Time/Clock/Duration (local UI timing only, no
-# node/topic/service graph access) is an explicitly allowed exception.
+# Fails if tui/, status/ or the utils/ headers they depend on pull in ANY ROS header -- message,
+# service, node, clock or time -- directly or transitively. These three trees are the package's
+# ROS-free layers: only ros_status.{hpp,cpp} may name an rclcpp type.
 #
 # Deliberately does NOT use `set -e`: grep's exit status is inspected explicitly below so
 # "no forbidden includes" (1) and "grep itself failed" (>1) are never conflated.
@@ -9,13 +9,13 @@ set -uo pipefail
 
 ROOT="$1"
 
-# Matches #include <..._msgs/...> / "..._msgs/..." (and "..._srvs") forms for any ROS
-# message/service package, plus rclcpp/node.hpp and the rclcpp.hpp umbrella header, plus the
-# ROS-handle helper headers that imply a live node/topic/service graph.
-FORBIDDEN='#include[[:space:]]*[<"]([a-z_]+_msgs|[a-z_]+_srvs|rclcpp/node|rclcpp/rclcpp)|service_client_handler\.h|subscriber_handler\.h|publisher_handler\.h'
+# Matches #include <..._msgs/...> / "..._srvs/..." for any ROS message/service package, any
+# rclcpp/* header (node, rclcpp, clock, time, ...), plus the mrs_lib ROS-handle helpers that imply
+# a live node/topic/service graph.
+FORBIDDEN='#include[[:space:]]*[<"]([a-z_]+_msgs|[a-z_]+_srvs|rclcpp)/|#include[[:space:]]*[<"]rclcpp\.hpp|service_client_handler\.h|subscriber_handler\.h|publisher_handler\.h|param_loader\.h'
 
 # tui/ includes utils/ and status/ headers directly, so a forbidden dependency hiding in either
-# is just as much a layering violation as one written directly under tui/. status/ (StatusMachine)
+# is just as much a layering violation as one written directly under tui/. status/ (StatusModel)
 # is scanned in its own right too -- it must stay ROS-free independent of what tui/ pulls in.
 DIRS=(
   "$ROOT/include/mrs_uav_status/tui"
@@ -40,7 +40,7 @@ grep_status=$?
 
 if [ "$grep_status" -eq 0 ]; then
   echo "$matches" >&2
-  echo "ERROR: tui/ and status/ (and the utils/ headers they depend on) must not depend on ROS message/service/Node types." >&2
+  echo "ERROR: tui/, status/ and the utils/ headers they depend on must not include any ROS header." >&2
   exit 1
 elif [ "$grep_status" -gt 1 ]; then
   echo "$matches" >&2
@@ -48,5 +48,5 @@ elif [ "$grep_status" -gt 1 ]; then
   exit 1
 fi
 
-echo "OK: tui/ and status/ (and the utils/ headers they depend on) have no ROS message/service/Node dependency."
+echo "OK: tui/, status/ and the utils/ headers they depend on have no ROS dependency."
 exit 0

@@ -106,13 +106,9 @@ if(ENABLE_TESTS)
   find_package(ament_cmake_test REQUIRED)
 
   find_package(ament_cmake_gtest REQUIRED)
+  # StatusModel is ROS-free by construction -- this target deliberately links no rclcpp/mrs_lib.
   ament_add_gtest(test_status_model test/status/test_status_model.cpp src/status/status_model.cpp)
   target_include_directories(test_status_model PRIVATE include)
-  target_link_libraries(test_status_model
-    rclcpp::rclcpp
-    mrs_lib::mrs_lib
-  )
-  target_compile_definitions(test_status_model PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
   add_test(
     NAME check_tui_ros_free
