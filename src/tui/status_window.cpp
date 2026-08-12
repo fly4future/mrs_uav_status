@@ -5,9 +5,7 @@
 
 //}
 
-namespace mrs_uav_status
-{
-namespace tui
+namespace mrs_uav_status::tui
 {
 
 /* StatusWindow() //{ */
@@ -97,5 +95,4 @@ StatusWindow::Result StatusWindow::iterate(int key, bool refresh) {
 }
 //}
 
-} // namespace tui
-} // namespace mrs_uav_status
+} // namespace mrs_uav_status::tui

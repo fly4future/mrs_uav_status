@@ -9,9 +9,7 @@
 
 //}
 
-namespace mrs_uav_status
-{
-namespace tui
+namespace mrs_uav_status::tui
 {
 
 /* ControlBar() //{ */
@@ -147,5 +145,4 @@ double ControlBar::getDouble() const {
 
 //}
 
-} // namespace tui
-} // namespace mrs_uav_status
+} // namespace mrs_uav_status::tui
