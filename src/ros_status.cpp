@@ -201,7 +201,7 @@ void RosStatus::initialize() {
       .goto_values              = goto_values,
   };
 
-  tui::CommandSink command_sink = buildCommandSink(service_list, uav_name);
+  status::CommandSink command_sink = buildCommandSink(service_list, uav_name);
 
   tui_ = std::make_unique<tui::TUI>(tui_params);
   tui_->updateTermSize();
@@ -259,7 +259,7 @@ void RosStatus::initialize() {
 
 /* buildCommandSink() //{ */
 
-tui::CommandSink RosStatus::buildCommandSink(const std::vector<std::string> &service_list, const std::string &uav_name) {
+status::CommandSink RosStatus::buildCommandSink(const std::vector<std::string> &service_list, const std::string &uav_name) {
 
   sc_goto_reference_     = mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>(node_, "~/goto_reference_out", cbkgrp_sc_);
   sc_velocity_reference_ = mrs_lib::ServiceClientHandler<mrs_msgs::srv::VelocityReferenceStampedSrv>(node_, "~/velocity_reference_out", cbkgrp_sc_);
@@ -271,9 +271,9 @@ tui::CommandSink RosStatus::buildCommandSink(const std::vector<std::string> &ser
   sc_hover_              = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, "~/hover_out", cbkgrp_sc_);
   sc_toggle_output_      = mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>(node_, "~/toggle_output_out", cbkgrp_sc_);
 
-  tui::CommandSink command_sink;
+  status::CommandSink command_sink;
 
-  command_sink.sendGoto = [this](double x, double y, double z, double heading, const std::string &frame_id) -> tui::CommandSink::ServiceResult {
+  command_sink.sendGoto = [this](double x, double y, double z, double heading, const std::string &frame_id) -> status::CommandSink::ServiceResult {
     auto request                  = std::make_shared<mrs_msgs::srv::ReferenceStampedSrv::Request>();
     request->reference.position.x = x;
     request->reference.position.y = y;
@@ -300,7 +300,7 @@ tui::CommandSink RosStatus::buildCommandSink(const std::vector<std::string> &ser
   };
 
   auto makeStringSetter = [this](mrs_lib::ServiceClientHandler<mrs_msgs::srv::String> &client) {
-    return [this, &client](const std::string &value) -> tui::CommandSink::ServiceResult {
+    return [this, &client](const std::string &value) -> status::CommandSink::ServiceResult {
       auto request   = std::make_shared<mrs_msgs::srv::String::Request>();
       request->value = value;
       auto response  = client.callSync(request);
@@ -316,7 +316,7 @@ tui::CommandSink RosStatus::buildCommandSink(const std::vector<std::string> &ser
   command_sink.setTracker     = makeStringSetter(sc_set_tracker_);
   command_sink.setEstimator   = makeStringSetter(sc_set_estimator_);
 
-  command_sink.hover = [this]() -> tui::CommandSink::ServiceResult {
+  command_sink.hover = [this]() -> status::CommandSink::ServiceResult {
     auto request  = std::make_shared<std_srvs::srv::Trigger::Request>();
     auto response = sc_hover_.callSync(request);
     if (!response) {
@@ -325,7 +325,7 @@ tui::CommandSink RosStatus::buildCommandSink(const std::vector<std::string> &ser
     return {response.value()->success, response.value()->message};
   };
 
-  command_sink.toggleOutput = [this]() -> tui::CommandSink::ServiceResult {
+  command_sink.toggleOutput = [this]() -> status::CommandSink::ServiceResult {
     auto request  = std::make_shared<std_srvs::srv::SetBool::Request>();
     request->data = true;
     auto response = sc_toggle_output_.callSync(request);
@@ -358,7 +358,7 @@ tui::CommandSink RosStatus::buildCommandSink(const std::vector<std::string> &ser
     sc_extra_services_.emplace_back(node_, service_name, cbkgrp_sc_);
     const std::size_t idx = sc_extra_services_.size() - 1;
 
-    command_sink.extra_services.push_back({display_name, [this, idx]() -> tui::CommandSink::ServiceResult {
+    command_sink.extra_services.push_back({display_name, [this, idx]() -> status::CommandSink::ServiceResult {
                                              auto request  = std::make_shared<std_srvs::srv::Trigger::Request>();
                                              auto response = sc_extra_services_[idx].callSync(request);
                                              if (!response) {

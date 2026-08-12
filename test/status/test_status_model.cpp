@@ -132,8 +132,8 @@ struct SinkLog
   std::string goto_frame;
 };
 
-tui::CommandSink makeSink(SinkLog &log) {
-  tui::CommandSink sink;
+CommandSink makeSink(SinkLog &log) {
+  CommandSink sink;
 
   sink.sendGoto = [&log](double x, double y, double z, double heading, const std::string &frame_id) {
     log.goto_x     = x;
@@ -142,7 +142,7 @@ tui::CommandSink makeSink(SinkLog &log) {
     log.goto_hdg   = heading;
     log.goto_frame = frame_id;
     log.calls.push_back("sendGoto");
-    return tui::CommandSink::ServiceResult{true, "goto ok"};
+    return CommandSink::ServiceResult{true, "goto ok"};
   };
 
   sink.sendVelocityReference = [&log](double vx, double vy, double vz, double heading_rate, const std::string &frame_id) {
@@ -157,7 +157,7 @@ tui::CommandSink makeSink(SinkLog &log) {
   auto recorder = [&log](const std::string &name) {
     return [&log, name](const std::string &value) {
       log.calls.push_back(name + "(" + value + ")");
-      return tui::CommandSink::ServiceResult{true, value};
+      return CommandSink::ServiceResult{true, value};
     };
   };
   sink.setConstraints = recorder("setConstraints");
@@ -168,23 +168,23 @@ tui::CommandSink makeSink(SinkLog &log) {
 
   sink.hover = [&log]() {
     log.calls.push_back("hover");
-    return tui::CommandSink::ServiceResult{true, "hovering"};
+    return CommandSink::ServiceResult{true, "hovering"};
   };
   sink.toggleOutput = [&log]() {
     log.calls.push_back("toggleOutput");
-    return tui::CommandSink::ServiceResult{true, "toggled"};
+    return CommandSink::ServiceResult{true, "toggled"};
   };
 
   sink.extra_services.push_back({"Land", [&log]() {
                                    log.calls.push_back("Land");
-                                   return tui::CommandSink::ServiceResult{true, "landing"};
+                                   return CommandSink::ServiceResult{true, "landing"};
                                  }});
   sink.extra_services.push_back({"Takeoff", [&log]() {
                                    log.calls.push_back("Takeoff");
-                                   return tui::CommandSink::ServiceResult{true, "taking off"};
+                                   return CommandSink::ServiceResult{true, "taking off"};
                                  }});
 
-  // NOTE: tui::CommandSink gained a `nowSeconds` member (used to stamp renderServiceResult()'s
+  // NOTE: CommandSink gained a `nowSeconds` member (used to stamp renderServiceResult()'s
   // post-call clear-timer, see status_model.cpp) after this test's literal brief text was
   // written. It is called unconditionally at every service-result call site, so leaving it
   // default-constructed would throw std::bad_function_call the first time a submenu/turbo action

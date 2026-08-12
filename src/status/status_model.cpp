@@ -10,7 +10,7 @@
 namespace mrs_uav_status::status
 {
 
-StatusModel::StatusModel(tui::CommandSink command_sink, Params params)
+StatusModel::StatusModel(CommandSink command_sink, Params params)
     : command_sink_(std::move(command_sink)), params_(std::move(params)), goto_values_(params_.goto_values) {
   goto_values_.resize(4, 0.0);
 }
@@ -154,7 +154,7 @@ bool StatusModel::isValidIndex(int index, std::size_t container_size) {
 }
 
 void StatusModel::buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels,
-                               const std::function<tui::CommandSink::ServiceResult(const std::string &)> &call) {
+                               const std::function<CommandSink::ServiceResult(const std::string &)> &call) {
   sub_menu_rows_.clear();
   for (const auto &label : labels) {
     sub_menu_rows_.push_back({label, [label, call]() { return call(label); }});
@@ -162,7 +162,7 @@ void StatusModel::buildSubMenu(tui::TuiActions &tui, const std::vector<std::stri
   tui.showSubMenu(labels);
 }
 
-void StatusModel::buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels, const std::function<tui::CommandSink::ServiceResult()> &call) {
+void StatusModel::buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels, const std::function<CommandSink::ServiceResult()> &call) {
   sub_menu_rows_.clear();
   for (const auto &label : labels) {
     if (label == "CANCEL") {

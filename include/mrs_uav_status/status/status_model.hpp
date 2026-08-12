@@ -8,7 +8,7 @@
 
 #include <mrs_uav_status/status/data_types.hpp>
 #include <mrs_uav_status/status/string_info.hpp>
-#include <mrs_uav_status/tui/command_sink.hpp>
+#include <mrs_uav_status/status/command_sink.hpp>
 #include <mrs_uav_status/tui/tui_actions.hpp>
 
 namespace mrs_uav_status::status
@@ -36,7 +36,7 @@ public:
   };
 
   // All outbound ROS actions are dispatched through command_sink.
-  StatusModel(tui::CommandSink command_sink, Params params);
+  StatusModel(CommandSink command_sink, Params params);
 
   // Stores the per-topic freshness for this tick. Call once before every tick().
   void setFreshness(const Freshness &freshness);
@@ -89,8 +89,8 @@ private:
   // "no-op" and is used for the CANCEL row.
   struct SubMenuRow
   {
-    std::string                                      label;
-    std::function<tui::CommandSink::ServiceResult()> action;
+    std::string                                 label;
+    std::function<CommandSink::ServiceResult()> action;
   };
 
   // Builds main_menu_rows_ from the configured services + the five setter submenus, then hands
@@ -99,10 +99,9 @@ private:
   // Dispatches one keypress through tui.handleMainMenuKey(). Returns true when the whole menu closes.
   bool mainMenuHandler(int key, tui::TuiActions &tui);
   // Fills sub_menu_rows_ with one row per label, each calling call(label), then shows the submenu.
-  void buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels,
-                    const std::function<tui::CommandSink::ServiceResult(const std::string &)> &call);
+  void buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels, const std::function<CommandSink::ServiceResult(const std::string &)> &call);
   // Same, for a no-argument service; a "CANCEL" label becomes a no-op row instead of a call.
-  void buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels, const std::function<tui::CommandSink::ServiceResult()> &call);
+  void buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels, const std::function<CommandSink::ServiceResult()> &call);
   // Builds the goto window's labels (X/Y/Z/hdg + the current frame) and shows it seeded with goto_values_.
   void setupGotoMenu(tui::TuiActions &tui);
   // Dispatches one keypress through tui.handleGotoMenuKey(); on commit calls sendGoto. Returns true when done.
@@ -123,8 +122,8 @@ private:
 
   static bool isValidIndex(int index, std::size_t container_size);
 
-  tui::CommandSink command_sink_;
-  Params           params_;
+  CommandSink command_sink_;
+  Params      params_;
 
   std::vector<MainMenuRow> main_menu_rows_;
   std::vector<SubMenuRow>  sub_menu_rows_;

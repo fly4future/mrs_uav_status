@@ -11,6 +11,7 @@
 #include <mrs_uav_status/tui/status_window.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
 #include <mrs_uav_status/tui/colors.hpp>
+#include <mrs_uav_status/tui/pane_box.hpp>
 
 // <curses.h> (transitively included above by the TUI helpers) #defines OK as 0 -- undo that
 // here so it can't collide with an OK enumerator/identifier used by this header's includers.
@@ -39,7 +40,7 @@ public:
     std::string display_config_filename;
   };
 
-  // Sets up the default panes.
+  // Stores params_ and derives light_scheme_ from it; pane_box_ default-constructs itself.
   TUI(const TUI::TUIParams &params);
 
   // Puts the terminal into ncurses raw/no-echo mode. Call once, before constructing any TUI
@@ -145,33 +146,8 @@ private:
   // Everything the handlers render from, refreshed once per fast tick by setSnapshot().
   status::RenderSnapshot snapshot_;
 
-  // | -------------------- Panes ---------------- |
-  // The pane box cycles through pluggable panes ('p' key). To add a pane,
-  // push a Pane in setupPanes(): give it a title, a render callback that
-  // calls drawPaneChrome(win) itself (for the box + tab bar) before drawing
-  // its own content rows, and optionally wants_focus() to auto-switch to it
-  // when it has something important to show.
-  struct Pane
-  {
-    std::string                      title;
-    std::function<void(WINDOW *win)> render;
-    std::function<bool()>            wants_focus; // optional; may be nullptr
-  };
-  std::vector<Pane> panes_;
-  std::size_t       pane_idx_ = 0;
-  std::vector<bool> pane_focus_prev_; // per-preset wants_focus() last state
-
-  // Populates panes_ with the 4 built-in panes (Sensors, ROS Node CPU, GNSS & strings, Problems & errors).
-  void setupPanes();
-  int  drawPaneChrome(WINDOW *win); // box + title-in-border; returns first content row
-  // Lists problems_preventing_start/errors from GeneralRobotInfo.
-  void renderProblemsPane(WINDOW *win);
-  // Lists available_sensors from SystemHealthInfo, worst-severity first.
-  void renderSensorsPane(WINDOW *win);
-  // Lists per-node CPU load from SystemHealthInfo, highest first.
-  void renderNodeCpuPane(WINDOW *win);
-  // Shows GNSS fix/accuracy and the current display_string entries.
-  void renderStringsGnssPane(WINDOW *win);
+  // The cycleable top-right box ('p' / number keys). Owns its own pane list.
+  PaneBox pane_box_;
 
   TUIParams params_;
   bool      light_scheme_   = false;
