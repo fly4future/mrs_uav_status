@@ -39,6 +39,8 @@ void StatusModel::setFreshness(const Freshness &freshness) {
 
 //}
 
+// | --------------------- Data push (thread-safe) --------------------- |
+
 /* on*() setters //{ */
 
 void StatusModel::onGeneralRobotInfo(const GeneralRobotInfoData &data) {
@@ -535,6 +537,8 @@ void StatusModel::remoteModeFly(double vx, double vy, double vz, double heading_
 }
 
 //}
+
+// | -------------------------- Tick -------------------------- |
 
 /* tick() //{ */
 

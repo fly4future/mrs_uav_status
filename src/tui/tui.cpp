@@ -35,6 +35,8 @@ TUI::TUI(const TUI::TUIParams &params) : params_(params) {
 
 //}
 
+// | --------------------- Lifecycle & window setup --------------------- |
+
 /* initTerminal() //{ */
 
 void TUI::initTerminal() {
@@ -252,6 +254,8 @@ void TUI::refreshAfterMenu() {
 }
 
 //}
+
+// | --------------------- Render handlers --------------------- |
 
 /* renderFast() //{ */
 
@@ -1560,6 +1564,8 @@ void TUI::renderRemoteBanner(bool turbo, bool global) {
 }
 
 //}
+
+// | --------------------- Bottom debug window --------------------- |
 
 /* renderTmuxOrHelp() //{ */
 
