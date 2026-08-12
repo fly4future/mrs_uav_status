@@ -5,8 +5,12 @@
 
 //}
 
+// Anonymous namespace: gives toData() internal linkage, since it's only ever called from this
+// file's callbacks below.
 namespace
 {
+
+/* toData() //{ */
 
 // Converts each subscribed mrs_msgs type to its plain status::*Data mirror (see data_types.hpp),
 // trimming unused fields along the way.
@@ -112,6 +116,8 @@ mrs_uav_status::status::SystemHealthInfoData toData(const mrs_msgs::msg::SystemH
 mrs_uav_status::status::StateData toData(const mrs_msgs::msg::State &msg) {
   return {.state = msg.state};
 }
+
+//}
 
 } // namespace
 
