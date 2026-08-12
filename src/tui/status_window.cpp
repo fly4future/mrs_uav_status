@@ -93,6 +93,7 @@ StatusWindow::Result StatusWindow::iterate(const std::vector<std::string> &text,
 StatusWindow::Result StatusWindow::iterate(int key, bool refresh) {
   return iterate(text_, key, refresh);
 }
+
 //}
 
 } // namespace mrs_uav_status::tui

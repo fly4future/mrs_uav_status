@@ -7,7 +7,7 @@
 #include <functional>
 #include <memory>
 
-// --- Internal Package Includes ---
+// | --------------------- Internal Package Includes --------------------- |
 #include <mrs_uav_status/tui/system_info.hpp>
 #include <mrs_uav_status/tui/control_bar.hpp>
 #include <mrs_uav_status/tui/print_helpers.hpp>

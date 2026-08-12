@@ -3,7 +3,7 @@
 namespace mrs_uav_status::tui
 {
 
-// --- Keyboard Input Constants ---
+// | --------------------- Keyboard Input Constants --------------------- |
 // Represents specific key codes used for terminal navigation. The arrow/delete values mirror
 // ncurses' KEY_* macros so that ROS- and ncurses-free code (StatusModel) can compare against them
 // without including <curses.h>; src/tui/tui.cpp static_asserts that they still match.
@@ -18,7 +18,7 @@ enum class Key : int
   Right  = 261  // KEY_RIGHT
 };
 
-// --- Terminal UI Color Pairs ---
+// | --------------------- Terminal UI Color Pairs --------------------- |
 // These refer to the logical pairs initialized via init_pair() in ncurses.
 enum class ColorPair : int
 {
@@ -29,14 +29,14 @@ enum class ColorPair : int
   Yellow = 104
 };
 
-// --- Background Colors ---
+// | --------------------- Background Colors --------------------- |
 // Useful for specifying transparency.
 enum class BackgroundColor : int
 {
   Default = -1
 };
 
-// --- Extended Terminal Colors ---
+// | --------------------- Extended Terminal Colors --------------------- |
 // Standard xterm-256 color codes.
 enum class Color : int
 {
