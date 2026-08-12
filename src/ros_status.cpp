@@ -157,6 +157,8 @@ void RosStatus::initialize() {
 
   // | ------------------------- Parameters ------------------------- |
 
+  /*//{ load parameters */
+
   mrs_lib::ParamLoader param_loader(node_);
 
   std::string custom_config_path;
@@ -193,6 +195,8 @@ void RosStatus::initialize() {
   std::vector<std::string> service_list;
   param_loader.loadParam("mrs_uav_status/menu/service_list", service_list);
   param_loader.loadMatrixStatic("mrs_uav_status/menu/goto_values", goto_values_mat);
+
+  /*//}*/
 
   if (!param_loader.loadedSuccessfully()) {
     RCLCPP_ERROR(node_->get_logger(), "Could not load all parameters!");
