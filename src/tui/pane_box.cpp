@@ -1,3 +1,5 @@
+/* includes //{ */
+
 #include <mrs_uav_status/tui/pane_box.hpp>
 
 #include <algorithm>
@@ -7,6 +9,8 @@
 #include <mrs_uav_status/tui/constants.hpp>
 #include <mrs_uav_status/tui/print_helpers.hpp>
 #include <mrs_uav_status/utils/helpers.hpp>
+
+//}
 
 namespace mrs_uav_status::tui
 {

@@ -1,5 +1,9 @@
+/* includes //{ */
+
 #include <mrs_uav_status/ros_status.hpp>
 #include <mrs_uav_status/utils/helpers.hpp>
+
+//}
 
 namespace
 {

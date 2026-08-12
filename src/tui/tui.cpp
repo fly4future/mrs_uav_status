@@ -1,3 +1,5 @@
+/* includes //{ */
+
 #include <mrs_uav_status/tui/tui.hpp>
 
 #include <algorithm>
@@ -8,6 +10,8 @@
 #include <sstream>
 
 #include <mrs_lib/geometry/cyclic.h>
+
+//}
 
 namespace mrs_uav_status::tui
 {

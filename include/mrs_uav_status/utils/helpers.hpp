@@ -1,9 +1,13 @@
 #pragma once
 
+/* includes //{ */
+
 #include <cstdint>
 #include <exception>
 #include <string>
 #include <vector>
+
+//}
 
 namespace mrs_uav_status::utils
 {

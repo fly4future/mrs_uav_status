@@ -1,5 +1,7 @@
 #pragma once
 
+/* includes //{ */
+
 #include <ncurses.h>
 
 #include <functional>
@@ -7,6 +9,8 @@
 #include <vector>
 
 #include <mrs_uav_status/status/data_types.hpp>
+
+//}
 
 namespace mrs_uav_status::tui
 {

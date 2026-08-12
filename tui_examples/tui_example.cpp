@@ -1,4 +1,4 @@
-/* INCLUDES //{ */
+/* includes //{ */
 
 #include <ncurses.h>
 #include <mrs_lib/node.h>

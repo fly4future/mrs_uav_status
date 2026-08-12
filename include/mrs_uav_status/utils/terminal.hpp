@@ -1,10 +1,14 @@
 #pragma once
 
+/* includes //{ */
+
 #include <array>
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
 #include <string>
+
+//}
 
 namespace mrs_uav_status::utils
 {

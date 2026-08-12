@@ -1,3 +1,5 @@
+/* includes //{ */
+
 #include <algorithm>
 #include <iterator>
 #include <sstream>
@@ -6,6 +8,8 @@
 #include <mrs_uav_status/status/status_model.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
 #include <mrs_uav_status/utils/helpers.hpp>
+
+//}
 
 namespace mrs_uav_status::status
 {

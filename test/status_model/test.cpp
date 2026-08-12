@@ -1,9 +1,13 @@
+/* includes //{ */
+
 #include <gtest/gtest.h>
 
 #include <algorithm>
 
 #include <mrs_uav_status/status/status_model.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
+
+//}
 
 namespace mrs_uav_status::status
 {

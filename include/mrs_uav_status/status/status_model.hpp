@@ -1,5 +1,7 @@
 #pragma once
 
+/* includes //{ */
+
 #include <cstddef>
 #include <functional>
 #include <mutex>
@@ -10,6 +12,8 @@
 #include <mrs_uav_status/status/string_info.hpp>
 #include <mrs_uav_status/status/command_sink.hpp>
 #include <mrs_uav_status/tui/tui_actions.hpp>
+
+//}
 
 namespace mrs_uav_status::status
 {

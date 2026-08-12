@@ -1,9 +1,13 @@
+/* includes //{ */
+
 #include <mrs_uav_status/tui/control_bar.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
 
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
+
+//}
 
 namespace mrs_uav_status
 {

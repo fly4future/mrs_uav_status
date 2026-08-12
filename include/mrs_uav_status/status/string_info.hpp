@@ -1,6 +1,10 @@
 #pragma once
 
+/* includes //{ */
+
 #include <string>
+
+//}
 
 namespace mrs_uav_status::status
 {

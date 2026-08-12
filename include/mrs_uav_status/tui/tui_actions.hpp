@@ -1,8 +1,12 @@
 #pragma once
 
+/* includes //{ */
+
 #include <cstddef>
 #include <string>
 #include <vector>
+
+//}
 
 namespace mrs_uav_status::tui
 {

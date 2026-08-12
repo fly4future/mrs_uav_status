@@ -1,5 +1,7 @@
 #pragma once
 
+/* includes //{ */
+
 #include <memory>
 #include <atomic>
 
@@ -26,6 +28,8 @@
 #include <mrs_lib/subscriber_handler.h>
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/service_client_handler.h>
+
+//}
 
 #if USE_ROS_TIMER == 1
 using TimerType = mrs_lib::ROSTimer;

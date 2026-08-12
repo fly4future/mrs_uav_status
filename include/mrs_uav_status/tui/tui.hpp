@@ -1,4 +1,7 @@
 #pragma once
+
+/* includes //{ */
+
 #include <string>
 #include <vector>
 #include <functional>
@@ -24,6 +27,8 @@
 
 #include <mrs_uav_status/status/data_types.hpp>
 #include <mrs_uav_status/tui/tui_actions.hpp>
+
+//}
 
 namespace mrs_uav_status::tui
 {
