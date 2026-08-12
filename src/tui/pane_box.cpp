@@ -15,6 +15,8 @@
 namespace mrs_uav_status::tui
 {
 
+/* PaneBox() //{ */
+
 PaneBox::PaneBox() {
   // Default pane: available sensors (dynamic, plugin-driven) — name/rate/status
   panes_.push_back({"Sensors", [this](WINDOW *win) { renderSensorsPane(win); }, nullptr});
@@ -34,6 +36,10 @@ PaneBox::PaneBox() {
   pane_idx_ = 0;
 }
 
+//}
+
+/* cycle() //{ */
+
 void PaneBox::cycle() {
   if (panes_.empty()) {
     return;
@@ -41,11 +47,19 @@ void PaneBox::cycle() {
   pane_idx_ = (pane_idx_ + 1) % panes_.size();
 }
 
+//}
+
+/* select() //{ */
+
 void PaneBox::select(std::size_t idx) {
   if (idx < panes_.size()) {
     pane_idx_ = idx;
   }
 }
+
+//}
+
+/* render() //{ */
 
 void PaneBox::render(WINDOW *win, const status::RenderSnapshot &snapshot, bool light_scheme, bool mini) {
   if (!win || panes_.empty()) {
@@ -69,6 +83,10 @@ void PaneBox::render(WINDOW *win, const status::RenderSnapshot &snapshot, bool l
 
   snapshot_ = nullptr;
 }
+
+//}
+
+/* drawPaneChrome() //{ */
 
 int PaneBox::drawPaneChrome(WINDOW *win) {
   const status::BorderStatus bs = snapshot_->border_status;
@@ -107,6 +125,10 @@ int PaneBox::drawPaneChrome(WINDOW *win) {
 
   return 1;
 }
+
+//}
+
+/* renderStringsGnssPane() //{ */
 
 void PaneBox::renderStringsGnssPane(WINDOW *win) {
   int row = drawPaneChrome(win);
@@ -244,6 +266,10 @@ void PaneBox::renderStringsGnssPane(WINDOW *win) {
   wnoutrefresh(win);
 }
 
+//}
+
+/* renderProblemsPane() //{ */
+
 void PaneBox::renderProblemsPane(WINDOW *win) {
   int row = drawPaneChrome(win);
 
@@ -299,6 +325,10 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
   wattroff(win, A_BOLD);
   wnoutrefresh(win);
 }
+
+//}
+
+/* renderSensorsPane() //{ */
 
 void PaneBox::renderSensorsPane(WINDOW *win) {
   int row = drawPaneChrome(win);
@@ -390,6 +420,10 @@ void PaneBox::renderSensorsPane(WINDOW *win) {
   wnoutrefresh(win);
 }
 
+//}
+
+/* renderNodeCpuPane() //{ */
+
 void PaneBox::renderNodeCpuPane(WINDOW *win) {
   int row = drawPaneChrome(win);
 
@@ -450,5 +484,7 @@ void PaneBox::renderNodeCpuPane(WINDOW *win) {
   wattroff(win, A_BOLD);
   wnoutrefresh(win);
 }
+
+//}
 
 } // namespace mrs_uav_status::tui

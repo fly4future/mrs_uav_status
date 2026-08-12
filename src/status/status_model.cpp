@@ -14,6 +14,8 @@
 namespace mrs_uav_status::status
 {
 
+/* StatusModel() //{ */
+
 StatusModel::StatusModel(CommandSink command_sink, Params params)
     : command_sink_(std::move(command_sink)), params_(std::move(params)), goto_values_(params_.goto_values) {
   goto_values_.resize(4, 0.0);
@@ -26,10 +28,18 @@ StatusModel::StatusModel(CommandSink command_sink, Params params)
   }
 }
 
+//}
+
+/* setFreshness() //{ */
+
 void StatusModel::setFreshness(const Freshness &freshness) {
   std::scoped_lock lock(mutex_status_msg_);
   freshness_ = freshness;
 }
+
+//}
+
+/* on*() setters //{ */
 
 void StatusModel::onGeneralRobotInfo(const GeneralRobotInfoData &data) {
   std::scoped_lock lock(mutex_status_msg_);
@@ -66,10 +76,18 @@ void StatusModel::onUavState(const StateData &data) {
   last_uav_state_ = data;
 }
 
+//}
+
+/* isFlyingNormally() //{ */
+
 bool StatusModel::isFlyingNormally() const {
   std::scoped_lock lock(mutex_status_msg_);
   return last_control_info_.flying_normally;
 }
+
+//}
+
+/* onString() //{ */
 
 void StatusModel::onString(double now_seconds, const std::string &data) {
   // Parse leading flags ("-id <key>" optional dedupe key, "-p" mark persistent), rejoin
@@ -121,6 +139,10 @@ void StatusModel::onString(double now_seconds, const std::string &data) {
   string_info_vec_.emplace_back(now_seconds, display, id, persistent);
 }
 
+//}
+
+/* pruneStrings() //{ */
+
 void StatusModel::pruneStrings(double now_seconds) {
   std::scoped_lock lock(mutex_status_msg_);
   for (auto it = string_info_vec_.begin(); it != string_info_vec_.end();) {
@@ -131,6 +153,10 @@ void StatusModel::pruneStrings(double now_seconds) {
     }
   }
 }
+
+//}
+
+/* snapshot() //{ */
 
 RenderSnapshot StatusModel::snapshot(double now_seconds) const {
   std::scoped_lock lock(mutex_status_msg_);
@@ -158,11 +184,19 @@ RenderSnapshot StatusModel::snapshot(double now_seconds) const {
   return out;
 }
 
+//}
+
 // | ----------------------- Menu / goto ---------------------- |
+
+/* isValidIndex() //{ */
 
 bool StatusModel::isValidIndex(int index, std::size_t container_size) {
   return index >= 0 && static_cast<std::size_t>(index) < container_size;
 }
+
+//}
+
+/* buildSubMenu(const std::function<CommandSink::ServiceResult(const std::string &)> &call) //{ */
 
 void StatusModel::buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels,
                                const std::function<CommandSink::ServiceResult(const std::string &)> &call) {
@@ -172,6 +206,10 @@ void StatusModel::buildSubMenu(tui::TuiActions &tui, const std::vector<std::stri
   }
   tui.showSubMenu(labels);
 }
+
+//}
+
+/* buildSubMenu() //{ */
 
 void StatusModel::buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels, const std::function<CommandSink::ServiceResult()> &call) {
   sub_menu_rows_.clear();
@@ -184,6 +222,10 @@ void StatusModel::buildSubMenu(tui::TuiActions &tui, const std::vector<std::stri
   }
   tui.showSubMenu(labels);
 }
+
+//}
+
+/* setupMainMenu() //{ */
 
 void StatusModel::setupMainMenu(tui::TuiActions &tui) {
   main_menu_rows_.clear();
@@ -266,6 +308,10 @@ void StatusModel::setupMainMenu(tui::TuiActions &tui) {
   tui.showMainMenu(labels);
 }
 
+//}
+
+/* mainMenuHandler() //{ */
+
 bool StatusModel::mainMenuHandler(int key, tui::TuiActions &tui) {
 
   const tui::MenuEvent event = tui.handleMainMenuKey(key);
@@ -306,6 +352,10 @@ bool StatusModel::mainMenuHandler(int key, tui::TuiActions &tui) {
   return false;
 }
 
+//}
+
+/* setupGotoMenu() //{ */
+
 void StatusModel::setupGotoMenu(tui::TuiActions &tui) {
   std::string odom_frame;
   {
@@ -319,6 +369,10 @@ void StatusModel::setupGotoMenu(tui::TuiActions &tui) {
 
   tui.showGotoMenu(labels, goto_values_);
 }
+
+//}
+
+/* gotoMenuHandler() //{ */
 
 bool StatusModel::gotoMenuHandler(int key, tui::TuiActions &tui) {
 
@@ -346,11 +400,19 @@ bool StatusModel::gotoMenuHandler(int key, tui::TuiActions &tui) {
   return false;
 }
 
+//}
+
 // | -------------------------- Remote ------------------------ |
+
+/* enterRemoteMode() //{ */
 
 void StatusModel::enterRemoteMode() {
   remote_hover_ = false;
 }
+
+//}
+
+/* remoteHandler() //{ */
 
 void StatusModel::remoteHandler(int key, tui::TuiActions &tui) {
   tui.renderRemoteBanner(turbo_remote_, remote_global_);
@@ -369,6 +431,10 @@ void StatusModel::remoteHandler(int key, tui::TuiActions &tui) {
 
   handleRemoteMotion(key);
 }
+
+//}
+
+/* handleRemoteMotion() //{ */
 
 void StatusModel::handleRemoteMotion(int key) {
   const double xy_step  = turbo_remote_ ? 5.0 : 2.0;
@@ -425,6 +491,10 @@ void StatusModel::handleRemoteMotion(int key) {
   }
 }
 
+//}
+
+/* toggleTurboRemote() //{ */
+
 void StatusModel::toggleTurboRemote(tui::TuiActions &tui) {
   if (!isFlyingNormally()) {
     return;
@@ -448,6 +518,10 @@ void StatusModel::toggleTurboRemote(tui::TuiActions &tui) {
   tui.renderServiceResult(result.success, result.message, command_sink_.nowSeconds());
 }
 
+//}
+
+/* remoteModeFly() //{ */
+
 void StatusModel::remoteModeFly(double vx, double vy, double vz, double heading_rate) {
   std::string uav_name;
   {
@@ -459,6 +533,10 @@ void StatusModel::remoteModeFly(double vx, double vy, double vz, double heading_
 
   command_sink_.sendVelocityReference(vx, vy, vz, heading_rate, frame_id);
 }
+
+//}
+
+/* tick() //{ */
 
 void StatusModel::tick(double now_seconds, int key, tui::TuiActions &tui) {
 
@@ -570,5 +648,7 @@ void StatusModel::tick(double now_seconds, int key, tui::TuiActions &tui) {
     tui.refreshBottomWindow();
   }
 }
+
+//}
 
 } // namespace mrs_uav_status::status
