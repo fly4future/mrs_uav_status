@@ -5,7 +5,7 @@
 #include <sstream>
 #include <utility>
 
-#include <mrs_uav_status/status/status_model.hpp>
+#include <mrs_uav_status/status/uav_status_core.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
 #include <mrs_uav_status/utils/helpers.hpp>
 
@@ -14,9 +14,9 @@
 namespace mrs_uav_status::status
 {
 
-/* StatusModel() //{ */
+/* UavStatusCore() //{ */
 
-StatusModel::StatusModel(CommandSink command_sink, Params params, Clock clock)
+UavStatusCore::UavStatusCore(CommandSink command_sink, Params params, Clock clock)
     : command_sink_(std::move(command_sink)), clock_(std::move(clock)), params_(std::move(params)), goto_values_(params_.goto_values) {
   goto_values_.resize(4, 0.0);
 
@@ -32,7 +32,7 @@ StatusModel::StatusModel(CommandSink command_sink, Params params, Clock clock)
 
 /* setFreshness() //{ */
 
-void StatusModel::setFreshness(const Freshness &freshness) {
+void UavStatusCore::setFreshness(const Freshness &freshness) {
   std::scoped_lock lock(mutex_status_msg_);
   freshness_ = freshness;
 }
@@ -43,37 +43,37 @@ void StatusModel::setFreshness(const Freshness &freshness) {
 
 /* on*() setters //{ */
 
-void StatusModel::onGeneralRobotInfo(const GeneralRobotInfoData &data) {
+void UavStatusCore::onGeneralRobotInfo(const GeneralRobotInfoData &data) {
   std::scoped_lock lock(mutex_status_msg_);
   last_general_robot_info_ = data;
 }
 
-void StatusModel::onStateEstimationInfo(const StateEstimationInfoData &data) {
+void UavStatusCore::onStateEstimationInfo(const StateEstimationInfoData &data) {
   std::scoped_lock lock(mutex_status_msg_);
   last_state_estimation_info_ = data;
 }
 
-void StatusModel::onControlInfo(const ControlInfoData &data) {
+void UavStatusCore::onControlInfo(const ControlInfoData &data) {
   std::scoped_lock lock(mutex_status_msg_);
   last_control_info_ = data;
 }
 
-void StatusModel::onCollisionAvoidanceInfo(const CollisionAvoidanceInfoData &data) {
+void UavStatusCore::onCollisionAvoidanceInfo(const CollisionAvoidanceInfoData &data) {
   std::scoped_lock lock(mutex_status_msg_);
   last_collision_avoidance_info_ = data;
 }
 
-void StatusModel::onUavInfo(const UavInfoData &data) {
+void UavStatusCore::onUavInfo(const UavInfoData &data) {
   std::scoped_lock lock(mutex_status_msg_);
   last_uav_info_ = data;
 }
 
-void StatusModel::onSystemHealthInfo(const SystemHealthInfoData &data) {
+void UavStatusCore::onSystemHealthInfo(const SystemHealthInfoData &data) {
   std::scoped_lock lock(mutex_status_msg_);
   last_system_health_info_ = data;
 }
 
-void StatusModel::onUavState(const StateData &data) {
+void UavStatusCore::onUavState(const StateData &data) {
   std::scoped_lock lock(mutex_status_msg_);
   last_uav_state_ = data;
 }
@@ -82,7 +82,7 @@ void StatusModel::onUavState(const StateData &data) {
 
 /* isFlyingNormally() //{ */
 
-bool StatusModel::isFlyingNormally() const {
+bool UavStatusCore::isFlyingNormally() const {
   std::scoped_lock lock(mutex_status_msg_);
   return last_control_info_.flying_normally;
 }
@@ -91,7 +91,7 @@ bool StatusModel::isFlyingNormally() const {
 
 /* onString() //{ */
 
-void StatusModel::onString(double now_seconds, const std::string &data) {
+void UavStatusCore::onString(double now_seconds, const std::string &data) {
   // Parse leading flags ("-id <key>" optional dedupe key, "-p" mark persistent), rejoin
   // remaining tokens as the display text, then dedupe-or-append in string_info_vec_.
   std::stringstream                  ss(data);
@@ -145,7 +145,7 @@ void StatusModel::onString(double now_seconds, const std::string &data) {
 
 /* pruneStrings() //{ */
 
-void StatusModel::pruneStrings(double now_seconds) {
+void UavStatusCore::pruneStrings(double now_seconds) {
   std::scoped_lock lock(mutex_status_msg_);
   for (auto it = string_info_vec_.begin(); it != string_info_vec_.end();) {
     if (!it->persistent && (now_seconds - it->last_time) > 10.0) {
@@ -160,7 +160,7 @@ void StatusModel::pruneStrings(double now_seconds) {
 
 /* snapshot() //{ */
 
-RenderSnapshot StatusModel::snapshot(double now_seconds) const {
+RenderSnapshot UavStatusCore::snapshot(double now_seconds) const {
   std::scoped_lock lock(mutex_status_msg_);
 
   RenderSnapshot out;
@@ -192,7 +192,7 @@ RenderSnapshot StatusModel::snapshot(double now_seconds) const {
 
 /* isValidIndex() //{ */
 
-bool StatusModel::isValidIndex(int index, std::size_t container_size) {
+bool UavStatusCore::isValidIndex(int index, std::size_t container_size) {
   return index >= 0 && static_cast<std::size_t>(index) < container_size;
 }
 
@@ -200,8 +200,8 @@ bool StatusModel::isValidIndex(int index, std::size_t container_size) {
 
 /* buildSubMenu(const std::function<CommandSink::ServiceResult(const std::string &)> &call) //{ */
 
-void StatusModel::buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels,
-                               const std::function<CommandSink::ServiceResult(const std::string &)> &call) {
+void UavStatusCore::buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels,
+                                 const std::function<CommandSink::ServiceResult(const std::string &)> &call) {
   sub_menu_rows_.clear();
   for (const auto &label : labels) {
     sub_menu_rows_.push_back({label, [label, call]() { return call(label); }});
@@ -213,7 +213,7 @@ void StatusModel::buildSubMenu(tui::TuiActions &tui, const std::vector<std::stri
 
 /* buildSubMenu() //{ */
 
-void StatusModel::buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels, const std::function<CommandSink::ServiceResult()> &call) {
+void UavStatusCore::buildSubMenu(tui::TuiActions &tui, const std::vector<std::string> &labels, const std::function<CommandSink::ServiceResult()> &call) {
   sub_menu_rows_.clear();
   for (const auto &label : labels) {
     if (label == "CANCEL") {
@@ -229,7 +229,7 @@ void StatusModel::buildSubMenu(tui::TuiActions &tui, const std::vector<std::stri
 
 /* setupMainMenu() //{ */
 
-void StatusModel::setupMainMenu(tui::TuiActions &tui) {
+void UavStatusCore::setupMainMenu(tui::TuiActions &tui) {
   main_menu_rows_.clear();
   sub_menu_rows_.clear();
 
@@ -314,7 +314,7 @@ void StatusModel::setupMainMenu(tui::TuiActions &tui) {
 
 /* mainMenuHandler() //{ */
 
-bool StatusModel::mainMenuHandler(int key, tui::TuiActions &tui) {
+bool UavStatusCore::mainMenuHandler(int key, tui::TuiActions &tui) {
 
   const tui::MenuEvent event = tui.handleMainMenuKey(key);
 
@@ -358,7 +358,7 @@ bool StatusModel::mainMenuHandler(int key, tui::TuiActions &tui) {
 
 /* setupGotoMenu() //{ */
 
-void StatusModel::setupGotoMenu(tui::TuiActions &tui) {
+void UavStatusCore::setupGotoMenu(tui::TuiActions &tui) {
   std::string odom_frame;
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -376,7 +376,7 @@ void StatusModel::setupGotoMenu(tui::TuiActions &tui) {
 
 /* gotoMenuHandler() //{ */
 
-bool StatusModel::gotoMenuHandler(int key, tui::TuiActions &tui) {
+bool UavStatusCore::gotoMenuHandler(int key, tui::TuiActions &tui) {
 
   const tui::GotoEvent event = tui.handleGotoMenuKey(key);
 
@@ -408,7 +408,7 @@ bool StatusModel::gotoMenuHandler(int key, tui::TuiActions &tui) {
 
 /* enterRemoteMode() //{ */
 
-void StatusModel::enterRemoteMode() {
+void UavStatusCore::enterRemoteMode() {
   remote_hover_ = false;
 }
 
@@ -416,7 +416,7 @@ void StatusModel::enterRemoteMode() {
 
 /* remoteHandler() //{ */
 
-void StatusModel::remoteHandler(int key, tui::TuiActions &tui) {
+void UavStatusCore::remoteHandler(int key, tui::TuiActions &tui) {
   tui.renderRemoteBanner(turbo_remote_, remote_global_);
 
   if (key == 'T') {
@@ -438,7 +438,7 @@ void StatusModel::remoteHandler(int key, tui::TuiActions &tui) {
 
 /* handleRemoteMotion() //{ */
 
-void StatusModel::handleRemoteMotion(int key) {
+void UavStatusCore::handleRemoteMotion(int key) {
   const double xy_step  = turbo_remote_ ? 5.0 : 2.0;
   const double z_step   = turbo_remote_ ? 2.0 : 1.0;
   const double hdg_step = turbo_remote_ ? 1.0 : 0.5;
@@ -497,7 +497,7 @@ void StatusModel::handleRemoteMotion(int key) {
 
 /* toggleTurboRemote() //{ */
 
-void StatusModel::toggleTurboRemote(tui::TuiActions &tui) {
+void UavStatusCore::toggleTurboRemote(tui::TuiActions &tui) {
   if (!isFlyingNormally()) {
     return;
   }
@@ -524,7 +524,7 @@ void StatusModel::toggleTurboRemote(tui::TuiActions &tui) {
 
 /* remoteModeFly() //{ */
 
-void StatusModel::remoteModeFly(double vx, double vy, double vz, double heading_rate) {
+void UavStatusCore::remoteModeFly(double vx, double vy, double vz, double heading_rate) {
   std::string uav_name;
   {
     std::scoped_lock lock(mutex_status_msg_);
@@ -542,7 +542,7 @@ void StatusModel::remoteModeFly(double vx, double vy, double vz, double heading_
 
 /* tick() //{ */
 
-void StatusModel::tick(double now_seconds, int key, tui::TuiActions &tui) {
+void UavStatusCore::tick(double now_seconds, int key, tui::TuiActions &tui) {
 
   pruneStrings(now_seconds);
 

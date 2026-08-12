@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-#include <mrs_uav_status/status/status_model.hpp>
+#include <mrs_uav_status/status/uav_status_core.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
 
 //}
@@ -307,8 +307,8 @@ CommandSink makeSink(SinkLog &log) {
 /* defaultParams() //{ */
 
 // Mirrors config/public/default.yaml.
-StatusModel::Params defaultParams() {
-  return StatusModel::Params{.turbo_remote_constraints = "fast", .goto_values = {0.0, 0.0, 2.0, 1.57}};
+UavStatusCore::Params defaultParams() {
+  return UavStatusCore::Params{.turbo_remote_constraints = "fast", .goto_values = {0.0, 0.0, 2.0, 1.57}};
 }
 
 //}
@@ -334,7 +334,7 @@ ControlInfoData flyingControlInfo() {
 
 /* tick() //{ */
 
-void tick(StatusModel &model, FakeTui &tui, int key, double now_seconds = 0.0) {
+void tick(UavStatusCore &model, FakeTui &tui, int key, double now_seconds = 0.0) {
   model.setFreshness(Freshness{});
   model.tick(now_seconds, key, tui);
 }
@@ -370,22 +370,22 @@ tui::MenuEvent selectSub(int index) {
 
 // | --------------------- Top-level FSM ---------------------- |
 
-/* TEST(StatusModel, StartsInStandardState) //{ */
+/* TEST(UavStatusCore, StartsInStandardState) //{ */
 
-TEST(StatusModel, StartsInStandardState) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
+TEST(UavStatusCore, StartsInStandardState) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
 }
 
 //}
 
-/* TEST(StatusModel, UnrecognizedKeyInStandardFlushesInput) //{ */
+/* TEST(UavStatusCore, UnrecognizedKeyInStandardFlushesInput) //{ */
 
-TEST(StatusModel, UnrecognizedKeyInStandardFlushesInput) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, UnrecognizedKeyInStandardFlushesInput) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   tick(sm, tui, 'z');
 
@@ -395,12 +395,12 @@ TEST(StatusModel, UnrecognizedKeyInStandardFlushesInput) {
 
 //}
 
-/* TEST(StatusModel, NumberKeySelectsPaneByZeroBasedIndex) //{ */
+/* TEST(UavStatusCore, NumberKeySelectsPaneByZeroBasedIndex) //{ */
 
-TEST(StatusModel, NumberKeySelectsPaneByZeroBasedIndex) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, NumberKeySelectsPaneByZeroBasedIndex) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   tick(sm, tui, '3');
 
@@ -409,12 +409,12 @@ TEST(StatusModel, NumberKeySelectsPaneByZeroBasedIndex) {
 
 //}
 
-/* TEST(StatusModel, RefreshesBottomWindowOnlyOutsideMenuStates) //{ */
+/* TEST(UavStatusCore, RefreshesBottomWindowOnlyOutsideMenuStates) //{ */
 
-TEST(StatusModel, RefreshesBottomWindowOnlyOutsideMenuStates) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, RefreshesBottomWindowOnlyOutsideMenuStates) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   tick(sm, tui, 'h'); // STANDARD -> STANDARD
   EXPECT_EQ(tui.refresh_bottom_window_calls, 1);
@@ -426,12 +426,12 @@ TEST(StatusModel, RefreshesBottomWindowOnlyOutsideMenuStates) {
 
 //}
 
-/* TEST(StatusModel, DisplayMenuOpensAndClosesOnHandlerReturningTrue) //{ */
+/* TEST(UavStatusCore, DisplayMenuOpensAndClosesOnHandlerReturningTrue) //{ */
 
-TEST(StatusModel, DisplayMenuOpensAndClosesOnHandlerReturningTrue) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, DisplayMenuOpensAndClosesOnHandlerReturningTrue) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   tick(sm, tui, 'D');
   ASSERT_EQ(sm.state(), StatusState::DISPLAY_MENU);
@@ -450,12 +450,12 @@ TEST(StatusModel, DisplayMenuOpensAndClosesOnHandlerReturningTrue) {
 
 // | ------------------------ Main menu ------------------------ |
 
-/* TEST(StatusModel, MainMenuHidesTakeoffWhileFlying) //{ */
+/* TEST(UavStatusCore, MainMenuHidesTakeoffWhileFlying) //{ */
 
-TEST(StatusModel, MainMenuHidesTakeoffWhileFlying) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, MainMenuHidesTakeoffWhileFlying) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   sm.onControlInfo(flyingControlInfo());
 
@@ -470,12 +470,12 @@ TEST(StatusModel, MainMenuHidesTakeoffWhileFlying) {
 
 //}
 
-/* TEST(StatusModel, MainMenuHidesLandUnderNullTracker) //{ */
+/* TEST(UavStatusCore, MainMenuHidesLandUnderNullTracker) //{ */
 
-TEST(StatusModel, MainMenuHidesLandUnderNullTracker) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, MainMenuHidesLandUnderNullTracker) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   ControlInfoData ci;
   ci.active_tracker = "NullTracker";
@@ -489,12 +489,12 @@ TEST(StatusModel, MainMenuHidesLandUnderNullTracker) {
 
 //}
 
-/* TEST(StatusModel, SelectingASetterRowOpensASubmenuWithTheActiveOptionFirst) //{ */
+/* TEST(UavStatusCore, SelectingASetterRowOpensASubmenuWithTheActiveOptionFirst) //{ */
 
-TEST(StatusModel, SelectingASetterRowOpensASubmenuWithTheActiveOptionFirst) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, SelectingASetterRowOpensASubmenuWithTheActiveOptionFirst) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   sm.onControlInfo(flyingControlInfo());
   tick(sm, tui, 'm');
@@ -509,12 +509,12 @@ TEST(StatusModel, SelectingASetterRowOpensASubmenuWithTheActiveOptionFirst) {
 
 //}
 
-/* TEST(StatusModel, SubmenuLabelsAreBuiltAtSelectionTimeNotMenuBuildTime) //{ */
+/* TEST(UavStatusCore, SubmenuLabelsAreBuiltAtSelectionTimeNotMenuBuildTime) //{ */
 
-TEST(StatusModel, SubmenuLabelsAreBuiltAtSelectionTimeNotMenuBuildTime) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, SubmenuLabelsAreBuiltAtSelectionTimeNotMenuBuildTime) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   sm.onControlInfo(flyingControlInfo());
   tick(sm, tui, 'm');
@@ -533,12 +533,12 @@ TEST(StatusModel, SubmenuLabelsAreBuiltAtSelectionTimeNotMenuBuildTime) {
 
 //}
 
-/* TEST(StatusModel, SubmenuSelectionCallsTheServiceAndClosesTheWholeMenu) //{ */
+/* TEST(UavStatusCore, SubmenuSelectionCallsTheServiceAndClosesTheWholeMenu) //{ */
 
-TEST(StatusModel, SubmenuSelectionCallsTheServiceAndClosesTheWholeMenu) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, SubmenuSelectionCallsTheServiceAndClosesTheWholeMenu) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   sm.onControlInfo(flyingControlInfo());
   tick(sm, tui, 'm');
@@ -560,12 +560,12 @@ TEST(StatusModel, SubmenuSelectionCallsTheServiceAndClosesTheWholeMenu) {
 
 //}
 
-/* TEST(StatusModel, SubmenuCancelRowBacksOutToTheMainMenu) //{ */
+/* TEST(UavStatusCore, SubmenuCancelRowBacksOutToTheMainMenu) //{ */
 
-TEST(StatusModel, SubmenuCancelRowBacksOutToTheMainMenu) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, SubmenuCancelRowBacksOutToTheMainMenu) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   sm.onControlInfo(flyingControlInfo());
   tick(sm, tui, 'm');
@@ -590,12 +590,12 @@ TEST(StatusModel, SubmenuCancelRowBacksOutToTheMainMenu) {
 
 //}
 
-/* TEST(StatusModel, EscapeInASubmenuClosesOnlyTheSubmenu) //{ */
+/* TEST(UavStatusCore, EscapeInASubmenuClosesOnlyTheSubmenu) //{ */
 
-TEST(StatusModel, EscapeInASubmenuClosesOnlyTheSubmenu) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, EscapeInASubmenuClosesOnlyTheSubmenu) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   sm.onControlInfo(flyingControlInfo());
   tick(sm, tui, 'm');
@@ -613,12 +613,12 @@ TEST(StatusModel, EscapeInASubmenuClosesOnlyTheSubmenu) {
 
 //}
 
-/* TEST(StatusModel, EscapeInTheMainMenuClosesEverything) //{ */
+/* TEST(UavStatusCore, EscapeInTheMainMenuClosesEverything) //{ */
 
-TEST(StatusModel, EscapeInTheMainMenuClosesEverything) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, EscapeInTheMainMenuClosesEverything) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   sm.onControlInfo(flyingControlInfo());
   tick(sm, tui, 'm');
@@ -636,12 +636,12 @@ TEST(StatusModel, EscapeInTheMainMenuClosesEverything) {
 
 // | -------------------------- Goto --------------------------- |
 
-/* TEST(StatusModel, GotoMenuSeedsFromParamsAndLabelsTheCurrentFrame) //{ */
+/* TEST(UavStatusCore, GotoMenuSeedsFromParamsAndLabelsTheCurrentFrame) //{ */
 
-TEST(StatusModel, GotoMenuSeedsFromParamsAndLabelsTheCurrentFrame) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, GotoMenuSeedsFromParamsAndLabelsTheCurrentFrame) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   StateEstimationInfoData est;
   est.frame_id = "uav1/world_origin";
@@ -658,12 +658,12 @@ TEST(StatusModel, GotoMenuSeedsFromParamsAndLabelsTheCurrentFrame) {
 
 //}
 
-/* TEST(StatusModel, GotoCommitSendsTheReferenceInTheCurrentFrameAndIsRemembered) //{ */
+/* TEST(UavStatusCore, GotoCommitSendsTheReferenceInTheCurrentFrameAndIsRemembered) //{ */
 
-TEST(StatusModel, GotoCommitSendsTheReferenceInTheCurrentFrameAndIsRemembered) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, GotoCommitSendsTheReferenceInTheCurrentFrameAndIsRemembered) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   StateEstimationInfoData est;
   est.frame_id = "uav1/world_origin";
@@ -691,12 +691,12 @@ TEST(StatusModel, GotoCommitSendsTheReferenceInTheCurrentFrameAndIsRemembered) {
 
 //}
 
-/* TEST(StatusModel, GotoEscapeClosesWithoutCallingTheService) //{ */
+/* TEST(UavStatusCore, GotoEscapeClosesWithoutCallingTheService) //{ */
 
-TEST(StatusModel, GotoEscapeClosesWithoutCallingTheService) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, GotoEscapeClosesWithoutCallingTheService) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   tick(sm, tui, 'g');
 
@@ -713,12 +713,12 @@ TEST(StatusModel, GotoEscapeClosesWithoutCallingTheService) {
 
 // | ------------------------- Remote -------------------------- |
 
-/* TEST(StatusModel, EntersRemoteModeOnRWhenFlyingNormally) //{ */
+/* TEST(UavStatusCore, EntersRemoteModeOnRWhenFlyingNormally) //{ */
 
-TEST(StatusModel, EntersRemoteModeOnRWhenFlyingNormally) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, EntersRemoteModeOnRWhenFlyingNormally) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   sm.onControlInfo(flyingControlInfo());
 
@@ -730,12 +730,12 @@ TEST(StatusModel, EntersRemoteModeOnRWhenFlyingNormally) {
 
 //}
 
-/* TEST(StatusModel, DoesNotEnterRemoteModeWhenNotFlyingNormally) //{ */
+/* TEST(UavStatusCore, DoesNotEnterRemoteModeWhenNotFlyingNormally) //{ */
 
-TEST(StatusModel, DoesNotEnterRemoteModeWhenNotFlyingNormally) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, DoesNotEnterRemoteModeWhenNotFlyingNormally) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   tick(sm, tui, 'R'); // flying_normally defaults to false
 
@@ -745,12 +745,12 @@ TEST(StatusModel, DoesNotEnterRemoteModeWhenNotFlyingNormally) {
 
 //}
 
-/* TEST(StatusModel, ExitsRemoteModeOnSecondR) //{ */
+/* TEST(UavStatusCore, ExitsRemoteModeOnSecondR) //{ */
 
-TEST(StatusModel, ExitsRemoteModeOnSecondR) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, ExitsRemoteModeOnSecondR) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   sm.onControlInfo(flyingControlInfo());
 
@@ -765,12 +765,12 @@ TEST(StatusModel, ExitsRemoteModeOnSecondR) {
 
 //}
 
-/* TEST(StatusModel, ExitsRemoteModeOnEscape) //{ */
+/* TEST(UavStatusCore, ExitsRemoteModeOnEscape) //{ */
 
-TEST(StatusModel, ExitsRemoteModeOnEscape) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, ExitsRemoteModeOnEscape) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   sm.onControlInfo(flyingControlInfo());
 
@@ -785,12 +785,12 @@ TEST(StatusModel, ExitsRemoteModeOnEscape) {
 
 //}
 
-/* TEST(StatusModel, RemoteMotionSendsVelocityInTheFcuFrameAndDrawsTheBanner) //{ */
+/* TEST(UavStatusCore, RemoteMotionSendsVelocityInTheFcuFrameAndDrawsTheBanner) //{ */
 
-TEST(StatusModel, RemoteMotionSendsVelocityInTheFcuFrameAndDrawsTheBanner) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, RemoteMotionSendsVelocityInTheFcuFrameAndDrawsTheBanner) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   GeneralRobotInfoData gri;
   gri.robot_name = "uav1";
@@ -811,12 +811,12 @@ TEST(StatusModel, RemoteMotionSendsVelocityInTheFcuFrameAndDrawsTheBanner) {
 
 //}
 
-/* TEST(StatusModel, ArrowKeysMapToTheSameMotionsAsWasd) //{ */
+/* TEST(UavStatusCore, ArrowKeysMapToTheSameMotionsAsWasd) //{ */
 
-TEST(StatusModel, ArrowKeysMapToTheSameMotionsAsWasd) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, ArrowKeysMapToTheSameMotionsAsWasd) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   GeneralRobotInfoData gri;
   gri.robot_name = "uav1";
@@ -831,12 +831,12 @@ TEST(StatusModel, ArrowKeysMapToTheSameMotionsAsWasd) {
 
 //}
 
-/* TEST(StatusModel, GlobalToggleSwitchesTheVelocityFrame) //{ */
+/* TEST(UavStatusCore, GlobalToggleSwitchesTheVelocityFrame) //{ */
 
-TEST(StatusModel, GlobalToggleSwitchesTheVelocityFrame) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, GlobalToggleSwitchesTheVelocityFrame) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   GeneralRobotInfoData gri;
   gri.robot_name = "uav1";
@@ -853,12 +853,12 @@ TEST(StatusModel, GlobalToggleSwitchesTheVelocityFrame) {
 
 //}
 
-/* TEST(StatusModel, TurboSwapsConstraintsAndRestoresThePreviousSet) //{ */
+/* TEST(UavStatusCore, TurboSwapsConstraintsAndRestoresThePreviousSet) //{ */
 
-TEST(StatusModel, TurboSwapsConstraintsAndRestoresThePreviousSet) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, TurboSwapsConstraintsAndRestoresThePreviousSet) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   sm.onControlInfo(flyingControlInfo()); // active_constraints == "medium"
 
@@ -869,7 +869,7 @@ TEST(StatusModel, TurboSwapsConstraintsAndRestoresThePreviousSet) {
 
   // renderRemoteBanner() runs at the top of remoteHandler(), before the key is applied, so the
   // new turbo state only shows on the following tick (matches the real render loop, and predates
-  // this refactor -- see TUI::remoteHandler()/drawRemoteBanner() before the logic moved here).
+  // this refactor -- see NcursesTui::remoteHandler()/drawRemoteBanner() before the logic moved here).
   tick(sm, tui, 'w');
   EXPECT_DOUBLE_EQ(log.vx, 5.0); // turbo steps are larger
   EXPECT_TRUE(tui.remote_banner_turbo);
@@ -884,12 +884,12 @@ TEST(StatusModel, TurboSwapsConstraintsAndRestoresThePreviousSet) {
 
 //}
 
-/* TEST(StatusModel, UnmappedRemoteKeyHoversOnceAfterAMotionCommand) //{ */
+/* TEST(UavStatusCore, UnmappedRemoteKeyHoversOnceAfterAMotionCommand) //{ */
 
-TEST(StatusModel, UnmappedRemoteKeyHoversOnceAfterAMotionCommand) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, UnmappedRemoteKeyHoversOnceAfterAMotionCommand) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   GeneralRobotInfoData gri;
   gri.robot_name = "uav1";
@@ -912,11 +912,11 @@ TEST(StatusModel, UnmappedRemoteKeyHoversOnceAfterAMotionCommand) {
 
 // | --------------------- Snapshot / strings ------------------ |
 
-/* TEST(StatusModel, SnapshotCarriesLatestDataFreshnessAndBorderStatus) //{ */
+/* TEST(UavStatusCore, SnapshotCarriesLatestDataFreshnessAndBorderStatus) //{ */
 
-TEST(StatusModel, SnapshotCarriesLatestDataFreshnessAndBorderStatus) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
+TEST(UavStatusCore, SnapshotCarriesLatestDataFreshnessAndBorderStatus) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
 
   GeneralRobotInfoData gri;
   gri.robot_name     = "uav1";
@@ -948,11 +948,11 @@ TEST(StatusModel, SnapshotCarriesLatestDataFreshnessAndBorderStatus) {
 
 //}
 
-/* TEST(StatusModel, DisplayStringIsStoredWithoutItsFlagPreamble) //{ */
+/* TEST(UavStatusCore, DisplayStringIsStoredWithoutItsFlagPreamble) //{ */
 
-TEST(StatusModel, DisplayStringIsStoredWithoutItsFlagPreamble) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
+TEST(UavStatusCore, DisplayStringIsStoredWithoutItsFlagPreamble) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
 
   sm.onString(1.0, "-id gps -p hello world");
 
@@ -963,11 +963,11 @@ TEST(StatusModel, DisplayStringIsStoredWithoutItsFlagPreamble) {
 
 //}
 
-/* TEST(StatusModel, DisplayStringIsDedupedById) //{ */
+/* TEST(UavStatusCore, DisplayStringIsDedupedById) //{ */
 
-TEST(StatusModel, DisplayStringIsDedupedById) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
+TEST(UavStatusCore, DisplayStringIsDedupedById) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
 
   sm.onString(1.0, "-id gps first");
   sm.onString(2.0, "-id gps second");
@@ -979,12 +979,12 @@ TEST(StatusModel, DisplayStringIsDedupedById) {
 
 //}
 
-/* TEST(StatusModel, NonPersistentDisplayStringExpiresAfterTenSeconds) //{ */
+/* TEST(UavStatusCore, NonPersistentDisplayStringExpiresAfterTenSeconds) //{ */
 
-TEST(StatusModel, NonPersistentDisplayStringExpiresAfterTenSeconds) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, NonPersistentDisplayStringExpiresAfterTenSeconds) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   sm.onString(1.0, "-id gps transient");
   ASSERT_EQ(sm.snapshot(1.0).display_strings.size(), 1u);
@@ -996,12 +996,12 @@ TEST(StatusModel, NonPersistentDisplayStringExpiresAfterTenSeconds) {
 
 //}
 
-/* TEST(StatusModel, PersistentDisplayStringSurvivesExpiry) //{ */
+/* TEST(UavStatusCore, PersistentDisplayStringSurvivesExpiry) //{ */
 
-TEST(StatusModel, PersistentDisplayStringSurvivesExpiry) {
-  SinkLog     log;
-  StatusModel sm(makeSink(log), defaultParams());
-  FakeTui     tui;
+TEST(UavStatusCore, PersistentDisplayStringSurvivesExpiry) {
+  SinkLog       log;
+  UavStatusCore sm(makeSink(log), defaultParams());
+  FakeTui       tui;
 
   sm.onString(1.0, "-id gps -p forever");
 

@@ -1,6 +1,6 @@
 find_package(ament_cmake_gtest REQUIRED)
 
-add_subdirectory(status_model)
+add_subdirectory(uav_status_core)
 
 add_test(
   NAME check_tui_ros_free

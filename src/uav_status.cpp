@@ -1,6 +1,6 @@
 /* includes //{ */
 
-#include <mrs_uav_status/ros_status.hpp>
+#include <mrs_uav_status/uav_status.hpp>
 #include <mrs_uav_status/utils/helpers.hpp>
 
 //}
@@ -124,29 +124,29 @@ mrs_uav_status::status::StateData toData(const mrs_msgs::msg::State &msg) {
 namespace mrs_uav_status
 {
 
-/* RosStatus() //{ */
+/* UavStatus() //{ */
 
-RosStatus::RosStatus() : Node("mrs_status_menu") {
+UavStatus::UavStatus() : Node("mrs_status_menu") {
 
-  tui::TUI::initTerminal();
+  tui::NcursesTui::initTerminal();
 
   initialize();
 }
 
 //}
 
-/* ~RosStatus() //{ */
+/* ~UavStatus() //{ */
 
-RosStatus::~RosStatus() {
+UavStatus::~UavStatus() {
   timer_render_.reset();
-  tui::TUI::shutdownTerminal();
+  tui::NcursesTui::shutdownTerminal();
 }
 
 //}
 
 /* initialize() //{ */
 
-void RosStatus::initialize() {
+void UavStatus::initialize() {
 
   node_  = this_node_ptr();
   clock_ = node_->get_clock();
@@ -205,32 +205,32 @@ void RosStatus::initialize() {
   }
   RCLCPP_INFO(node_->get_logger(), "All params loaded!");
 
-  // | --------------------- TUI & StatusModel --------------------- |
+  // | --------------------- NcursesTui & UavStatusCore --------------------- |
 
   const std::string         display_config_filename = pwd + "/.mrs_status_display_config~";
   const std::vector<double> goto_values(goto_values_mat.data(), goto_values_mat.data() + goto_values_mat.size());
 
-  const tui::TUI::TUIParams tui_params{
+  const tui::NcursesTui::Params tui_params{
       .colorscheme             = colorscheme,
       .colorblind_mode         = colorblind_mode,
       .start_minimized         = start_minimized,
       .display_config_filename = display_config_filename,
   };
 
-  const status::StatusModel::Params model_params{
+  const status::UavStatusCore::Params core_params{
       .turbo_remote_constraints = turbo_remote_constraints,
       .goto_values              = goto_values,
   };
 
   status::CommandSink command_sink = buildCommandSink(service_list, uav_name);
-  status::Clock       model_clock{.now = [this]() { return clock_->now().seconds(); }};
+  status::Clock       core_clock{.now = [this]() { return clock_->now().seconds(); }};
 
-  tui_ = std::make_unique<tui::TUI>(tui_params);
+  tui_ = std::make_unique<tui::NcursesTui>(tui_params);
   tui_->updateTermSize();
   tui_->setupWindows();
   tui_->loadDisplayConfig();
 
-  model_ = std::make_unique<status::StatusModel>(std::move(command_sink), model_params, model_clock);
+  core_ = std::make_unique<status::UavStatusCore>(std::move(command_sink), core_params, core_clock);
 
   // | ------------------------- Timers ------------------------- |
 
@@ -239,7 +239,7 @@ void RosStatus::initialize() {
   timer_opts_start.autostart      = true;
   timer_opts_start.callback_group = cbkgrp_timers_;
 
-  timer_render_ = std::make_shared<TimerType>(timer_opts_start, rclcpp::Rate(update_rate, clock_), std::bind(&RosStatus::timerRender, this));
+  timer_render_ = std::make_shared<TimerType>(timer_opts_start, rclcpp::Rate(update_rate, clock_), std::bind(&UavStatus::timerRender, this));
 
   slow_period_       = rclcpp::Duration::from_seconds(1.0 / update_rate_slow);
   resize_period_     = rclcpp::Duration::from_seconds(1.0 / resize_rate);
@@ -256,19 +256,19 @@ void RosStatus::initialize() {
   shopts.subscription_options.callback_group = cbkgrp_subs_;
 
   sh_general_robot_info_ =
-      mrs_lib::SubscriberHandler<mrs_msgs::msg::GeneralRobotInfo>(shopts, "~/general_robot_info_in", &RosStatus::callbackGeneralRobotInfo, this);
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::GeneralRobotInfo>(shopts, "~/general_robot_info_in", &UavStatus::callbackGeneralRobotInfo, this);
   sh_state_estimation_info_ =
-      mrs_lib::SubscriberHandler<mrs_msgs::msg::StateEstimationInfo>(shopts, "~/state_estimation_info_in", &RosStatus::callbackStateEstimationInfo, this);
-  sh_control_info_             = mrs_lib::SubscriberHandler<mrs_msgs::msg::ControlInfo>(shopts, "~/control_info_in", &RosStatus::callbackControlInfo, this);
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::StateEstimationInfo>(shopts, "~/state_estimation_info_in", &UavStatus::callbackStateEstimationInfo, this);
+  sh_control_info_             = mrs_lib::SubscriberHandler<mrs_msgs::msg::ControlInfo>(shopts, "~/control_info_in", &UavStatus::callbackControlInfo, this);
   sh_collision_avoidance_info_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::CollisionAvoidanceInfo>(shopts, "~/collision_avoidance_info_in",
-                                                                                                   &RosStatus::callbackCollisionAvoidanceInfo, this);
-  sh_uav_info_                 = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavInfo>(shopts, "~/uav_info_in", &RosStatus::callbackUavInfo, this);
+                                                                                                   &UavStatus::callbackCollisionAvoidanceInfo, this);
+  sh_uav_info_                 = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavInfo>(shopts, "~/uav_info_in", &UavStatus::callbackUavInfo, this);
   sh_system_health_info_ =
-      mrs_lib::SubscriberHandler<mrs_msgs::msg::SystemHealthInfo>(shopts, "~/system_health_info_in", &RosStatus::callbackSystemHealthInfo, this);
-  sh_uav_state_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::State>(shopts, "~/uav_state_in", &RosStatus::callbackUavState, this);
-  // Custom-display string topic — anything published here lands in the TUI's
+      mrs_lib::SubscriberHandler<mrs_msgs::msg::SystemHealthInfo>(shopts, "~/system_health_info_in", &UavStatus::callbackSystemHealthInfo, this);
+  sh_uav_state_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::State>(shopts, "~/uav_state_in", &UavStatus::callbackUavState, this);
+  // Custom-display string topic — anything published here lands in the NcursesTui's
   // Strings window. Supports "-id <key> -p <space-separated text>" preamble.
-  sh_display_string_ = mrs_lib::SubscriberHandler<std_msgs::msg::String>(shopts, "~/display_string_in", &RosStatus::callbackDisplayString, this);
+  sh_display_string_ = mrs_lib::SubscriberHandler<std_msgs::msg::String>(shopts, "~/display_string_in", &UavStatus::callbackDisplayString, this);
 
   // | --------------------- Finish the init --------------------- |
 
@@ -283,7 +283,7 @@ void RosStatus::initialize() {
 
 /* buildCommandSink() //{ */
 
-status::CommandSink RosStatus::buildCommandSink(const std::vector<std::string> &service_list, const std::string &uav_name) {
+status::CommandSink UavStatus::buildCommandSink(const std::vector<std::string> &service_list, const std::string &uav_name) {
 
   sc_goto_reference_     = mrs_lib::ServiceClientHandler<mrs_msgs::srv::ReferenceStampedSrv>(node_, "~/goto_reference_out", cbkgrp_sc_);
   sc_velocity_reference_ = mrs_lib::ServiceClientHandler<mrs_msgs::srv::VelocityReferenceStampedSrv>(node_, "~/velocity_reference_out", cbkgrp_sc_);
@@ -397,7 +397,7 @@ status::CommandSink RosStatus::buildCommandSink(const std::vector<std::string> &
 
 /* timerRender() //{ */
 
-void RosStatus::timerRender() {
+void UavStatus::timerRender() {
 
   if (!is_initialized_) {
     return;
@@ -414,8 +414,8 @@ void RosStatus::timerRender() {
       is_fresh(sh_system_health_info_), is_fresh(sh_state_estimation_info_),
   };
 
-  model_->setFreshness(freshness);
-  tui_->setSnapshot(model_->snapshot(now_seconds));
+  core_->setFreshness(freshness);
+  tui_->setSnapshot(core_->snapshot(now_seconds));
 
   // Resize before anything else draws; force a slow redraw right after so it isn't left blank.
   if (now - last_resize_check_ >= resize_period_) {
@@ -437,7 +437,7 @@ void RosStatus::timerRender() {
   tui_->blankBottomWindow();
 
   const int key = tui_->pollKey();
-  model_->tick(now_seconds, key, *tui_);
+  core_->tick(now_seconds, key, *tui_);
 
   tui_->refreshTopBar();
   tui_->commitFrame();
@@ -447,60 +447,60 @@ void RosStatus::timerRender() {
 
 /* callbacks //{ */
 
-void RosStatus::callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::ConstSharedPtr msg) {
+void UavStatus::callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  model_->onGeneralRobotInfo(toData(*msg));
+  core_->onGeneralRobotInfo(toData(*msg));
 }
 
-void RosStatus::callbackStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo::ConstSharedPtr msg) {
+void UavStatus::callbackStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  model_->onStateEstimationInfo(toData(*msg));
+  core_->onStateEstimationInfo(toData(*msg));
 }
 
-void RosStatus::callbackControlInfo(const mrs_msgs::msg::ControlInfo::ConstSharedPtr msg) {
+void UavStatus::callbackControlInfo(const mrs_msgs::msg::ControlInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  model_->onControlInfo(toData(*msg));
+  core_->onControlInfo(toData(*msg));
 }
 
-void RosStatus::callbackCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo::ConstSharedPtr msg) {
+void UavStatus::callbackCollisionAvoidanceInfo(const mrs_msgs::msg::CollisionAvoidanceInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  model_->onCollisionAvoidanceInfo(toData(*msg));
+  core_->onCollisionAvoidanceInfo(toData(*msg));
 }
 
-void RosStatus::callbackUavInfo(const mrs_msgs::msg::UavInfo::ConstSharedPtr msg) {
+void UavStatus::callbackUavInfo(const mrs_msgs::msg::UavInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  model_->onUavInfo(toData(*msg));
+  core_->onUavInfo(toData(*msg));
 }
 
-void RosStatus::callbackSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo::ConstSharedPtr msg) {
+void UavStatus::callbackSystemHealthInfo(const mrs_msgs::msg::SystemHealthInfo::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  model_->onSystemHealthInfo(toData(*msg));
+  core_->onSystemHealthInfo(toData(*msg));
 }
 
-void RosStatus::callbackUavState(const mrs_msgs::msg::State::ConstSharedPtr msg) {
+void UavStatus::callbackUavState(const mrs_msgs::msg::State::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  model_->onUavState(toData(*msg));
+  core_->onUavState(toData(*msg));
 }
 
-void RosStatus::callbackDisplayString(const std_msgs::msg::String::ConstSharedPtr msg) {
+void UavStatus::callbackDisplayString(const std_msgs::msg::String::ConstSharedPtr msg) {
   if (!is_initialized_) {
     return;
   }
-  model_->onString(clock_->now().seconds(), msg->data);
+  core_->onString(clock_->now().seconds(), msg->data);
 }
 
 //}
@@ -510,7 +510,7 @@ void RosStatus::callbackDisplayString(const std_msgs::msg::String::ConstSharedPt
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
 
-  auto node = std::make_shared<mrs_uav_status::RosStatus>();
+  auto node = std::make_shared<mrs_uav_status::UavStatus>();
 
   rclcpp::spin(node->get_node_base_interface());
 

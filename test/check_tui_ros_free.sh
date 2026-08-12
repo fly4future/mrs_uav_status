@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fails if tui/, status/ or the utils/ headers they depend on pull in ANY ROS header -- message,
 # service, node, clock or time -- directly or transitively. These three trees are the package's
-# ROS-free layers: only ros_status.{hpp,cpp} may name an rclcpp type.
+# ROS-free layers: only uav_status.{hpp,cpp} may name an rclcpp type.
 #
 # Deliberately does NOT use `set -e`: grep's exit status is inspected explicitly below so
 # "no forbidden includes" (1) and "grep itself failed" (>1) are never conflated.
@@ -16,7 +16,7 @@ ROOT="$1"
 FORBIDDEN='#include[[:space:]]*[<"](([a-z_]+_msgs|[a-z_]+_srvs|rclcpp_[a-z_]+|rclcpp|rcl_interfaces|rcl|rosidl_[a-z_]+|builtin_interfaces|tf2_ros|tf2)/)|#include[[:space:]]*[<"]rclcpp\.hpp|service_client_handler\.h|subscriber_handler\.h|publisher_handler\.h|param_loader\.h'
 
 # tui/ includes utils/ and status/ headers directly, so a forbidden dependency hiding in either
-# is just as much a layering violation as one written directly under tui/. status/ (StatusModel)
+# is just as much a layering violation as one written directly under tui/. status/ (UavStatusCore)
 # is scanned in its own right too -- it must stay ROS-free independent of what tui/ pulls in.
 DIRS=(
   "$ROOT/include/mrs_uav_status/tui"

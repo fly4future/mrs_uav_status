@@ -5,8 +5,8 @@ namespace mrs_uav_status::tui
 
 // | --------------------- Keyboard Input Constants --------------------- |
 // Represents specific key codes used for terminal navigation. The arrow/delete values mirror
-// ncurses' KEY_* macros so that ROS- and ncurses-free code (StatusModel) can compare against them
-// without including <curses.h>; src/tui/tui.cpp static_asserts that they still match.
+// ncurses' KEY_* macros so that ROS- and ncurses-free code (UavStatusCore) can compare against them
+// without including <curses.h>; src/tui/ncurses_tui.cpp static_asserts that they still match.
 enum class Key : int
 {
   Enter  = 10,

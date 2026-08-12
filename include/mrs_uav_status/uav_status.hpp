@@ -5,8 +5,8 @@
 #include <memory>
 #include <atomic>
 
-#include <mrs_uav_status/tui/tui.hpp>
-#include <mrs_uav_status/status/status_model.hpp>
+#include <mrs_uav_status/tui/ncurses_tui.hpp>
+#include <mrs_uav_status/status/uav_status_core.hpp>
 
 #include <mrs_msgs/msg/collision_avoidance_info.hpp>
 #include <mrs_msgs/msg/control_info.hpp>
@@ -43,19 +43,19 @@ namespace mrs_uav_status
 // The package's only ROS2 node: owns every rclcpp handle (subscribers, service clients, the render
 // timer), converts incoming messages to plain status::*Data, and converts rclcpp::Time to a plain
 // double before handing anything to the ROS-free layers below.
-class RosStatus : public mrs_lib::Node {
+class UavStatus : public mrs_lib::Node {
 
 public:
-  // Calls tui::TUI::initTerminal(), then initialize().
-  RosStatus();
-  // Stops the render timer, then calls tui::TUI::shutdownTerminal().
-  ~RosStatus();
+  // Calls tui::NcursesTui::initTerminal(), then initialize().
+  UavStatus();
+  // Stops the render timer, then calls tui::NcursesTui::shutdownTerminal().
+  ~UavStatus();
 
 private:
-  // Loads params, constructs the TUI, starts the render timer, and subscribes to all topics.
+  // Loads params, constructs the NcursesTui, starts the render timer, and subscribes to all topics.
   void initialize();
   // Constructs the sc_*_ service clients and builds the status::CommandSink that initialize()
-  // hands off to the StatusModel ctor.
+  // hands off to the UavStatusCore ctor.
   status::CommandSink buildCommandSink(const std::vector<std::string> &service_list, const std::string &uav_name);
 
   bool _profiler_enabled_ = false;
@@ -95,9 +95,9 @@ private:
   double           data_timeout_s_ = 0.0; // Seconds without a message before data is considered stale.
 
   // Per-tick entry point: updates freshness/resize/render, reads one key, and routes it through
-  // model_'s STANDARD/REMOTE/MAIN_MENU/GOTO_MENU/DISPLAY_MENU state machine.
+  // core_'s STANDARD/REMOTE/MAIN_MENU/GOTO_MENU/DISPLAY_MENU state machine.
   void timerRender();
-  // Forwards the message to the matching status::StatusModel::on*() setter.
+  // Forwards the message to the matching status::UavStatusCore::on*() setter.
   void callbackGeneralRobotInfo(const mrs_msgs::msg::GeneralRobotInfo::ConstSharedPtr msg);
   void callbackStateEstimationInfo(const mrs_msgs::msg::StateEstimationInfo::ConstSharedPtr msg);
   void callbackControlInfo(const mrs_msgs::msg::ControlInfo::ConstSharedPtr msg);
@@ -109,9 +109,9 @@ private:
 
   std::atomic<bool> is_initialized_ = false;
 
-  mrs_lib::Profiler                    profiler_;
-  std::unique_ptr<tui::TUI>            tui_;
-  std::unique_ptr<status::StatusModel> model_;
+  mrs_lib::Profiler                      profiler_;
+  std::unique_ptr<tui::NcursesTui>       tui_;
+  std::unique_ptr<status::UavStatusCore> core_;
 };
 
 } // namespace mrs_uav_status

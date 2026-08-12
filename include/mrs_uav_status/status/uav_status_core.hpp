@@ -31,9 +31,9 @@ enum class StatusState
 // The package's decision layer: owns the STANDARD/REMOTE/menu state machine, every received
 // message snapshot and all menu/goto/remote logic. No ROS, no ncurses -- it only ever drives an
 // abstract tui::TuiActions, so tests can substitute a fake.
-class StatusModel {
+class UavStatusCore {
 public:
-  // Node params this layer needs. Loaded by RosStatus from mrs_uav_status/.
+  // Node params this layer needs. Loaded by UavStatus from mrs_uav_status/.
   struct Params
   {
     std::string         turbo_remote_constraints; // constraint set swapped in by turbo remote ("fast")
@@ -42,7 +42,7 @@ public:
 
   // All outbound ROS actions are dispatched through command_sink; clock is read for
   // post-service-call timestamps (defaults to always-0.0 if left unset, e.g. in tests).
-  StatusModel(CommandSink command_sink, Params params, Clock clock = {});
+  UavStatusCore(CommandSink command_sink, Params params, Clock clock = {});
 
   // Stores the per-topic freshness for this tick. Call once before every tick().
   void setFreshness(const Freshness &freshness);
@@ -76,7 +76,7 @@ public:
   void onString(double now_seconds, const std::string &data);
 
   // Deep-copies everything the renderer needs, under mutex_status_msg_. Call once per fast tick,
-  // after setFreshness() and before any TUI render call.
+  // after setFreshness() and before any NcursesTui render call.
   RenderSnapshot snapshot(double now_seconds) const;
 
 private:
@@ -149,8 +149,8 @@ private:
 
   // Threading invariant: last_*_ members and freshness_ below are written from ROS subscriber
   // threads (the on*() setters) and read by snapshot(), which deep-copies them out under this
-  // lock exactly once per fast tick. tui::TUI::snapshot_ (the copy snapshot() produces) is then
-  // written and read only from the render thread, so TUI itself needs no mutex for this data.
+  // lock exactly once per fast tick. tui::NcursesTui::snapshot_ (the copy snapshot() produces) is then
+  // written and read only from the render thread, so NcursesTui itself needs no mutex for this data.
   mutable std::mutex         mutex_status_msg_;
   Freshness                  freshness_;
   GeneralRobotInfoData       last_general_robot_info_;

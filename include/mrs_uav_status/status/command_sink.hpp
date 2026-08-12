@@ -11,7 +11,7 @@
 namespace mrs_uav_status::status
 {
 
-// Outbound ROS actions StatusModel can trigger, injected by ros_status so status/ never links
+// Outbound ROS actions UavStatusCore can trigger, injected by ros_status so status/ never links
 // against rclcpp service/message types. Every call is synchronous.
 struct CommandSink
 {

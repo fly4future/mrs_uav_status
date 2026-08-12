@@ -11,8 +11,8 @@
 namespace mrs_uav_status::tui
 {
 
-// One main-menu/submenu interaction, as reported by TUI after it has handled a keypress. TUI
-// translates raw ncurses navigation into this; StatusModel decides what the selected row means.
+// One main-menu/submenu interaction, as reported by NcursesTui after it has handled a keypress. NcursesTui
+// translates raw ncurses navigation into this; UavStatusCore decides what the selected row means.
 struct MenuEvent
 {
   enum class Kind
@@ -27,8 +27,8 @@ struct MenuEvent
   int  index      = -1;
 };
 
-// One goto-menu interaction. On Kind::Committed, TUI has already read and parsed all four
-// ControlBars, so StatusModel only ever sees plain doubles.
+// One goto-menu interaction. On Kind::Committed, NcursesTui has already read and parsed all four
+// ControlBars, so UavStatusCore only ever sees plain doubles.
 struct GotoEvent
 {
   enum class Kind
@@ -45,8 +45,8 @@ struct GotoEvent
   double heading = 0.0;
 };
 
-// The subset of TUI's public API StatusModel drives. TUI implements this; tests substitute a
-// fake instead of constructing a real (ncurses-backed) TUI.
+// The subset of NcursesTui's public API UavStatusCore drives. NcursesTui implements this; tests substitute a
+// fake instead of constructing a real (ncurses-backed) NcursesTui.
 class TuiActions {
 public:
   virtual ~TuiActions() = default;

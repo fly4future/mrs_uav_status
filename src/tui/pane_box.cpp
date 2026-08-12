@@ -152,7 +152,7 @@ void PaneBox::renderStringsGnssPane(WINDOW *win) {
       gnss_status_rate               = gnss->rate;
     }
 
-    // Eviction already happened in StatusModel::pruneStrings() (top of every tick());
+    // Eviction already happened in UavStatusCore::pruneStrings() (top of every tick());
     // snapshot_->display_strings is whatever's currently live for display.
     for (const auto &entry : snapshot_->display_strings) {
       string_vector.push_back(entry);

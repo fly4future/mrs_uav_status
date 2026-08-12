@@ -9,7 +9,7 @@
 namespace mrs_uav_status::status
 {
 
-// Lets StatusModel read the node clock without linking against any ROS client-library type
+// Lets UavStatusCore read the node clock without linking against any ROS client-library type
 // itself -- injected by ros_status, same reason as CommandSink but kept separate from it since
 // it's a data source, not an outbound action. Used where the tick-start freshness snapshot is
 // too stale -- e.g. stamping renderServiceResult()'s clear-time after a blocking service call

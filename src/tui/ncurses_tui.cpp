@@ -1,6 +1,6 @@
 /* includes //{ */
 
-#include <mrs_uav_status/tui/tui.hpp>
+#include <mrs_uav_status/tui/ncurses_tui.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -18,7 +18,7 @@ namespace mrs_uav_status::tui
 
 using radians = mrs_lib::geometry::radians;
 
-// tui::Key hardcodes ncurses' KEY_* values so StatusModel can use them without <curses.h>.
+// tui::Key hardcodes ncurses' KEY_* values so UavStatusCore can use them without <curses.h>.
 static_assert(static_cast<int>(Key::Up) == KEY_UP, "tui::Key::Up drifted from ncurses KEY_UP");
 static_assert(static_cast<int>(Key::Down) == KEY_DOWN, "tui::Key::Down drifted from ncurses KEY_DOWN");
 static_assert(static_cast<int>(Key::Left) == KEY_LEFT, "tui::Key::Left drifted from ncurses KEY_LEFT");
@@ -26,9 +26,9 @@ static_assert(static_cast<int>(Key::Right) == KEY_RIGHT, "tui::Key::Right drifte
 static_assert(static_cast<int>(Key::Delete) == KEY_DC, "tui::Key::Delete drifted from ncurses KEY_DC");
 
 
-/* TUI() //{ */
+/* NcursesTui() //{ */
 
-TUI::TUI(const TUI::TUIParams &params) : params_(params) {
+NcursesTui::NcursesTui(const NcursesTui::Params &params) : params_(params) {
 
   light_scheme_ = (params_.colorscheme.find("COLORSCHEME_LIGHT") != std::string::npos);
 }
@@ -39,7 +39,7 @@ TUI::TUI(const TUI::TUIParams &params) : params_(params) {
 
 /* initTerminal() //{ */
 
-void TUI::initTerminal() {
+void NcursesTui::initTerminal() {
   initscr();
   start_color();
   cbreak();
@@ -58,7 +58,7 @@ void TUI::initTerminal() {
 
 /* shutdownTerminal() //{ */
 
-void TUI::shutdownTerminal() {
+void NcursesTui::shutdownTerminal() {
   endwin();
 }
 
@@ -66,7 +66,7 @@ void TUI::shutdownTerminal() {
 
 /* pollKey() //{ */
 
-int TUI::pollKey() {
+int NcursesTui::pollKey() {
   return getch();
 }
 
@@ -74,7 +74,7 @@ int TUI::pollKey() {
 
 /* flushInput() //{ */
 
-void TUI::flushInput() {
+void NcursesTui::flushInput() {
   flushinp();
 }
 
@@ -82,7 +82,7 @@ void TUI::flushInput() {
 
 /* commitFrame() //{ */
 
-void TUI::commitFrame() {
+void NcursesTui::commitFrame() {
   doupdate();
 }
 
@@ -90,7 +90,7 @@ void TUI::commitFrame() {
 
 /* setSnapshot() //{ */
 
-void TUI::setSnapshot(const status::RenderSnapshot &snapshot) {
+void NcursesTui::setSnapshot(const status::RenderSnapshot &snapshot) {
   snapshot_ = snapshot;
 }
 
@@ -98,7 +98,7 @@ void TUI::setSnapshot(const status::RenderSnapshot &snapshot) {
 
 /* tickSlowCounter() //{ */
 
-void TUI::tickSlowCounter() {
+void NcursesTui::tickSlowCounter() {
   increment_counter_ = !increment_counter_;
   estimator_display_counter_ += int(increment_counter_);
   if (estimator_display_counter_ >= 3) {
@@ -110,7 +110,7 @@ void TUI::tickSlowCounter() {
 
 /* updateTermSize() //{ */
 
-bool TUI::updateTermSize() {
+bool NcursesTui::updateTermSize() {
 
   bool changed = false;
 
@@ -146,7 +146,7 @@ bool TUI::updateTermSize() {
 
 /* setupWindows() //{ */
 
-void TUI::setupWindows() {
+void NcursesTui::setupWindows() {
 
   std::string command = "tmux display-message -p '#S'";
   session_name_       = utils::callTerminal(command.c_str());
@@ -192,7 +192,7 @@ void TUI::setupWindows() {
 
 /* resize() //{ */
 
-bool TUI::resize() {
+bool NcursesTui::resize() {
   if (!updateTermSize()) {
     return false;
   }
@@ -208,7 +208,7 @@ bool TUI::resize() {
 
 /* toggleMini() //{ */
 
-void TUI::toggleMini() {
+void NcursesTui::toggleMini() {
   params_.start_minimized = !params_.start_minimized;
 }
 
@@ -216,7 +216,7 @@ void TUI::toggleMini() {
 
 /* toggleHelp() //{ */
 
-void TUI::toggleHelp() {
+void NcursesTui::toggleHelp() {
   help_active_ = !help_active_;
 }
 
@@ -224,7 +224,7 @@ void TUI::toggleHelp() {
 
 /* setRemoteMode() //{ */
 
-void TUI::setRemoteMode(bool in_remote_mode) {
+void NcursesTui::setRemoteMode(bool in_remote_mode) {
   in_remote_mode_ = in_remote_mode;
 }
 
@@ -232,7 +232,7 @@ void TUI::setRemoteMode(bool in_remote_mode) {
 
 /* refreshTopBar() //{ */
 
-void TUI::refreshTopBar() {
+void NcursesTui::refreshTopBar() {
   wnoutrefresh(top_bar_window_.get());
 }
 
@@ -240,7 +240,7 @@ void TUI::refreshTopBar() {
 
 /* refreshBottomWindow() //{ */
 
-void TUI::refreshBottomWindow() {
+void NcursesTui::refreshBottomWindow() {
   wnoutrefresh(bottom_window_.get());
 }
 
@@ -248,7 +248,7 @@ void TUI::refreshBottomWindow() {
 
 /* refreshAfterMenu() //{ */
 
-void TUI::refreshAfterMenu() {
+void NcursesTui::refreshAfterMenu() {
   wnoutrefresh(debug_window_.get());
   wnoutrefresh(bottom_window_.get());
 }
@@ -259,7 +259,7 @@ void TUI::refreshAfterMenu() {
 
 /* renderFast() //{ */
 
-void TUI::renderFast() {
+void NcursesTui::renderFast() {
   topLineHandler();
   renderTmuxOrHelp();
   uavStateHandler();
@@ -269,7 +269,7 @@ void TUI::renderFast() {
 
 /* renderSlow() //{ */
 
-void TUI::renderSlow() {
+void NcursesTui::renderSlow() {
   tickSlowCounter();
   hwApiStateHandler();
   controlManagerHandler();
@@ -281,7 +281,7 @@ void TUI::renderSlow() {
 
 /* generalInfoHandler() //{ */
 
-void TUI::generalInfoHandler() {
+void NcursesTui::generalInfoHandler() {
   WINDOW *win = general_info_window_.get();
   werase(win);
   wattron(win, A_BOLD);
@@ -329,7 +329,7 @@ void TUI::generalInfoHandler() {
 
 /* cyclePanes() //{ */
 
-void TUI::cyclePanes() {
+void NcursesTui::cyclePanes() {
   pane_box_.cycle();
 }
 
@@ -337,7 +337,7 @@ void TUI::cyclePanes() {
 
 /* selectPane() //{ */
 
-void TUI::selectPane(std::size_t idx) {
+void NcursesTui::selectPane(std::size_t idx) {
   pane_box_.select(idx);
 }
 
@@ -345,7 +345,7 @@ void TUI::selectPane(std::size_t idx) {
 
 /* paneHandler() //{ */
 
-void TUI::paneHandler() {
+void NcursesTui::paneHandler() {
   pane_box_.render(pane_window_.get(), snapshot_, light_scheme_, params_.start_minimized);
 }
 
@@ -353,7 +353,7 @@ void TUI::paneHandler() {
 
 /* uavStateHandler() //{ */
 
-void TUI::uavStateHandler() {
+void NcursesTui::uavStateHandler() {
   WINDOW     *win = uav_state_window_.get();
   double      avg_rate, color, heading;
   double      state_x, state_y, state_z;
@@ -557,7 +557,7 @@ void TUI::uavStateHandler() {
 
 /* controlManagerHandler() //{ */
 
-void TUI::controlManagerHandler() {
+void NcursesTui::controlManagerHandler() {
   WINDOW *win = control_manager_window_.get();
 
   int16_t     color;
@@ -733,7 +733,7 @@ void TUI::controlManagerHandler() {
 
 /* hwApiStateHandler() //{ */
 
-void TUI::hwApiStateHandler() {
+void NcursesTui::hwApiStateHandler() {
   WINDOW     *win = hw_api_state_window_.get();
   int16_t     color;
   double      hw_api_rate, cmd_rate;
@@ -1101,7 +1101,7 @@ void TUI::hwApiStateHandler() {
 
 /* topLineHandler() //{ */
 
-void TUI::topLineHandler() {
+void NcursesTui::topLineHandler() {
   WINDOW *win = top_bar_window_.get();
   werase(win);
 
@@ -1208,7 +1208,7 @@ void TUI::topLineHandler() {
   wattroff(win, A_BOLD);
 
   // btop-style hotkey hints on the right of the top bar — the trigger key (the
-  // red letter) maps directly to the STANDARD-mode key handler in ros_status.cpp.
+  // red letter) maps directly to the STANDARD-mode key handler in uav_status.cpp.
   if (!params_.start_minimized && !in_remote_mode_) {
     int hx = 62;
     hx     = printHotkey(win, 0, hx, "menu");
@@ -1229,7 +1229,7 @@ void TUI::topLineHandler() {
 
 /* blankBottomWindow() //{ */
 
-void TUI::blankBottomWindow() {
+void NcursesTui::blankBottomWindow() {
   if (snapshot_.now_seconds - bottom_window_clear_time_s_ > 3.0) {
     werase(bottom_window_.get());
   }
@@ -1239,7 +1239,7 @@ void TUI::blankBottomWindow() {
 
 /* renderServiceResult() //{ */
 
-void TUI::renderServiceResult(bool success, const std::string &message, double now_seconds) {
+void NcursesTui::renderServiceResult(bool success, const std::string &message, double now_seconds) {
   printServiceResult(bottom_window_.get(), light_scheme_, success, message);
   // Stamped from the caller's post-call wall clock, not the stale tick-start snapshot_.now_seconds.
   bottom_window_clear_time_s_ = now_seconds;
@@ -1251,7 +1251,7 @@ void TUI::renderServiceResult(bool success, const std::string &message, double n
 
 /* isValidMenuIndex() //{ */
 
-bool TUI::isValidMenuIndex(int index, size_t container_size) {
+bool NcursesTui::isValidMenuIndex(int index, size_t container_size) {
   return index >= 0 && static_cast<size_t>(index) < container_size;
 }
 
@@ -1259,7 +1259,7 @@ bool TUI::isValidMenuIndex(int index, size_t container_size) {
 
 /* clearMenus() //{ */
 
-void TUI::clearMenus() {
+void NcursesTui::clearMenus() {
   menu_vec_.clear();
   submenu_vec_.clear();
 }
@@ -1268,7 +1268,7 @@ void TUI::clearMenus() {
 
 /* createSubMenu() //{ */
 
-void TUI::createSubMenu(std::vector<std::string> &submenu_entries) {
+void NcursesTui::createSubMenu(std::vector<std::string> &submenu_entries) {
   submenu_vec_.clear();
   if (!submenu_entries.empty()) {
 
@@ -1291,7 +1291,7 @@ void TUI::createSubMenu(std::vector<std::string> &submenu_entries) {
 
 /* showMainMenu() //{ */
 
-void TUI::showMainMenu(const std::vector<std::string> &labels) {
+void NcursesTui::showMainMenu(const std::vector<std::string> &labels) {
   main_menu_text_ = labels;
   submenu_vec_.clear();
   StatusWindow menu(1, 32, main_menu_text_);
@@ -1302,7 +1302,7 @@ void TUI::showMainMenu(const std::vector<std::string> &labels) {
 
 /* showSubMenu() //{ */
 
-void TUI::showSubMenu(const std::vector<std::string> &labels) {
+void NcursesTui::showSubMenu(const std::vector<std::string> &labels) {
   std::vector<std::string> entries = labels;
   createSubMenu(entries);
 }
@@ -1311,7 +1311,7 @@ void TUI::showSubMenu(const std::vector<std::string> &labels) {
 
 /* closeSubMenu() //{ */
 
-void TUI::closeSubMenu() {
+void NcursesTui::closeSubMenu() {
   submenu_vec_.clear();
 }
 
@@ -1319,7 +1319,7 @@ void TUI::closeSubMenu() {
 
 /* handleMainMenuKey() //{ */
 
-MenuEvent TUI::handleMainMenuKey(int key) {
+MenuEvent NcursesTui::handleMainMenuKey(int key) {
   MenuEvent event;
 
   if (menu_vec_.empty()) {
@@ -1367,7 +1367,7 @@ MenuEvent TUI::handleMainMenuKey(int key) {
 
 /* showGotoMenu() //{ */
 
-void TUI::showGotoMenu(const std::vector<std::string> &labels, const std::vector<double> &initial_values) {
+void NcursesTui::showGotoMenu(const std::vector<std::string> &labels, const std::vector<double> &initial_values) {
   goto_menu_inputs_.clear();
   goto_menu_text_ = labels;
 
@@ -1384,7 +1384,7 @@ void TUI::showGotoMenu(const std::vector<std::string> &labels, const std::vector
 
 /* handleGotoMenuKey() //{ */
 
-GotoEvent TUI::handleGotoMenuKey(int key) {
+GotoEvent NcursesTui::handleGotoMenuKey(int key) {
   GotoEvent event;
 
   if (menu_vec_.empty()) {
@@ -1427,7 +1427,7 @@ GotoEvent TUI::handleGotoMenuKey(int key) {
 
 /* setupDisplayText() //{ */
 
-void TUI::setupDisplayText() {
+void NcursesTui::setupDisplayText() {
   display_menu_text_.clear();
 
   char                     command[50] = "tmux list-windows | cut -d' ' -f-2";
@@ -1452,7 +1452,7 @@ void TUI::setupDisplayText() {
 
 /* setupDisplayMenu() //{ */
 
-void TUI::setupDisplayMenu() {
+void NcursesTui::setupDisplayMenu() {
   setupDisplayText();
 
   StatusWindow menu(1, 32, display_menu_text_);
@@ -1463,7 +1463,7 @@ void TUI::setupDisplayMenu() {
 
 /* displayMenuHandler() //{ */
 
-bool TUI::displayMenuHandler(int key) {
+bool NcursesTui::displayMenuHandler(int key) {
 
   auto result = menu_vec_[0].iterate(display_menu_text_, key, false);
 
@@ -1500,7 +1500,7 @@ bool TUI::displayMenuHandler(int key) {
 
 /* loadDisplayConfig() //{ */
 
-void TUI::loadDisplayConfig() {
+void NcursesTui::loadDisplayConfig() {
   if (!std::filesystem::exists(params_.display_config_filename)) {
     return;
   }
@@ -1532,7 +1532,7 @@ void TUI::loadDisplayConfig() {
 
 /* renderRemoteBanner() //{ */
 
-void TUI::renderRemoteBanner(bool turbo, bool global) {
+void NcursesTui::renderRemoteBanner(bool turbo, bool global) {
   WINDOW *win = top_bar_window_.get();
 
   if (light_scheme_) {
@@ -1569,7 +1569,7 @@ void TUI::renderRemoteBanner(bool turbo, bool global) {
 
 /* renderTmuxOrHelp() //{ */
 
-void TUI::renderTmuxOrHelp() {
+void NcursesTui::renderTmuxOrHelp() {
   if (params_.start_minimized) {
     return;
   }

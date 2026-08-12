@@ -16,7 +16,7 @@
 #include <mrs_uav_status/tui/colors.hpp>
 #include <mrs_uav_status/tui/pane_box.hpp>
 
-// <curses.h> (transitively included above by the TUI helpers) #defines OK as 0 -- undo that
+// <curses.h> (transitively included above by the NcursesTui helpers) #defines OK as 0 -- undo that
 // here so it can't collide with an OK enumerator/identifier used by this header's includers.
 #ifdef OK
 #undef OK
@@ -34,10 +34,10 @@ namespace mrs_uav_status::tui
 {
 
 // Owns the ncurses windows and renders them from the status::RenderSnapshot pushed in once per
-// tick by RosStatus. It stores no message state of its own -- StatusModel owns that.
-class TUI : public TuiActions {
+// tick by UavStatus. It stores no message state of its own -- UavStatusCore owns that.
+class NcursesTui : public TuiActions {
 public:
-  struct TUIParams
+  struct Params
   {
     std::string colorscheme;
     bool        colorblind_mode;
@@ -46,12 +46,12 @@ public:
   };
 
   // Stores params_ and derives light_scheme_ from it; pane_box_ default-constructs itself.
-  TUI(const TUI::TUIParams &params);
+  NcursesTui(const NcursesTui::Params &params);
 
-  // Puts the terminal into ncurses raw/no-echo mode. Call once, before constructing any TUI
+  // Puts the terminal into ncurses raw/no-echo mode. Call once, before constructing any NcursesTui
   // and before any window is created.
   static void initTerminal();
-  // Restores the terminal to normal mode. Call after the TUI instance (and its windows) is
+  // Restores the terminal to normal mode. Call after the NcursesTui instance (and its windows) is
   // destroyed.
   static void shutdownTerminal();
 
@@ -62,7 +62,7 @@ public:
   // Wraps doupdate(): flushes all pending ncurses window updates to the physical screen.
   void commitFrame();
 
-  // Installs the tick's render input. Called once per fast tick by RosStatus, before any
+  // Installs the tick's render input. Called once per fast tick by UavStatus, before any
   // render*/handler call. snapshot_ is render-thread-private, so no locking is needed here or
   // in any handler that reads it.
   void setSnapshot(const status::RenderSnapshot &snapshot);
@@ -160,10 +160,10 @@ private:
   // The cycleable top-right box ('p' / number keys). Owns its own pane list.
   PaneBox pane_box_;
 
-  TUIParams params_;
-  bool      light_scheme_   = false;
-  bool      help_active_    = false;
-  bool      in_remote_mode_ = false;
+  Params params_;
+  bool   light_scheme_   = false;
+  bool   help_active_    = false;
+  bool   in_remote_mode_ = false;
 
   // | ------------------- Menu (private helpers) --------------- |
   static bool isValidMenuIndex(int index, size_t container_size);

@@ -172,7 +172,7 @@ struct BorderStatus
   bool null_tracker       = false;
 };
 
-// Per-topic "has this ever arrived and not gone stale" flags, computed by RosStatus and
+// Per-topic "has this ever arrived and not gone stale" flags, computed by UavStatus and
 // pushed once per render tick.
 struct Freshness
 {
@@ -183,8 +183,8 @@ struct Freshness
   bool state_estimation_info    = false;
 };
 
-// One render tick's complete view of the world, deep-copied out of StatusModel under its mutex
-// and handed to TUI::setSnapshot(). TUI reads this (render thread only, no locking) instead of
+// One render tick's complete view of the world, deep-copied out of UavStatusCore under its mutex
+// and handed to NcursesTui::setSnapshot(). NcursesTui reads this (render thread only, no locking) instead of
 // keeping its own message snapshots.
 struct RenderSnapshot
 {

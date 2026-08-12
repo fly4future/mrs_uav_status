@@ -52,16 +52,16 @@ add_executable(MrsUavStatus_Status)
 
 target_sources(MrsUavStatus_Status
   PRIVATE
-    "src/ros_status.cpp"
-    "src/status/status_model.cpp"
-    "src/tui/tui.cpp"
+    "src/uav_status.cpp"
+    "src/status/uav_status_core.cpp"
+    "src/tui/ncurses_tui.cpp"
     "src/tui/pane_box.cpp"
     "src/tui/control_bar.cpp"
     "src/tui/status_window.cpp"
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
   FILES
-    "include/mrs_uav_status/ros_status.hpp"
-    "include/mrs_uav_status/status/status_model.hpp"
+    "include/mrs_uav_status/uav_status.hpp"
+    "include/mrs_uav_status/status/uav_status_core.hpp"
     "include/mrs_uav_status/status/data_types.hpp"
     "include/mrs_uav_status/tui/tui_actions.hpp"
     "include/mrs_uav_status/status/command_sink.hpp"
@@ -72,7 +72,7 @@ target_sources(MrsUavStatus_Status
     "include/mrs_uav_status/tui/system_info.hpp"
     "include/mrs_uav_status/tui/print_helpers.hpp"
     "include/mrs_uav_status/tui/constants.hpp"
-    "include/mrs_uav_status/tui/tui.hpp"
+    "include/mrs_uav_status/tui/ncurses_tui.hpp"
     "include/mrs_uav_status/utils/helpers.hpp"
     "include/mrs_uav_status/status/string_info.hpp"
 )
