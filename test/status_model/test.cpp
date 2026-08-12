@@ -299,13 +299,6 @@ CommandSink makeSink(SinkLog &log) {
                                    return CommandSink::ServiceResult{true, "taking off"};
                                  }});
 
-  // NOTE: CommandSink gained a `nowSeconds` member (used to stamp renderServiceResult()'s
-  // post-call clear-timer, see status_model.cpp) after this test's literal brief text was
-  // written. It is called unconditionally at every service-result call site, so leaving it
-  // default-constructed would throw std::bad_function_call the first time a submenu/turbo action
-  // runs; wired to a fixed value since no test below inspects it.
-  sink.nowSeconds = []() { return 0.0; };
-
   return sink;
 }
 

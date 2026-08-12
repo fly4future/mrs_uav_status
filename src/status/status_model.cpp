@@ -16,15 +16,15 @@ namespace mrs_uav_status::status
 
 /* StatusModel() //{ */
 
-StatusModel::StatusModel(CommandSink command_sink, Params params)
-    : command_sink_(std::move(command_sink)), params_(std::move(params)), goto_values_(params_.goto_values) {
+StatusModel::StatusModel(CommandSink command_sink, Params params, Clock clock)
+    : command_sink_(std::move(command_sink)), clock_(std::move(clock)), params_(std::move(params)), goto_values_(params_.goto_values) {
   goto_values_.resize(4, 0.0);
 
-  // nowSeconds is a hard dependency of every service-result path (unlike command_sink_'s other
-  // std::function members, which are only reached via user interaction) -- guard against a caller
-  // leaving it unset so those call sites don't throw std::bad_function_call.
-  if (!command_sink_.nowSeconds) {
-    command_sink_.nowSeconds = [] { return 0.0; };
+  // clock_.now is a hard dependency of every service-result path (unlike command_sink_'s
+  // std::function members, which are only reached via user interaction) -- guard against a
+  // caller leaving it unset so those call sites don't throw std::bad_function_call.
+  if (!clock_.now) {
+    clock_.now = [] { return 0.0; };
   }
 }
 
@@ -336,7 +336,7 @@ bool StatusModel::mainMenuHandler(int key, tui::TuiActions &tui) {
       }
 
       const auto result = row.action();
-      tui.renderServiceResult(result.success, result.message, command_sink_.nowSeconds());
+      tui.renderServiceResult(result.success, result.message, clock_.now());
       sub_menu_rows_.clear();
       return true;
     }
@@ -395,7 +395,7 @@ bool StatusModel::gotoMenuHandler(int key, tui::TuiActions &tui) {
     }
 
     const auto result = command_sink_.sendGoto(event.x, event.y, event.z, event.heading, frame_id);
-    tui.renderServiceResult(result.success, result.message, command_sink_.nowSeconds());
+    tui.renderServiceResult(result.success, result.message, clock_.now());
     return true;
   }
 
@@ -506,7 +506,7 @@ void StatusModel::toggleTurboRemote(tui::TuiActions &tui) {
     // Toggle down turbo remote after new pressed T
     turbo_remote_     = false;
     const auto result = command_sink_.setConstraints(old_constraints_);
-    tui.renderServiceResult(result.success, result.message, command_sink_.nowSeconds());
+    tui.renderServiceResult(result.success, result.message, clock_.now());
     return;
   }
 
@@ -517,7 +517,7 @@ void StatusModel::toggleTurboRemote(tui::TuiActions &tui) {
     old_constraints_ = last_control_info_.active_constraints;
   }
   const auto result = command_sink_.setConstraints(params_.turbo_remote_constraints);
-  tui.renderServiceResult(result.success, result.message, command_sink_.nowSeconds());
+  tui.renderServiceResult(result.success, result.message, clock_.now());
 }
 
 //}

@@ -223,13 +223,14 @@ void RosStatus::initialize() {
   };
 
   status::CommandSink command_sink = buildCommandSink(service_list, uav_name);
+  status::Clock       model_clock{.now = [this]() { return clock_->now().seconds(); }};
 
   tui_ = std::make_unique<tui::TUI>(tui_params);
   tui_->updateTermSize();
   tui_->setupWindows();
   tui_->loadDisplayConfig();
 
-  model_ = std::make_unique<status::StatusModel>(std::move(command_sink), model_params);
+  model_ = std::make_unique<status::StatusModel>(std::move(command_sink), model_params, model_clock);
 
   // | ------------------------- Timers ------------------------- |
 
@@ -357,8 +358,6 @@ status::CommandSink RosStatus::buildCommandSink(const std::vector<std::string> &
     }
     return {response.value()->success, response.value()->message};
   };
-
-  command_sink.nowSeconds = [this]() { return clock_->now().seconds(); };
 
   sc_extra_services_.reserve(service_list.size());
   for (const auto &service_input : service_list) {

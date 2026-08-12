@@ -11,6 +11,7 @@
 #include <mrs_uav_status/status/data_types.hpp>
 #include <mrs_uav_status/status/string_info.hpp>
 #include <mrs_uav_status/status/command_sink.hpp>
+#include <mrs_uav_status/status/clock.hpp>
 #include <mrs_uav_status/tui/tui_actions.hpp>
 
 //}
@@ -39,8 +40,9 @@ public:
     std::vector<double> goto_values;              // initial X/Y/Z/heading offered by the goto menu
   };
 
-  // All outbound ROS actions are dispatched through command_sink.
-  StatusModel(CommandSink command_sink, Params params);
+  // All outbound ROS actions are dispatched through command_sink; clock is read for
+  // post-service-call timestamps (defaults to always-0.0 if left unset, e.g. in tests).
+  StatusModel(CommandSink command_sink, Params params, Clock clock = {});
 
   // Stores the per-topic freshness for this tick. Call once before every tick().
   void setFreshness(const Freshness &freshness);
@@ -131,6 +133,7 @@ private:
   static bool isValidIndex(int index, std::size_t container_size);
 
   CommandSink command_sink_;
+  Clock       clock_;
   Params      params_;
 
   std::vector<MainMenuRow> main_menu_rows_;
