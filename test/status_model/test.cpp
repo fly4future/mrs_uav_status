@@ -49,48 +49,110 @@ public:
   bool remote_banner_global        = false;
   bool remote_mode_active          = false;
 
+  /* showMainMenu() //{ */
+
   void showMainMenu(const std::vector<std::string> &labels) override {
     main_menu_labels = labels;
     show_main_menu_calls++;
   }
+
+  //}
+
+  /* showSubMenu() //{ */
+
   void showSubMenu(const std::vector<std::string> &labels) override {
     sub_menu_labels = labels;
     show_sub_menu_calls++;
   }
+
+  //}
+
+  /* closeSubMenu() //{ */
+
   void closeSubMenu() override {
     close_sub_menu_calls++;
   }
+
+  //}
+
+  /* handleMainMenuKey() //{ */
+
   tui::MenuEvent handleMainMenuKey(int) override {
     return next_menu_event;
   }
+
+  //}
+
+  /* showGotoMenu() //{ */
+
   void showGotoMenu(const std::vector<std::string> &labels, const std::vector<double> &initial_values) override {
     goto_menu_labels    = labels;
     goto_initial_values = initial_values;
     show_goto_menu_calls++;
   }
+
+  //}
+
+  /* handleGotoMenuKey() //{ */
+
   tui::GotoEvent handleGotoMenuKey(int) override {
     return next_goto_event;
   }
+
+  //}
+
+  /* setupDisplayMenu() //{ */
+
   void setupDisplayMenu() override {
     setup_display_menu_calls++;
   }
+
+  //}
+
+  /* displayMenuHandler() //{ */
+
   bool displayMenuHandler(int) override {
     return display_menu_should_close;
   }
+
+  //}
+
+  /* clearMenus() //{ */
+
   void clearMenus() override {
     clear_menus_calls++;
   }
+
+  //}
+
+  /* refreshAfterMenu() //{ */
+
   void refreshAfterMenu() override {
     refresh_after_menu_calls++;
   }
+
+  //}
+
+  /* setRemoteMode() //{ */
+
   void setRemoteMode(bool in_remote_mode) override {
     remote_mode_active = in_remote_mode;
   }
+
+  //}
+
+  /* renderRemoteBanner() //{ */
+
   void renderRemoteBanner(bool turbo, bool global) override {
     remote_banner_turbo  = turbo;
     remote_banner_global = global;
     remote_banner_calls++;
   }
+
+  //}
+
+  /* renderServiceResult() //{ */
+
   // NOTE: TuiActions::renderServiceResult gained a third parameter (`now_seconds`, the
   // post-service-call wall clock used to stamp the bottom-window clear timer) after this test's
   // literal brief text was written. Overriding a pure virtual with a mismatched signature is a
@@ -98,30 +160,77 @@ public:
   void renderServiceResult(bool success, const std::string &message, double /*now_seconds*/) override {
     service_results.push_back((success ? "OK: " : "FAIL: ") + message);
   }
+
+  //}
+
+  /* toggleHelp() //{ */
+
   void toggleHelp() override {
     toggle_help_calls++;
   }
+
+  //}
+
+  /* cyclePanes() //{ */
+
   void cyclePanes() override {
     cycle_panes_calls++;
   }
+
+  //}
+
+  /* selectPane() //{ */
+
   void selectPane(std::size_t idx) override {
     select_pane_last_idx = static_cast<int>(idx);
   }
+
+  //}
+
+  /* toggleMini() //{ */
+
   void toggleMini() override {
     toggle_mini_calls++;
   }
+
+  //}
+
+  /* setupWindows() //{ */
+
   void setupWindows() override {
   }
+
+  //}
+
+  /* renderFast() //{ */
+
   void renderFast() override {
   }
+
+  //}
+
+  /* renderSlow() //{ */
+
   void renderSlow() override {
   }
+
+  //}
+
+  /* flushInput() //{ */
+
   void flushInput() override {
     flush_input_calls++;
   }
+
+  //}
+
+  /* refreshBottomWindow() //{ */
+
   void refreshBottomWindow() override {
     refresh_bottom_window_calls++;
   }
+
+  //}
 };
 
 // Records every outbound service call the model makes.
@@ -135,6 +244,8 @@ struct SinkLog
   double      goto_x = 0.0, goto_y = 0.0, goto_z = 0.0, goto_hdg = 0.0;
   std::string goto_frame;
 };
+
+/* makeSink() //{ */
 
 CommandSink makeSink(SinkLog &log) {
   CommandSink sink;
@@ -198,10 +309,18 @@ CommandSink makeSink(SinkLog &log) {
   return sink;
 }
 
+//}
+
+/* defaultParams() //{ */
+
 // Mirrors config/public/default.yaml.
 StatusModel::Params defaultParams() {
   return StatusModel::Params{.turbo_remote_constraints = "fast", .goto_values = {0.0, 0.0, 2.0, 1.57}};
 }
+
+//}
+
+/* flyingControlInfo() //{ */
 
 // A ControlInfo that reads as "airborne, under MpcTracker, on the 'medium' constraint set".
 ControlInfoData flyingControlInfo() {
@@ -218,33 +337,57 @@ ControlInfoData flyingControlInfo() {
   return ci;
 }
 
+//}
+
+/* tick() //{ */
+
 void tick(StatusModel &model, FakeTui &tui, int key, double now_seconds = 0.0) {
   model.setFreshness(Freshness{});
   model.tick(now_seconds, key, tui);
 }
+
+//}
+
+/* indexOf() //{ */
 
 int indexOf(const std::vector<std::string> &labels, const std::string &label) {
   const auto it = std::find(labels.begin(), labels.end(), label);
   return (it == labels.end()) ? -1 : static_cast<int>(std::distance(labels.begin(), it));
 }
 
+//}
+
+/* selectMain() //{ */
+
 tui::MenuEvent selectMain(int index) {
   return tui::MenuEvent{tui::MenuEvent::Kind::Selected, false, index};
 }
+
+//}
+
+/* selectSub() //{ */
 
 tui::MenuEvent selectSub(int index) {
   return tui::MenuEvent{tui::MenuEvent::Kind::Selected, true, index};
 }
 
+//}
+
 } // namespace
 
 // | --------------------- Top-level FSM ---------------------- |
+
+/* TEST(StatusModel, StartsInStandardState) //{ */
 
 TEST(StatusModel, StartsInStandardState) {
   SinkLog     log;
   StatusModel sm(makeSink(log), defaultParams());
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
 }
+
+//}
+
+/* TEST(StatusModel, UnrecognizedKeyInStandardFlushesInput) //{ */
 
 TEST(StatusModel, UnrecognizedKeyInStandardFlushesInput) {
   SinkLog     log;
@@ -257,6 +400,10 @@ TEST(StatusModel, UnrecognizedKeyInStandardFlushesInput) {
   EXPECT_EQ(tui.flush_input_calls, 1);
 }
 
+//}
+
+/* TEST(StatusModel, NumberKeySelectsPaneByZeroBasedIndex) //{ */
+
 TEST(StatusModel, NumberKeySelectsPaneByZeroBasedIndex) {
   SinkLog     log;
   StatusModel sm(makeSink(log), defaultParams());
@@ -266,6 +413,10 @@ TEST(StatusModel, NumberKeySelectsPaneByZeroBasedIndex) {
 
   EXPECT_EQ(tui.select_pane_last_idx, 2);
 }
+
+//}
+
+/* TEST(StatusModel, RefreshesBottomWindowOnlyOutsideMenuStates) //{ */
 
 TEST(StatusModel, RefreshesBottomWindowOnlyOutsideMenuStates) {
   SinkLog     log;
@@ -279,6 +430,10 @@ TEST(StatusModel, RefreshesBottomWindowOnlyOutsideMenuStates) {
   tick(sm, tui, 'm');                            // STANDARD -> MAIN_MENU
   EXPECT_EQ(tui.refresh_bottom_window_calls, 1); // unchanged: now in a menu state
 }
+
+//}
+
+/* TEST(StatusModel, DisplayMenuOpensAndClosesOnHandlerReturningTrue) //{ */
 
 TEST(StatusModel, DisplayMenuOpensAndClosesOnHandlerReturningTrue) {
   SinkLog     log;
@@ -298,7 +453,11 @@ TEST(StatusModel, DisplayMenuOpensAndClosesOnHandlerReturningTrue) {
   EXPECT_EQ(tui.refresh_after_menu_calls, 0);
 }
 
+//}
+
 // | ------------------------ Main menu ------------------------ |
+
+/* TEST(StatusModel, MainMenuHidesTakeoffWhileFlying) //{ */
 
 TEST(StatusModel, MainMenuHidesTakeoffWhileFlying) {
   SinkLog     log;
@@ -316,6 +475,10 @@ TEST(StatusModel, MainMenuHidesTakeoffWhileFlying) {
   EXPECT_NE(indexOf(tui.main_menu_labels, "Set Constraints"), -1);
 }
 
+//}
+
+/* TEST(StatusModel, MainMenuHidesLandUnderNullTracker) //{ */
+
 TEST(StatusModel, MainMenuHidesLandUnderNullTracker) {
   SinkLog     log;
   StatusModel sm(makeSink(log), defaultParams());
@@ -330,6 +493,10 @@ TEST(StatusModel, MainMenuHidesLandUnderNullTracker) {
   EXPECT_EQ(indexOf(tui.main_menu_labels, "Land"), -1);
   EXPECT_NE(indexOf(tui.main_menu_labels, "Takeoff"), -1);
 }
+
+//}
+
+/* TEST(StatusModel, SelectingASetterRowOpensASubmenuWithTheActiveOptionFirst) //{ */
 
 TEST(StatusModel, SelectingASetterRowOpensASubmenuWithTheActiveOptionFirst) {
   SinkLog     log;
@@ -346,6 +513,10 @@ TEST(StatusModel, SelectingASetterRowOpensASubmenuWithTheActiveOptionFirst) {
   EXPECT_EQ(tui.show_sub_menu_calls, 1);
   EXPECT_EQ(tui.sub_menu_labels, (std::vector<std::string>{"medium", "slow", "fast"}));
 }
+
+//}
+
+/* TEST(StatusModel, SubmenuLabelsAreBuiltAtSelectionTimeNotMenuBuildTime) //{ */
 
 TEST(StatusModel, SubmenuLabelsAreBuiltAtSelectionTimeNotMenuBuildTime) {
   SinkLog     log;
@@ -366,6 +537,10 @@ TEST(StatusModel, SubmenuLabelsAreBuiltAtSelectionTimeNotMenuBuildTime) {
 
   EXPECT_EQ(tui.sub_menu_labels, (std::vector<std::string>{"slow", "fast"}));
 }
+
+//}
+
+/* TEST(StatusModel, SubmenuSelectionCallsTheServiceAndClosesTheWholeMenu) //{ */
 
 TEST(StatusModel, SubmenuSelectionCallsTheServiceAndClosesTheWholeMenu) {
   SinkLog     log;
@@ -389,6 +564,10 @@ TEST(StatusModel, SubmenuSelectionCallsTheServiceAndClosesTheWholeMenu) {
   EXPECT_EQ(tui.clear_menus_calls, 1);
   EXPECT_EQ(tui.refresh_after_menu_calls, 1);
 }
+
+//}
+
+/* TEST(StatusModel, SubmenuCancelRowBacksOutToTheMainMenu) //{ */
 
 TEST(StatusModel, SubmenuCancelRowBacksOutToTheMainMenu) {
   SinkLog     log;
@@ -416,6 +595,10 @@ TEST(StatusModel, SubmenuCancelRowBacksOutToTheMainMenu) {
   EXPECT_EQ(log.calls, (std::vector<std::string>{"Land"}));
 }
 
+//}
+
+/* TEST(StatusModel, EscapeInASubmenuClosesOnlyTheSubmenu) //{ */
+
 TEST(StatusModel, EscapeInASubmenuClosesOnlyTheSubmenu) {
   SinkLog     log;
   StatusModel sm(makeSink(log), defaultParams());
@@ -435,6 +618,10 @@ TEST(StatusModel, EscapeInASubmenuClosesOnlyTheSubmenu) {
   EXPECT_EQ(tui.clear_menus_calls, 0);
 }
 
+//}
+
+/* TEST(StatusModel, EscapeInTheMainMenuClosesEverything) //{ */
+
 TEST(StatusModel, EscapeInTheMainMenuClosesEverything) {
   SinkLog     log;
   StatusModel sm(makeSink(log), defaultParams());
@@ -452,7 +639,11 @@ TEST(StatusModel, EscapeInTheMainMenuClosesEverything) {
   EXPECT_EQ(tui.refresh_after_menu_calls, 1);
 }
 
+//}
+
 // | -------------------------- Goto --------------------------- |
+
+/* TEST(StatusModel, GotoMenuSeedsFromParamsAndLabelsTheCurrentFrame) //{ */
 
 TEST(StatusModel, GotoMenuSeedsFromParamsAndLabelsTheCurrentFrame) {
   SinkLog     log;
@@ -471,6 +662,10 @@ TEST(StatusModel, GotoMenuSeedsFromParamsAndLabelsTheCurrentFrame) {
   EXPECT_EQ(tui.goto_menu_labels[4], " uav1/world_origin ");
   EXPECT_EQ(tui.goto_initial_values, (std::vector<double>{0.0, 0.0, 2.0, 1.57}));
 }
+
+//}
+
+/* TEST(StatusModel, GotoCommitSendsTheReferenceInTheCurrentFrameAndIsRemembered) //{ */
 
 TEST(StatusModel, GotoCommitSendsTheReferenceInTheCurrentFrameAndIsRemembered) {
   SinkLog     log;
@@ -501,6 +696,10 @@ TEST(StatusModel, GotoCommitSendsTheReferenceInTheCurrentFrameAndIsRemembered) {
   EXPECT_EQ(tui.goto_initial_values, (std::vector<double>{1.5, -2.5, 3.0, 0.75}));
 }
 
+//}
+
+/* TEST(StatusModel, GotoEscapeClosesWithoutCallingTheService) //{ */
+
 TEST(StatusModel, GotoEscapeClosesWithoutCallingTheService) {
   SinkLog     log;
   StatusModel sm(makeSink(log), defaultParams());
@@ -517,7 +716,11 @@ TEST(StatusModel, GotoEscapeClosesWithoutCallingTheService) {
   EXPECT_EQ(tui.refresh_after_menu_calls, 0);
 }
 
+//}
+
 // | ------------------------- Remote -------------------------- |
+
+/* TEST(StatusModel, EntersRemoteModeOnRWhenFlyingNormally) //{ */
 
 TEST(StatusModel, EntersRemoteModeOnRWhenFlyingNormally) {
   SinkLog     log;
@@ -532,6 +735,10 @@ TEST(StatusModel, EntersRemoteModeOnRWhenFlyingNormally) {
   EXPECT_TRUE(tui.remote_mode_active);
 }
 
+//}
+
+/* TEST(StatusModel, DoesNotEnterRemoteModeWhenNotFlyingNormally) //{ */
+
 TEST(StatusModel, DoesNotEnterRemoteModeWhenNotFlyingNormally) {
   SinkLog     log;
   StatusModel sm(makeSink(log), defaultParams());
@@ -542,6 +749,10 @@ TEST(StatusModel, DoesNotEnterRemoteModeWhenNotFlyingNormally) {
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
   EXPECT_FALSE(tui.remote_mode_active);
 }
+
+//}
+
+/* TEST(StatusModel, ExitsRemoteModeOnSecondR) //{ */
 
 TEST(StatusModel, ExitsRemoteModeOnSecondR) {
   SinkLog     log;
@@ -559,6 +770,10 @@ TEST(StatusModel, ExitsRemoteModeOnSecondR) {
   EXPECT_FALSE(tui.remote_mode_active);
 }
 
+//}
+
+/* TEST(StatusModel, ExitsRemoteModeOnEscape) //{ */
+
 TEST(StatusModel, ExitsRemoteModeOnEscape) {
   SinkLog     log;
   StatusModel sm(makeSink(log), defaultParams());
@@ -574,6 +789,10 @@ TEST(StatusModel, ExitsRemoteModeOnEscape) {
   EXPECT_EQ(sm.state(), StatusState::STANDARD);
   EXPECT_FALSE(tui.remote_mode_active);
 }
+
+//}
+
+/* TEST(StatusModel, RemoteMotionSendsVelocityInTheFcuFrameAndDrawsTheBanner) //{ */
 
 TEST(StatusModel, RemoteMotionSendsVelocityInTheFcuFrameAndDrawsTheBanner) {
   SinkLog     log;
@@ -597,6 +816,10 @@ TEST(StatusModel, RemoteMotionSendsVelocityInTheFcuFrameAndDrawsTheBanner) {
   EXPECT_FALSE(tui.remote_banner_global);
 }
 
+//}
+
+/* TEST(StatusModel, ArrowKeysMapToTheSameMotionsAsWasd) //{ */
+
 TEST(StatusModel, ArrowKeysMapToTheSameMotionsAsWasd) {
   SinkLog     log;
   StatusModel sm(makeSink(log), defaultParams());
@@ -612,6 +835,10 @@ TEST(StatusModel, ArrowKeysMapToTheSameMotionsAsWasd) {
 
   EXPECT_DOUBLE_EQ(log.vy, -2.0);
 }
+
+//}
+
+/* TEST(StatusModel, GlobalToggleSwitchesTheVelocityFrame) //{ */
 
 TEST(StatusModel, GlobalToggleSwitchesTheVelocityFrame) {
   SinkLog     log;
@@ -630,6 +857,10 @@ TEST(StatusModel, GlobalToggleSwitchesTheVelocityFrame) {
   EXPECT_EQ(log.velocity_frame, "uav1/world_origin");
   EXPECT_TRUE(tui.remote_banner_global);
 }
+
+//}
+
+/* TEST(StatusModel, TurboSwapsConstraintsAndRestoresThePreviousSet) //{ */
 
 TEST(StatusModel, TurboSwapsConstraintsAndRestoresThePreviousSet) {
   SinkLog     log;
@@ -658,6 +889,10 @@ TEST(StatusModel, TurboSwapsConstraintsAndRestoresThePreviousSet) {
   EXPECT_FALSE(tui.remote_banner_turbo);
 }
 
+//}
+
+/* TEST(StatusModel, UnmappedRemoteKeyHoversOnceAfterAMotionCommand) //{ */
+
 TEST(StatusModel, UnmappedRemoteKeyHoversOnceAfterAMotionCommand) {
   SinkLog     log;
   StatusModel sm(makeSink(log), defaultParams());
@@ -680,7 +915,11 @@ TEST(StatusModel, UnmappedRemoteKeyHoversOnceAfterAMotionCommand) {
   EXPECT_EQ(log.calls.size(), 2u);
 }
 
+//}
+
 // | --------------------- Snapshot / strings ------------------ |
+
+/* TEST(StatusModel, SnapshotCarriesLatestDataFreshnessAndBorderStatus) //{ */
 
 TEST(StatusModel, SnapshotCarriesLatestDataFreshnessAndBorderStatus) {
   SinkLog     log;
@@ -714,6 +953,10 @@ TEST(StatusModel, SnapshotCarriesLatestDataFreshnessAndBorderStatus) {
   EXPECT_TRUE(snap.border_status.bumper_active);
 }
 
+//}
+
+/* TEST(StatusModel, DisplayStringIsStoredWithoutItsFlagPreamble) //{ */
+
 TEST(StatusModel, DisplayStringIsStoredWithoutItsFlagPreamble) {
   SinkLog     log;
   StatusModel sm(makeSink(log), defaultParams());
@@ -724,6 +967,10 @@ TEST(StatusModel, DisplayStringIsStoredWithoutItsFlagPreamble) {
   ASSERT_EQ(snap.display_strings.size(), 1u);
   EXPECT_EQ(snap.display_strings[0], "hello world");
 }
+
+//}
+
+/* TEST(StatusModel, DisplayStringIsDedupedById) //{ */
 
 TEST(StatusModel, DisplayStringIsDedupedById) {
   SinkLog     log;
@@ -736,6 +983,10 @@ TEST(StatusModel, DisplayStringIsDedupedById) {
   ASSERT_EQ(snap.display_strings.size(), 1u);
   EXPECT_EQ(snap.display_strings[0], "second");
 }
+
+//}
+
+/* TEST(StatusModel, NonPersistentDisplayStringExpiresAfterTenSeconds) //{ */
 
 TEST(StatusModel, NonPersistentDisplayStringExpiresAfterTenSeconds) {
   SinkLog     log;
@@ -750,6 +1001,10 @@ TEST(StatusModel, NonPersistentDisplayStringExpiresAfterTenSeconds) {
   EXPECT_TRUE(sm.snapshot(12.0).display_strings.empty());
 }
 
+//}
+
+/* TEST(StatusModel, PersistentDisplayStringSurvivesExpiry) //{ */
+
 TEST(StatusModel, PersistentDisplayStringSurvivesExpiry) {
   SinkLog     log;
   StatusModel sm(makeSink(log), defaultParams());
@@ -762,5 +1017,7 @@ TEST(StatusModel, PersistentDisplayStringSurvivesExpiry) {
   ASSERT_EQ(sm.snapshot(120.0).display_strings.size(), 1u);
   EXPECT_EQ(sm.snapshot(120.0).display_strings[0], "forever");
 }
+
+//}
 
 } // namespace mrs_uav_status::status
