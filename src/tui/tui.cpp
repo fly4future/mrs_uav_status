@@ -26,10 +26,16 @@ static_assert(static_cast<int>(Key::Right) == KEY_RIGHT, "tui::Key::Right drifte
 static_assert(static_cast<int>(Key::Delete) == KEY_DC, "tui::Key::Delete drifted from ncurses KEY_DC");
 
 
+/* TUI() //{ */
+
 TUI::TUI(const TUI::TUIParams &params) : params_(params) {
 
   light_scheme_ = (params_.colorscheme.find("COLORSCHEME_LIGHT") != std::string::npos);
 }
+
+//}
+
+/* initTerminal() //{ */
 
 void TUI::initTerminal() {
   initscr();
@@ -46,25 +52,49 @@ void TUI::initTerminal() {
   attron(A_BOLD);
 }
 
+//}
+
+/* shutdownTerminal() //{ */
+
 void TUI::shutdownTerminal() {
   endwin();
 }
+
+//}
+
+/* pollKey() //{ */
 
 int TUI::pollKey() {
   return getch();
 }
 
+//}
+
+/* flushInput() //{ */
+
 void TUI::flushInput() {
   flushinp();
 }
+
+//}
+
+/* commitFrame() //{ */
 
 void TUI::commitFrame() {
   doupdate();
 }
 
+//}
+
+/* setSnapshot() //{ */
+
 void TUI::setSnapshot(const status::RenderSnapshot &snapshot) {
   snapshot_ = snapshot;
 }
+
+//}
+
+/* tickSlowCounter() //{ */
 
 void TUI::tickSlowCounter() {
   increment_counter_ = !increment_counter_;
@@ -73,6 +103,10 @@ void TUI::tickSlowCounter() {
     estimator_display_counter_ = 0;
   }
 }
+
+//}
+
+/* updateTermSize() //{ */
 
 bool TUI::updateTermSize() {
 
@@ -105,6 +139,10 @@ bool TUI::updateTermSize() {
 
   return (changed);
 }
+
+//}
+
+/* setupWindows() //{ */
 
 void TUI::setupWindows() {
 
@@ -148,6 +186,10 @@ void TUI::setupWindows() {
   light_scheme_ = tui::setupColors(params_.colorscheme, params_.colorblind_mode);
 }
 
+//}
+
+/* resize() //{ */
+
 bool TUI::resize() {
   if (!updateTermSize()) {
     return false;
@@ -160,36 +202,68 @@ bool TUI::resize() {
   return false;
 }
 
+//}
+
+/* toggleMini() //{ */
+
 void TUI::toggleMini() {
   params_.start_minimized = !params_.start_minimized;
 }
+
+//}
+
+/* toggleHelp() //{ */
 
 void TUI::toggleHelp() {
   help_active_ = !help_active_;
 }
 
+//}
+
+/* setRemoteMode() //{ */
+
 void TUI::setRemoteMode(bool in_remote_mode) {
   in_remote_mode_ = in_remote_mode;
 }
+
+//}
+
+/* refreshTopBar() //{ */
 
 void TUI::refreshTopBar() {
   wnoutrefresh(top_bar_window_.get());
 }
 
+//}
+
+/* refreshBottomWindow() //{ */
+
 void TUI::refreshBottomWindow() {
   wnoutrefresh(bottom_window_.get());
 }
+
+//}
+
+/* refreshAfterMenu() //{ */
 
 void TUI::refreshAfterMenu() {
   wnoutrefresh(debug_window_.get());
   wnoutrefresh(bottom_window_.get());
 }
 
+//}
+
+/* renderFast() //{ */
+
 void TUI::renderFast() {
   topLineHandler();
   renderTmuxOrHelp();
   uavStateHandler();
 }
+
+//}
+
+/* renderSlow() //{ */
 
 void TUI::renderSlow() {
   tickSlowCounter();
@@ -198,6 +272,10 @@ void TUI::renderSlow() {
   paneHandler();
   generalInfoHandler();
 }
+
+//}
+
+/* generalInfoHandler() //{ */
 
 void TUI::generalInfoHandler() {
   WINDOW *win = general_info_window_.get();
@@ -243,17 +321,33 @@ void TUI::generalInfoHandler() {
   wnoutrefresh(win);
 }
 
+//}
+
+/* cyclePanes() //{ */
+
 void TUI::cyclePanes() {
   pane_box_.cycle();
 }
+
+//}
+
+/* selectPane() //{ */
 
 void TUI::selectPane(std::size_t idx) {
   pane_box_.select(idx);
 }
 
+//}
+
+/* paneHandler() //{ */
+
 void TUI::paneHandler() {
   pane_box_.render(pane_window_.get(), snapshot_, light_scheme_, params_.start_minimized);
 }
+
+//}
+
+/* uavStateHandler() //{ */
 
 void TUI::uavStateHandler() {
   WINDOW     *win = uav_state_window_.get();
@@ -455,6 +549,10 @@ void TUI::uavStateHandler() {
   wnoutrefresh(win);
 }
 
+//}
+
+/* controlManagerHandler() //{ */
+
 void TUI::controlManagerHandler() {
   WINDOW *win = control_manager_window_.get();
 
@@ -626,6 +724,10 @@ void TUI::controlManagerHandler() {
   wattroff(win, A_BOLD);
   wnoutrefresh(win);
 }
+
+//}
+
+/* hwApiStateHandler() //{ */
 
 void TUI::hwApiStateHandler() {
   WINDOW     *win = hw_api_state_window_.get();
@@ -991,6 +1093,10 @@ void TUI::hwApiStateHandler() {
   wnoutrefresh(win);
 }
 
+//}
+
+/* topLineHandler() //{ */
+
 void TUI::topLineHandler() {
   WINDOW *win = top_bar_window_.get();
   werase(win);
@@ -1113,7 +1219,11 @@ void TUI::topLineHandler() {
   wnoutrefresh(win);
 }
 
+//}
+
 // | --------------------- Bottom-window helpers --------------- |
+
+/* blankBottomWindow() //{ */
 
 void TUI::blankBottomWindow() {
   if (snapshot_.now_seconds - bottom_window_clear_time_s_ > 3.0) {
@@ -1121,22 +1231,38 @@ void TUI::blankBottomWindow() {
   }
 }
 
+//}
+
+/* renderServiceResult() //{ */
+
 void TUI::renderServiceResult(bool success, const std::string &message, double now_seconds) {
   printServiceResult(bottom_window_.get(), light_scheme_, success, message);
   // Stamped from the caller's post-call wall clock, not the stale tick-start snapshot_.now_seconds.
   bottom_window_clear_time_s_ = now_seconds;
 }
 
+//}
+
 // | --------------------- Menu helpers ----------------------- |
+
+/* isValidMenuIndex() //{ */
 
 bool TUI::isValidMenuIndex(int index, size_t container_size) {
   return index >= 0 && static_cast<size_t>(index) < container_size;
 }
 
+//}
+
+/* clearMenus() //{ */
+
 void TUI::clearMenus() {
   menu_vec_.clear();
   submenu_vec_.clear();
 }
+
+//}
+
+/* createSubMenu() //{ */
 
 void TUI::createSubMenu(std::vector<std::string> &submenu_entries) {
   submenu_vec_.clear();
@@ -1155,7 +1281,11 @@ void TUI::createSubMenu(std::vector<std::string> &submenu_entries) {
   }
 }
 
+//}
+
 // | --------------------- Main menu ----------------------- |
+
+/* showMainMenu() //{ */
 
 void TUI::showMainMenu(const std::vector<std::string> &labels) {
   main_menu_text_ = labels;
@@ -1164,14 +1294,26 @@ void TUI::showMainMenu(const std::vector<std::string> &labels) {
   menu_vec_.push_back(menu);
 }
 
+//}
+
+/* showSubMenu() //{ */
+
 void TUI::showSubMenu(const std::vector<std::string> &labels) {
   std::vector<std::string> entries = labels;
   createSubMenu(entries);
 }
 
+//}
+
+/* closeSubMenu() //{ */
+
 void TUI::closeSubMenu() {
   submenu_vec_.clear();
 }
+
+//}
+
+/* handleMainMenuKey() //{ */
 
 MenuEvent TUI::handleMainMenuKey(int key) {
   MenuEvent event;
@@ -1215,7 +1357,11 @@ MenuEvent TUI::handleMainMenuKey(int key) {
   return event;
 }
 
+//}
+
 // | --------------------- Goto menu ----------------------- |
+
+/* showGotoMenu() //{ */
 
 void TUI::showGotoMenu(const std::vector<std::string> &labels, const std::vector<double> &initial_values) {
   goto_menu_inputs_.clear();
@@ -1229,6 +1375,10 @@ void TUI::showGotoMenu(const std::vector<std::string> &labels, const std::vector
     goto_menu_inputs_.push_back(ControlBar(8, menu.getWin(), seed));
   }
 }
+
+//}
+
+/* handleGotoMenuKey() //{ */
 
 GotoEvent TUI::handleGotoMenuKey(int key) {
   GotoEvent event;
@@ -1267,7 +1417,11 @@ GotoEvent TUI::handleGotoMenuKey(int key) {
   return event;
 }
 
+//}
+
 // | --------------------- Display menu ----------------------- |
+
+/* setupDisplayText() //{ */
 
 void TUI::setupDisplayText() {
   display_menu_text_.clear();
@@ -1290,12 +1444,20 @@ void TUI::setupDisplayText() {
   }
 }
 
+//}
+
+/* setupDisplayMenu() //{ */
+
 void TUI::setupDisplayMenu() {
   setupDisplayText();
 
   StatusWindow menu(1, 32, display_menu_text_);
   menu_vec_.push_back(menu);
 }
+
+//}
+
+/* displayMenuHandler() //{ */
 
 bool TUI::displayMenuHandler(int key) {
 
@@ -1330,6 +1492,10 @@ bool TUI::displayMenuHandler(int key) {
   return false;
 }
 
+//}
+
+/* loadDisplayConfig() //{ */
+
 void TUI::loadDisplayConfig() {
   if (!std::filesystem::exists(params_.display_config_filename)) {
     return;
@@ -1356,7 +1522,11 @@ void TUI::loadDisplayConfig() {
   setupDisplayText();
 }
 
+//}
+
 // | -------------------------- Remote -------------------------- |
+
+/* renderRemoteBanner() //{ */
 
 void TUI::renderRemoteBanner(bool turbo, bool global) {
   WINDOW *win = top_bar_window_.get();
@@ -1389,6 +1559,10 @@ void TUI::renderRemoteBanner(bool turbo, bool global) {
   wattroff(win, A_BOLD);
 }
 
+//}
+
+/* renderTmuxOrHelp() //{ */
+
 void TUI::renderTmuxOrHelp() {
   if (params_.start_minimized) {
     return;
@@ -1414,5 +1588,7 @@ void TUI::renderTmuxOrHelp() {
     printHelp(debug_window, help_active_);
   }
 }
+
+//}
 
 } // namespace mrs_uav_status::tui
