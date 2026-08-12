@@ -155,6 +155,8 @@ void RosStatus::initialize() {
   cbkgrp_timers_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   cbkgrp_sc_     = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
+  // | ------------------------- Parameters ------------------------- |
+
   mrs_lib::ParamLoader param_loader(node_);
 
   std::string custom_config_path;
@@ -198,6 +200,8 @@ void RosStatus::initialize() {
     exit(1);
   }
   RCLCPP_INFO(node_->get_logger(), "All params loaded!");
+
+  // | --------------------- TUI & StatusModel --------------------- |
 
   const std::string         display_config_filename = pwd + "/.mrs_status_display_config~";
   const std::vector<double> goto_values(goto_values_mat.data(), goto_values_mat.data() + goto_values_mat.size());
@@ -260,6 +264,8 @@ void RosStatus::initialize() {
   // Custom-display string topic — anything published here lands in the TUI's
   // Strings window. Supports "-id <key> -p <space-separated text>" preamble.
   sh_display_string_ = mrs_lib::SubscriberHandler<std_msgs::msg::String>(shopts, "~/display_string_in", &RosStatus::callbackDisplayString, this);
+
+  // | --------------------- Finish the init --------------------- |
 
   profiler_ = mrs_lib::Profiler(node_, "Status", _profiler_enabled_);
 
