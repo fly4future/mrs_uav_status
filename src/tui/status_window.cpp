@@ -43,8 +43,6 @@ int StatusWindow::getLine() const {
 
 //}
 
-//}
-
 /* iterate(int key, bool refresh) //{ */
 
 StatusWindow::Result StatusWindow::iterate(const std::vector<std::string> &text, int key, bool refresh) {
@@ -89,6 +87,8 @@ StatusWindow::Result StatusWindow::iterate(const std::vector<std::string> &text,
   wattroff(win_, A_BOLD);
   return result;
 }
+
+//}
 
 /* iterate() //{ */
 
