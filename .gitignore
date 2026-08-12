@@ -12,3 +12,8 @@
 
 # git worktrees (local scratch, never commit)
 .worktrees/
+
+# Claude Code local files, never commit
+CLAUDE.md
+.claude/
+.superpowers/
