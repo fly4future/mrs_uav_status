@@ -1,3 +1,5 @@
+/* includes //{ */
+
 #include <mrs_uav_status/tui/control_bar.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
 
@@ -5,9 +7,9 @@
 #include <cstdio>
 #include <cstdlib>
 
-namespace mrs_uav_status
-{
-namespace tui
+//}
+
+namespace mrs_uav_status::tui
 {
 
 /* ControlBar() //{ */
@@ -143,5 +145,4 @@ double ControlBar::getDouble() const {
 
 //}
 
-} // namespace tui
-} // namespace mrs_uav_status
+} // namespace mrs_uav_status::tui

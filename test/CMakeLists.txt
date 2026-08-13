@@ -1,21 +1,8 @@
-# NCurses test
+find_package(ament_cmake_gtest REQUIRED)
 
-add_executable(MrsUavStatus_NcursesTest)
+add_subdirectory(uav_status_core)
 
-target_sources(MrsUavStatus_NcursesTest
-  PRIVATE
-    ncurses_test.cpp
-)
-
-target_link_libraries(MrsUavStatus_NcursesTest
-  PRIVATE
-    mrs_lib::mrs_lib
-    Curses::Curses
-)
-
-target_compile_definitions(MrsUavStatus_NcursesTest PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
-
-install(
-  TARGETS MrsUavStatus_NcursesTest
-  DESTINATION lib/${PROJECT_NAME}
+add_test(
+  NAME check_tui_ros_free
+  COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/check_tui_ros_free.sh" "${PROJECT_SOURCE_DIR}"
 )

@@ -1,5 +1,7 @@
 #pragma once
 
+/* includes //{ */
+
 #include <ncurses.h>
 #include <string>
 #include <cmath>
@@ -8,8 +10,12 @@
 #include <mrs_uav_status/tui/constants.hpp>
 #include <mrs_uav_status/utils/terminal.hpp>
 
+//}
+
 namespace mrs_uav_status::tui
 {
+
+/* printLimitedInt() //{ */
 
 // Prints num with the given printf-style format string, switching to "%.0e"-style scientific
 // notation if it exceeds limit so it doesn't overflow its field width.
@@ -27,6 +33,10 @@ inline void printLimitedInt(WINDOW *win, int y, int x, const std::string &str_in
   mvwprintw(win, y, x, str_out.c_str(), num);
 }
 
+//}
+
+/* printLimitedDouble() //{ */
+
 // Same as printLimitedInt(), for a double.
 inline void printLimitedDouble(WINDOW *win, int y, int x, const std::string &str_in, double num, double limit) {
   std::string format_str = str_in;
@@ -42,6 +52,10 @@ inline void printLimitedDouble(WINDOW *win, int y, int x, const std::string &str
   mvwprintw(win, y, x, format_str.c_str(), num);
 }
 
+//}
+
+/* printLimitedString() //{ */
+
 // Prints str_in, truncated to limit characters.
 inline void printLimitedString(WINDOW *win, int y, int x, const std::string &str_in, unsigned long limit) {
   if (str_in.length() > limit) {
@@ -52,6 +66,11 @@ inline void printLimitedString(WINDOW *win, int y, int x, const std::string &str
   }
 }
 
+//}
+
+/* printNoData(WINDOW *win, int y, int x, bool mini) //{ */
+
+// Prints a blinking red "NO DATA" marker at (y, x).
 inline void printNoData(WINDOW *win, int y, int x, [[maybe_unused]] bool mini) {
   // Save/restore instead of wattroff(): ncurses attributes aren't stacked, so a blind
   // wattroff() would clobber a color the caller turned on around this call.
@@ -66,6 +85,11 @@ inline void printNoData(WINDOW *win, int y, int x, [[maybe_unused]] bool mini) {
   wattr_set(win, saved_attrs, saved_pair, nullptr);
 }
 
+//}
+
+/* printNoData(WINDOW *win, int y, int x, const std::string &text, bool mini) //{ */
+
+// Same as above, with a label printed before the "NO DATA" marker.
 inline void printNoData(WINDOW *win, int y, int x, const std::string &text, bool mini) {
   attr_t saved_attrs;
   short  saved_pair;
@@ -77,6 +101,10 @@ inline void printNoData(WINDOW *win, int y, int x, const std::string &text, bool
   wattr_set(win, saved_attrs, saved_pair, nullptr);
   printNoData(win, y, x + static_cast<int>(text.length()), mini);
 }
+
+//}
+
+/* printBox() //{ */
 
 // Draws the window's border, blinking red if avoiding a collision or the bumper is active,
 // or yellow if the drone can't take off and the null tracker is engaged.
@@ -96,6 +124,10 @@ inline void printBox(WINDOW *win, bool avoiding_collision, bool bumper_active, b
   wattroff(win, A_STANDOUT);
 }
 
+//}
+
+/* printServiceResult() //{ */
+
 // Prints a service call's result line, green on success and red on failure.
 inline void printServiceResult(WINDOW *win, bool light, bool success, const std::string &msg) {
   if (light) {
@@ -114,6 +146,10 @@ inline void printServiceResult(WINDOW *win, bool light, bool success, const std:
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
   wattroff(win, A_BOLD);
 }
+
+//}
+
+/* printHelp() //{ */
 
 // Prints the full help text if help_active, otherwise just the "press 'h' for help" hint.
 inline void printHelp(WINDOW *win, bool help_active) {
@@ -144,6 +180,10 @@ inline void printHelp(WINDOW *win, bool help_active) {
   wnoutrefresh(win);
 }
 
+//}
+
+/* printRemoteHelp() //{ */
+
 // Shown instead of printHelp() while in Remote mode, where 'h' is a flight command, not a help toggle.
 inline void printRemoteHelp(WINDOW *win) {
   werase(win);
@@ -154,6 +194,10 @@ inline void printRemoteHelp(WINDOW *win) {
   printLimitedString(win, 5, 0, "   'G'             to switch controlling in the FCU frame (local) or the world frame (global)", 120);
   wnoutrefresh(win);
 }
+
+//}
+
+/* printTmuxDump() //{ */
 
 // Captures up to 2 selected tmux windows via the tmux CLI and prints them into sub1/sub2,
 // with each pane's display_menu_text label along the border.
@@ -201,9 +245,12 @@ inline void printTmuxDump(WINDOW *debug_window, WINDOW *sub1, WINDOW *sub2, cons
   wnoutrefresh(sub2);
 }
 
+//}
+
+/* rateColor() //{ */
+
 // Map a measured Hz against an expected Hz to a ColorPair (Green ≥ 90% expected,
-// Yellow ≥ 50% expected, Red otherwise). Replaces the precomputed *_color fields
-// that the legacy UavStatus blob carried.
+// Yellow ≥ 50% expected, Red otherwise).
 inline int16_t rateColor(double rate, double expected) {
   if (expected <= 0.0) {
     return static_cast<int16_t>(ColorPair::Normal);
@@ -217,7 +264,11 @@ inline int16_t rateColor(double rate, double expected) {
   return static_cast<int16_t>(ColorPair::Red);
 }
 
-// btop-style hotkey hint: render @p word with its first character (the trigger
+//}
+
+/* printHotkey() //{ */
+
+// btop-style hotkey hint: render word with its first character (the trigger
 // key) in red+bold and the remainder in the normal colour. Returns the column
 // just past the word (plus one space) so hints can be chained left-to-right.
 inline int printHotkey(WINDOW *win, int y, int x, const std::string &word) {
@@ -236,5 +287,7 @@ inline int printHotkey(WINDOW *win, int y, int x, const std::string &word) {
 
   return x + static_cast<int>(word.size()) + 1; // +1 for a single-space gap
 }
+
+//}
 
 } // namespace mrs_uav_status::tui

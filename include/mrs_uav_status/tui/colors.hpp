@@ -1,12 +1,18 @@
 #pragma once
 
+/* includes //{ */
+
 #include <ncurses.h>
 #include <string>
 
 #include <mrs_uav_status/tui/constants.hpp>
 
+//}
+
 namespace mrs_uav_status::tui
 {
+
+/* setupColors() //{ */
 
 // Returns whether the light colorscheme is active.
 inline bool setupColors(const std::string &colorscheme, bool colorblind_mode) {
@@ -37,5 +43,7 @@ inline bool setupColors(const std::string &colorscheme, bool colorblind_mode) {
 
   return light;
 }
+
+//}
 
 } // namespace mrs_uav_status::tui

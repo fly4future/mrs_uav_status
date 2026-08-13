@@ -1,20 +1,27 @@
 #pragma once
 
+/* includes //{ */
+
 #include <cstdint>
 #include <exception>
 #include <string>
 #include <vector>
 
-#include <diagnostic_msgs/msg/key_value.hpp>
-#include <mrs_msgs/msg/general_robot_info.hpp>
-#include <mrs_msgs/msg/sensor_status.hpp>
+//}
 
 namespace mrs_uav_status::utils
 {
 
+// Mirrors mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_* -- named locally so utils/ keeps no
+// dependency on ROS message types.
+inline constexpr uint8_t ROBOT_TYPE_DRONE        = 0;
+inline constexpr uint8_t ROBOT_TYPE_BOAT         = 1;
+inline constexpr uint8_t ROBOT_TYPE_GROUND_ROBOT = 2;
+
+/* splitByChar() //{ */
+
 // Splits input on delimiter (returns {""} for an empty input).
 inline std::vector<std::string> splitByChar(const std::string &input, char delimiter) {
-
   if (input.empty()) {
     return {""};
   }
@@ -35,6 +42,10 @@ inline std::vector<std::string> splitByChar(const std::string &input, char delim
   return result;
 }
 
+//}
+
+/* withActiveFirst() //{ */
+
 // Returns {active, available\active} — the legacy UavStatus convention is
 // "first element is the active one, rest are alternates."
 inline std::vector<std::string> withActiveFirst(const std::string &active, const std::vector<std::string> &available) {
@@ -51,22 +62,32 @@ inline std::vector<std::string> withActiveFirst(const std::string &active, const
   return out;
 }
 
+//}
+
+/* robotTypeToString() //{ */
+
 // No UNKNOWN sentinel in the enum (0 == DRONE) — caller must check message freshness separately.
 inline std::string robotTypeToString(uint8_t robot_type) {
   switch (robot_type) {
-  case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_DRONE:
+  case ROBOT_TYPE_DRONE:
     return "DRONE";
-  case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_BOAT:
+  case ROBOT_TYPE_BOAT:
     return "BOAT";
-  case mrs_msgs::msg::GeneralRobotInfo::ROBOT_TYPE_GROUND_ROBOT:
+  case ROBOT_TYPE_GROUND_ROBOT:
     return "UGV";
   default:
     return "UNKNOWN";
   }
 }
 
+//}
+
+/* findSensor() //{ */
+
 // Find the first SensorStatus of a given type. Returns nullptr if not present.
-inline const mrs_msgs::msg::SensorStatus *findSensor(const std::vector<mrs_msgs::msg::SensorStatus> &sensors, uint8_t type) {
+// Templated so this works for status::SensorStatusData without a dependency on status/ or mrs_msgs.
+template <typename SensorT>
+inline const SensorT *findSensor(const std::vector<SensorT> &sensors, uint8_t type) {
   for (const auto &s : sensors) {
     if (s.type == type) {
       return &s;
@@ -75,8 +96,15 @@ inline const mrs_msgs::msg::SensorStatus *findSensor(const std::vector<mrs_msgs:
   return nullptr;
 }
 
+//}
+
+/* lookupDetail() //{ */
+
 // Look up a value in a KeyValue list. Returns fallback if the key isn't present.
-inline std::string lookupDetail(const std::vector<diagnostic_msgs::msg::KeyValue> &details, const std::string &key, const std::string &fallback = "") {
+// Templated for the same reason as findSensor() above -- works for both
+// diagnostic_msgs::msg::KeyValue and status::KeyValueData.
+template <typename KeyValueT>
+inline std::string lookupDetail(const std::vector<KeyValueT> &details, const std::string &key, const std::string &fallback = "") {
   for (const auto &kv : details) {
     if (kv.key == key) {
       return kv.value;
@@ -84,6 +112,10 @@ inline std::string lookupDetail(const std::vector<diagnostic_msgs::msg::KeyValue
   }
   return fallback;
 }
+
+//}
+
+/* parseDoubleOr() //{ */
 
 // Parses s as a double; returns fallback if empty or unparseable.
 inline double parseDoubleOr(const std::string &s, double fallback) {
@@ -98,6 +130,10 @@ inline double parseDoubleOr(const std::string &s, double fallback) {
   }
 }
 
+//}
+
+/* parseLongOr() //{ */
+
 // Parses s as a long; returns fallback if empty or unparseable.
 inline long parseLongOr(const std::string &s, long fallback) {
   if (s.empty()) {
@@ -110,5 +146,7 @@ inline long parseLongOr(const std::string &s, long fallback) {
     return fallback;
   }
 }
+
+//}
 
 } // namespace mrs_uav_status::utils

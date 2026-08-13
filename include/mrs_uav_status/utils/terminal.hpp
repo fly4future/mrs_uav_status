@@ -1,13 +1,19 @@
 #pragma once
 
+/* includes //{ */
+
 #include <array>
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
 #include <string>
 
+//}
+
 namespace mrs_uav_status::utils
 {
+
+/* callTerminal() //{ */
 
 // Runs cmd in a shell and returns its captured stdout.
 inline std::string callTerminal(const char *cmd) {
@@ -25,5 +31,7 @@ inline std::string callTerminal(const char *cmd) {
 
   return result;
 }
+
+//}
 
 } // namespace mrs_uav_status::utils

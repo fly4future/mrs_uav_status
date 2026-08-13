@@ -1,9 +1,11 @@
+/* includes //{ */
+
 #include <mrs_uav_status/tui/status_window.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
 
-namespace mrs_uav_status
-{
-namespace tui
+//}
+
+namespace mrs_uav_status::tui
 {
 
 /* StatusWindow() //{ */
@@ -36,8 +38,6 @@ WINDOW *StatusWindow::getWin() const {
 int StatusWindow::getLine() const {
   return line_;
 }
-
-//}
 
 //}
 
@@ -86,12 +86,14 @@ StatusWindow::Result StatusWindow::iterate(const std::vector<std::string> &text,
   return result;
 }
 
+//}
+
 /* iterate() //{ */
 
 StatusWindow::Result StatusWindow::iterate(int key, bool refresh) {
   return iterate(text_, key, refresh);
 }
+
 //}
 
-} // namespace tui
-} // namespace mrs_uav_status
+} // namespace mrs_uav_status::tui

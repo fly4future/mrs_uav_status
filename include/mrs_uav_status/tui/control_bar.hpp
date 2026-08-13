@@ -1,8 +1,12 @@
 #pragma once
 
+/* includes //{ */
+
 #include <ncurses.h>
 
 #include <vector>
+
+//}
 
 namespace mrs_uav_status::tui
 {

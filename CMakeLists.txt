@@ -52,22 +52,29 @@ add_executable(MrsUavStatus_Status)
 
 target_sources(MrsUavStatus_Status
   PRIVATE
-    "src/status.cpp"
-    "src/tui/tui.cpp"
+    "src/uav_status.cpp"
+    "src/status/uav_status_core.cpp"
+    "src/tui/ncurses_tui.cpp"
+    "src/tui/pane_box.cpp"
     "src/tui/control_bar.cpp"
     "src/tui/status_window.cpp"
   PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS "include"
   FILES
-    "include/mrs_uav_status/status.hpp"
+    "include/mrs_uav_status/uav_status.hpp"
+    "include/mrs_uav_status/status/uav_status_core.hpp"
+    "include/mrs_uav_status/status/data_types.hpp"
+    "include/mrs_uav_status/tui/tui_actions.hpp"
+    "include/mrs_uav_status/status/command_sink.hpp"
+    "include/mrs_uav_status/tui/pane_box.hpp"
     "include/mrs_uav_status/tui/control_bar.hpp"
     "include/mrs_uav_status/tui/colors.hpp"
     "include/mrs_uav_status/tui/status_window.hpp"
     "include/mrs_uav_status/tui/system_info.hpp"
     "include/mrs_uav_status/tui/print_helpers.hpp"
     "include/mrs_uav_status/tui/constants.hpp"
-    "include/mrs_uav_status/tui/tui.hpp"
+    "include/mrs_uav_status/tui/ncurses_tui.hpp"
     "include/mrs_uav_status/utils/helpers.hpp"
-    "include/mrs_uav_status/utils/string_info.hpp"
+    "include/mrs_uav_status/status/string_info.hpp"
 )
 
 target_link_libraries(MrsUavStatus_Status
@@ -92,6 +99,7 @@ target_compile_definitions(MrsUavStatus_Status PRIVATE USE_ROS_TIMER=${USE_ROS_T
 if(ENABLE_TESTS)
 
   add_subdirectory(test)
+  add_subdirectory(tui_examples)
 
   find_package(ament_cmake_clang_format REQUIRED)
   ament_clang_format(CONFIG_FILE "${PROJECT_SOURCE_DIR}/.clang-format")

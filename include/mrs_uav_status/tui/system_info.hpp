@@ -1,12 +1,18 @@
 #pragma once
 
+/* includes //{ */
+
 #include <ncurses.h>
 
 #include <mrs_uav_status/tui/print_helpers.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
 
+//}
+
 namespace mrs_uav_status::tui
 {
+
+/* printCpuLoad() //{ */
 
 // Prints CPU load %, colored green/yellow/red as it rises past 60/80%.
 inline void printCpuLoad(WINDOW *win, double cpu_load, bool mini) {
@@ -25,11 +31,19 @@ inline void printCpuLoad(WINDOW *win, double cpu_load, bool mini) {
   }
 }
 
+//}
+
+/* printCpuFreq() //{ */
+
 // Prints the CPU frequency in GHz.
 inline void printCpuFreq(WINDOW *win, double cpu_ghz) {
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
   printLimitedDouble(win, 1, 16, "%4.2f GHz", cpu_ghz, 10);
 }
+
+//}
+
+/* printMemLoad() //{ */
 
 // Prints free RAM in GiB, colored green/yellow/red as used-ram ratio rises past 50/70%.
 inline void printMemLoad(WINDOW *win, double free_ram, double total_ram, bool mini) {
@@ -52,6 +66,10 @@ inline void printMemLoad(WINDOW *win, double free_ram, double total_ram, bool mi
   }
   wattroff(win, A_BLINK);
 }
+
+//}
+
+/* printDiskSpace() //{ */
 
 // Prints free disk space (G, or T above 1024G), yellow below 20G and red below 10G.
 inline void printDiskSpace(WINDOW *win, int free_hdd, bool mini) {
@@ -87,5 +105,7 @@ inline void printDiskSpace(WINDOW *win, int free_hdd, bool mini) {
     }
   }
 }
+
+//}
 
 } // namespace mrs_uav_status::tui
