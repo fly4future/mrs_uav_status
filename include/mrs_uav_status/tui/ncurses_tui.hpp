@@ -111,10 +111,8 @@ public:
 
   // Cycle the preset panel to the next preset (bound to the 'p' key).
   void cyclePanes() override;
-
   // Jump the preset panel directly to preset idx (bound to number keys). No-op if out of range.
   void selectPane(std::size_t idx) override;
-
   // Advances the 3-way rotation used to cycle which estimator name (hor/ver/hdg) uavStateHandler() shows.
   void tickSlowCounter();
 
@@ -176,7 +174,6 @@ private:
   const int        MAX_SELECTED_TMUX_WINDOWS = 2;
   int              terminal_cols_ = 0, terminal_lines_ = 0;
 
-
   // Rebuilds display_menu_text_ from tmux's current window list, marking previously-selected windows.
   void setupDisplayText();
 
@@ -216,6 +213,7 @@ private:
   std::vector<tui::StatusWindow> submenu_vec_;
   std::vector<tui::ControlBar>   goto_menu_inputs_;
 
+  // Backing label text for the widgets above.
   std::vector<std::string> main_menu_text_;
   std::vector<std::string> display_menu_text_;
   std::vector<std::string> goto_menu_text_;

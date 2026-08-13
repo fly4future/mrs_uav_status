@@ -72,6 +72,8 @@ public:
   virtual void setupDisplayMenu()          = 0;
   virtual bool displayMenuHandler(int key) = 0;
 
+  // | --------------------- Menu (shared) ---------------------- |
+  // Common to every menu level (main/sub/goto/display), not just the one above.
   virtual void clearMenus()       = 0;
   virtual void refreshAfterMenu() = 0;
 
@@ -94,9 +96,8 @@ public:
   virtual void setupWindows()              = 0;
   virtual void renderFast()                = 0;
   virtual void renderSlow()                = 0;
-
-  virtual void flushInput()          = 0;
-  virtual void refreshBottomWindow() = 0;
+  virtual void flushInput()                = 0;
+  virtual void refreshBottomWindow()       = 0;
 };
 
 } // namespace mrs_uav_status::tui

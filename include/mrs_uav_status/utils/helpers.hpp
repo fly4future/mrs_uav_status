@@ -22,7 +22,6 @@ inline constexpr uint8_t ROBOT_TYPE_GROUND_ROBOT = 2;
 
 // Splits input on delimiter (returns {""} for an empty input).
 inline std::vector<std::string> splitByChar(const std::string &input, char delimiter) {
-
   if (input.empty()) {
     return {""};
   }
