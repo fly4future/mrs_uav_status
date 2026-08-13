@@ -414,7 +414,7 @@ void NcursesTui::uavStateHandler() {
   if (params_.start_minimized) {
     printLimitedDouble(win, 0, 1, "Odm %3.0f", avg_rate, 1000);
 
-    if (avg_rate == 0 || !have_state_estimation_info) {
+    if (avg_rate <= 0.0 || !have_state_estimation_info) {
 
       printNoData(win, 0, 1, params_.start_minimized);
 
@@ -431,7 +431,7 @@ void NcursesTui::uavStateHandler() {
 
   else {
 
-    if (avg_rate == 0 || !have_state_estimation_info) {
+    if (avg_rate <= 0.0 || !have_state_estimation_info) {
 
       // Showing a healthy Hz next to NO DATA reads as contradictory -- suppress it too.
       printNoData(win, 0, 12, "Odom ", params_.start_minimized);
@@ -606,7 +606,7 @@ void NcursesTui::controlManagerHandler() {
   if (params_.start_minimized) {
     printLimitedDouble(win, 0, 1, "Ctr %3.0f", rate, 1000);
 
-    if (rate == 0.0 || !have_system_health_info) {
+    if (rate <= 0.0 || !have_system_health_info) {
 
       printNoData(win, 0, 1, params_.start_minimized);
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
@@ -654,7 +654,7 @@ void NcursesTui::controlManagerHandler() {
 
   else {
 
-    if (rate == 0.0 || !have_system_health_info) {
+    if (rate <= 0.0 || !have_system_health_info) {
 
       // Showing a healthy Hz next to NO DATA reads as contradictory -- suppress it too.
       printNoData(win, 0, 1, "Control ", params_.start_minimized);
@@ -805,7 +805,7 @@ void NcursesTui::hwApiStateHandler() {
     printLimitedDouble(win, 0, 1, "Mav %3.0f", hw_api_rate, 1000);
     wattroff(win, COLOR_PAIR(color));
 
-    if (hw_api_rate == 0 || !have_system_health_info) {
+    if (hw_api_rate <= 0.0 || !have_system_health_info) {
       printNoData(win, 0, 1, params_.start_minimized);
     }
 
@@ -858,7 +858,7 @@ void NcursesTui::hwApiStateHandler() {
     }
 
 
-    if (cmd_rate == 0 || thrust < 0.0 || !have_system_health_info) {
+    if (cmd_rate <= 0.0 || thrust < 0.0 || !have_system_health_info) {
 
       printLimitedString(win, 3, 5, "ERR", 3);
 
@@ -932,7 +932,7 @@ void NcursesTui::hwApiStateHandler() {
 
   else {
 
-    if (hw_api_rate == 0 || !have_system_health_info) {
+    if (hw_api_rate <= 0.0 || !have_system_health_info) {
 
       // Showing a healthy Hz next to NO DATA reads as contradictory -- suppress it too.
       // (State/Mode/Mag/Batt/Thrust below already show their own NO DATA, no extra marker needed.)
@@ -995,7 +995,7 @@ void NcursesTui::hwApiStateHandler() {
       printLimitedDouble(win, 4, 16, "%6.1fWh", battery_wh_drained, 9999.9);
     }
 
-    if (mag_norm_rate == 0) {
+    if (mag_norm_rate <= 0.0) {
 
       printNoData(win, 3, 1, "Mag:  ", params_.start_minimized);
 
@@ -1011,7 +1011,7 @@ void NcursesTui::hwApiStateHandler() {
       printLimitedDouble(win, 3, 1, "Mag: %4.2f", mag_norm, 9.99);
     }
 
-    if (cmd_rate == 0 || thrust < 0.0 || !have_system_health_info) {
+    if (cmd_rate <= 0.0 || thrust < 0.0 || !have_system_health_info) {
 
       printNoData(win, 5, 1, "Thrust: ", params_.start_minimized);
 
