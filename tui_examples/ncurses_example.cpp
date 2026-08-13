@@ -21,12 +21,12 @@ using TimerType = mrs_lib::ThreadTimer;
 namespace mrs_uav_status
 {
 
-/* class TuiExample //{ */
+/* class NcursesExample //{ */
 
-class TuiExample : public mrs_lib::Node {
+class NcursesExample : public mrs_lib::Node {
 
 public:
-  TuiExample();
+  NcursesExample();
 
 private:
   rclcpp::Node::SharedPtr  node_;
@@ -60,9 +60,9 @@ public:
 
 //}
 
-/* TuiExample() //{ */
+/* NcursesExample() //{ */
 
-TuiExample::TuiExample() : Node("tui_example") {
+NcursesExample::NcursesExample() : Node("ncurses_example") {
 
   initscr();
   cbreak();
@@ -84,7 +84,7 @@ TuiExample::TuiExample() : Node("tui_example") {
 
 /* createNewWin() //{ */
 
-WINDOW *TuiExample::createNewWin(int height, int width, int starty, int startx) {
+WINDOW *NcursesExample::createNewWin(int height, int width, int starty, int startx) {
 
   WINDOW *local_win;
 
@@ -103,7 +103,7 @@ WINDOW *TuiExample::createNewWin(int height, int width, int starty, int startx) 
 
 /* destroyWin() //{ */
 
-void TuiExample::destroyWin(WINDOW *local_win) {
+void NcursesExample::destroyWin(WINDOW *local_win) {
 
   /* box(local_win, ' ', ' '); : This won't produce the desired
    * result of erasing the window. It will leave it's four corners
@@ -129,7 +129,7 @@ void TuiExample::destroyWin(WINDOW *local_win) {
 
 /* initialize() //{ */
 
-void TuiExample::initialize() {
+void NcursesExample::initialize() {
 
   height_  = 3;
   width_   = 10;
@@ -144,7 +144,7 @@ void TuiExample::initialize() {
   timer_opts_start.autostart = true;
 
   {
-    std::function<void()> callback_fcn = std::bind(&TuiExample::timerMain, this);
+    std::function<void()> callback_fcn = std::bind(&NcursesExample::timerMain, this);
 
     timer_main_ = std::make_shared<TimerType>(timer_opts_start, rclcpp::Rate(20.0, clock_), callback_fcn);
   }
@@ -156,7 +156,7 @@ void TuiExample::initialize() {
 
 /* timerMain() //{ */
 
-void TuiExample::timerMain() {
+void NcursesExample::timerMain() {
 
   destroyWin(my_win_);
 
@@ -208,7 +208,7 @@ int main(int argc, char **argv) {
 
   rclcpp::init(argc, argv);
 
-  auto node = std::make_shared<mrs_uav_status::TuiExample>();
+  auto node = std::make_shared<mrs_uav_status::NcursesExample>();
 
   rclcpp::spin(node->get_node_base_interface());
 

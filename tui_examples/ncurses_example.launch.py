@@ -18,9 +18,9 @@ def generate_launch_description():
     ld.add_action(launch_ros.actions.Node(
 
         package=pkg_name,
-        executable='MrsUavStatus_TuiExample',
+        executable='MrsUavStatus_NcursesExample',
         namespace="",
-        name='tui_example',
+        name='ncurses_example',
         output="screen",
         emulate_tty=True,
         env=proc_env,
