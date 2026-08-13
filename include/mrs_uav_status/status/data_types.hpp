@@ -181,6 +181,8 @@ struct Freshness
   bool uav_info                 = false;
   bool system_health_info       = false;
   bool state_estimation_info    = false;
+  bool control_info             = false;
+  bool uav_state                = false;
 };
 
 // One render tick's complete view of the world, deep-copied out of UavStatusCore under its mutex

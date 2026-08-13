@@ -410,8 +410,13 @@ void UavStatus::timerRender() {
   // hasMsg() guards against sim-time-near-zero at boot; the elapsed-time check catches mid-flight stalls.
   auto                    is_fresh = [&now, this](const auto &sh) { return sh.hasMsg() && (now - sh.lastMsgTime()).seconds() < data_timeout_s_; };
   const status::Freshness freshness{
-      is_fresh(sh_general_robot_info_), is_fresh(sh_collision_avoidance_info_), is_fresh(sh_uav_info_),
-      is_fresh(sh_system_health_info_), is_fresh(sh_state_estimation_info_),
+      .general_robot_info       = is_fresh(sh_general_robot_info_),
+      .collision_avoidance_info = is_fresh(sh_collision_avoidance_info_),
+      .uav_info                 = is_fresh(sh_uav_info_),
+      .system_health_info       = is_fresh(sh_system_health_info_),
+      .state_estimation_info    = is_fresh(sh_state_estimation_info_),
+      .control_info             = is_fresh(sh_control_info_),
+      .uav_state                = is_fresh(sh_uav_state_),
   };
 
   core_->setFreshness(freshness);

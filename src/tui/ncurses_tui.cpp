@@ -561,7 +561,7 @@ void NcursesTui::controlManagerHandler() {
   WINDOW *win = control_manager_window_.get();
 
   int16_t     color;
-  bool        null_tracker, have_system_health_info;
+  bool        null_tracker, have_system_health_info, have_control_info, have_uav_state;
   double      rate;
   std::string curr_controller, curr_tracker, curr_gains, curr_constraints;
   bool        callbacks_enabled, rc_mode, have_goal, tracking_trajectory;
@@ -573,6 +573,8 @@ void NcursesTui::controlManagerHandler() {
 
     rate                    = snapshot_.system_health_info.control_manager_rate;
     have_system_health_info = snapshot_.freshness.system_health_info;
+    have_control_info       = snapshot_.freshness.control_info;
+    have_uav_state          = snapshot_.freshness.uav_state;
 
     // "unknown" self-corrects only while DiagnosticsManager stays alive; !have_system_health_info
     // catches it dying entirely, which would otherwise freeze these at their last real names.
@@ -606,7 +608,7 @@ void NcursesTui::controlManagerHandler() {
   if (params_.start_minimized) {
     printLimitedDouble(win, 0, 1, "Ctr %3.0f", rate, 1000);
 
-    if (rate <= 0.0 || !have_system_health_info) {
+    if (rate <= 0.0 || !have_system_health_info || !have_control_info) {
 
       printNoData(win, 0, 1, params_.start_minimized);
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
@@ -654,7 +656,7 @@ void NcursesTui::controlManagerHandler() {
 
   else {
 
-    if (rate <= 0.0 || !have_system_health_info) {
+    if (rate <= 0.0 || !have_system_health_info || !have_control_info) {
 
       // Showing a healthy Hz next to NO DATA reads as contradictory -- suppress it too.
       printNoData(win, 0, 1, "Control ", params_.start_minimized);
@@ -692,8 +694,9 @@ void NcursesTui::controlManagerHandler() {
       printLimitedString(win, 2, 1 + std::min(int(curr_tracker.length()), 13), "/" + curr_constraints, 8);
       wattron(win, COLOR_PAIR(color));
 
-      // Same freshness gate as curr_controller/curr_tracker above, so these can't linger stale either.
-      if (rc_mode) {
+      // uav_state has its own freshness (unlike control_info's callbacks_enabled/have_goal/
+      // tracking_trajectory below, which are already covered by the outer !have_control_info gate).
+      if (have_uav_state && rc_mode) {
         wattron(win, A_BLINK);
         wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
         mvwprintw(win, 1, 18, "RC_MODE");
