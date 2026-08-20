@@ -12,11 +12,38 @@ node_name="uav_status"
 pkg_share_dir=$(ros2 pkg prefix $package_name)/share/$package_name
 
 config_public=$pkg_share_dir/config/public/default.yaml
-platform_config=""
-custom_config=""
 # Default terminal colorscheme -- there is no colorscheme entry in default.yaml, and there
 # shouldn't be one, see the $PROFILES comment below.
 colorscheme="COLORSCHEME_DARK"
+
+# Relative paths resolve against the launch directory, matching core.launch.py.
+resolve_config_path() {
+  if [ -n "$1" ] && [[ "$1" != /* ]]; then
+    echo "$launch_dir/$1"
+  else
+    echo "$1"
+  fi
+}
+
+custom_config_arg=""
+platform_config_arg=""
+for arg in "$@"; do
+  case "$arg" in
+    custom_config:=*)
+      custom_config_arg="${arg#custom_config:=}"
+      ;;
+    platform_config:=*)
+      platform_config_arg="${arg#platform_config:=}"
+      ;;
+    *)
+      echo "Unknown argument: $arg" >&2
+      exit 1
+      ;;
+  esac
+done
+
+custom_config=$(resolve_config_path "$custom_config_arg")
+platform_config=$(resolve_config_path "$platform_config_arg")
 
 [ -z "$UAV_NAME" ] && uav_name=uav1 || uav_name=$UAV_NAME
 [ -z "$USE_SIM_TIME" ] && use_sim_time=false || use_sim_time=$USE_SIM_TIME
