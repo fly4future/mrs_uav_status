@@ -288,30 +288,11 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
   constexpr int MAX_PROBLEM_ROWS = 9;
   constexpr int TEXT_WIDTH       = 80;
 
-  const auto problems_color = problems.empty() ? ColorPair::Green : ColorPair::Red;
-  wattron(win, COLOR_PAIR(static_cast<int>(problems_color)));
-  printLimitedString(win, row++, 1, "Problems: " + std::to_string(problems.size()), TEXT_WIDTH);
-  wattroff(win, COLOR_PAIR(static_cast<int>(problems_color)));
-
-  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-  for (const auto &p : problems) {
-    if (row > MAX_PROBLEM_ROWS) {
-      break;
-    }
-    printLimitedString(win, row++, 1, "- " + p, TEXT_WIDTH);
-  }
-  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-
-  if (row <= MAX_PROBLEM_ROWS) {
-    ++row; // blank separator
-  }
-
-  if (row <= MAX_PROBLEM_ROWS) {
-    const auto errors_color = errors.empty() ? ColorPair::Green : ColorPair::Red;
-    wattron(win, COLOR_PAIR(static_cast<int>(errors_color)));
-    printLimitedString(win, row++, 1, "Errors: " + std::to_string(errors.size()), TEXT_WIDTH);
-    wattroff(win, COLOR_PAIR(static_cast<int>(errors_color)));
-  }
+  // Errors render first: they matter even mid-flight.
+  const auto errors_color = errors.empty() ? ColorPair::Green : ColorPair::Red;
+  wattron(win, COLOR_PAIR(static_cast<int>(errors_color)));
+  printLimitedString(win, row++, 1, "Errors: " + std::to_string(errors.size()), TEXT_WIDTH);
+  wattroff(win, COLOR_PAIR(static_cast<int>(errors_color)));
 
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   for (const auto &e : errors) {
@@ -321,6 +302,31 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
     printLimitedString(win, row++, 1, "- " + e, TEXT_WIDTH);
   }
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+
+  // Problems preventing start no longer apply once a real tracker (not NullTracker) is active.
+  const bool is_flying = snapshot_->freshness.control_info && !snapshot_->border_status.null_tracker;
+
+  if (!is_flying) {
+    if (row <= MAX_PROBLEM_ROWS) {
+      ++row; // blank separator
+    }
+
+    if (row <= MAX_PROBLEM_ROWS) {
+      const auto problems_color = problems.empty() ? ColorPair::Green : ColorPair::Red;
+      wattron(win, COLOR_PAIR(static_cast<int>(problems_color)));
+      printLimitedString(win, row++, 1, "Problems preventing start: " + std::to_string(problems.size()), TEXT_WIDTH);
+      wattroff(win, COLOR_PAIR(static_cast<int>(problems_color)));
+    }
+
+    wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+    for (const auto &p : problems) {
+      if (row > MAX_PROBLEM_ROWS) {
+        break;
+      }
+      printLimitedString(win, row++, 1, "- " + p, TEXT_WIDTH);
+    }
+    wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+  }
 
   wattroff(win, A_BOLD);
   wnoutrefresh(win);
