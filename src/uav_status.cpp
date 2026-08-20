@@ -167,12 +167,6 @@ void UavStatus::initialize() {
     param_loader.addYamlFile(custom_config_path);
   }
 
-  std::string platform_config_path;
-  param_loader.loadParam("platform_config", platform_config_path);
-  if (platform_config_path != "") {
-    param_loader.addYamlFile(platform_config_path);
-  }
-
   param_loader.addYamlFileFromParam("config_public");
 
   std::string                 pwd, colorscheme, turbo_remote_constraints, uav_name;

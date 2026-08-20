@@ -16,24 +16,11 @@ config_public=$pkg_share_dir/config/public/default.yaml
 # shouldn't be one, see the $PROFILES comment below.
 colorscheme="COLORSCHEME_DARK"
 
-# Relative paths resolve against the launch directory, matching core.launch.py.
-resolve_config_path() {
-  if [ -n "$1" ] && [[ "$1" != /* ]]; then
-    echo "$launch_dir/$1"
-  else
-    echo "$1"
-  fi
-}
-
 custom_config_arg=""
-platform_config_arg=""
 for arg in "$@"; do
   case "$arg" in
     custom_config:=*)
       custom_config_arg="${arg#custom_config:=}"
-      ;;
-    platform_config:=*)
-      platform_config_arg="${arg#platform_config:=}"
       ;;
     *)
       echo "Unknown argument: $arg" >&2
@@ -42,8 +29,12 @@ for arg in "$@"; do
   esac
 done
 
-custom_config=$(resolve_config_path "$custom_config_arg")
-platform_config=$(resolve_config_path "$platform_config_arg")
+# Relative paths resolve against the launch directory, matching core.launch.py.
+if [ -n "$custom_config_arg" ] && [[ "$custom_config_arg" != /* ]]; then
+  custom_config="$launch_dir/$custom_config_arg"
+else
+  custom_config="$custom_config_arg"
+fi
 
 [ -z "$UAV_NAME" ] && uav_name=uav1 || uav_name=$UAV_NAME
 [ -z "$USE_SIM_TIME" ] && use_sim_time=false || use_sim_time=$USE_SIM_TIME
@@ -56,15 +47,13 @@ fi
 
 # Names must exactly match what src/uav_status.cpp's ParamLoader calls load -- a mismatch silently
 # makes the override a no-op. Keep this to runtime-derived values only: any mrs_uav_status/* setting
-# added here would permanently shadow config_public/platform_config/custom_config, since "-p" always
-# wins over YAML.
+# added here would permanently shadow config_public/custom_config, since "-p" always wins over YAML.
 params=(
   "pwd"              "string" "$launch_dir"
   "colorscheme"      "string" "$colorscheme"
   "uav_name"         "string" "$uav_name"
   "use_sim_time"     "bool"   "$use_sim_time"
   'config_public'    "string" "$config_public"
-  'platform_config'  "string" "$platform_config"
   'custom_config'    "string" "$custom_config"
 )
 
