@@ -133,73 +133,81 @@ int PaneBox::drawPaneChrome(WINDOW *win) {
 void PaneBox::renderGnssStringsPane(WINDOW *win) {
   int row = drawPaneChrome(win);
 
-  std::vector<std::string> string_vector;
-  uint8_t                  gnss_fix_type      = 0;
-  uint8_t                  gnss_num_sats      = 0;
-  double                   gnss_pos_acc       = 100.0;
-  double                   gnss_status_rate   = 0.0;
-  bool                     gnss_status_msg_ok = false;
-  bool                     have_system_health_info;
+  constexpr int MAX_STRING_ROWS = 9;
+  constexpr int TEXT_WIDTH      = 80;
 
-  {
-    have_system_health_info = snapshot_->freshness.system_health_info;
-    if (const auto *gnss = utils::findSensor(snapshot_->system_health_info.available_sensors, status::SENSOR_TYPE_GNSS); gnss) {
-      const std::string fix_type_raw = utils::lookupDetail(gnss->details, "fix_type");
-      gnss_status_msg_ok             = (fix_type_raw != "nan");
-      gnss_fix_type                  = static_cast<uint8_t>(utils::parseLongOr(fix_type_raw, 0));
-      gnss_num_sats                  = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gnss->details, "num_satellites"), 0));
-      gnss_pos_acc                   = utils::parseDoubleOr(utils::lookupDetail(gnss->details, "position_accuracy"), 100.0);
-      gnss_status_rate               = gnss->rate;
-    }
+  uint8_t gnss_fix_type      = 0;
+  uint8_t gnss_num_sats      = 0;
+  double  gnss_pos_acc       = 100.0;
+  double  gnss_status_rate   = 0.0;
+  bool    gnss_status_msg_ok = false;
 
-    // Eviction already happened in UavStatusCore::pruneStrings() (top of every tick());
-    // snapshot_->display_strings is whatever's currently live for display.
-    for (const auto &entry : snapshot_->display_strings) {
-      string_vector.push_back(entry);
-    }
+  const bool have_system_health_info = snapshot_->freshness.system_health_info;
+  if (const auto *gnss = utils::findSensor(snapshot_->system_health_info.available_sensors, status::SENSOR_TYPE_GNSS); gnss) {
+    const std::string fix_type_raw = utils::lookupDetail(gnss->details, "fix_type");
+    gnss_status_msg_ok             = (fix_type_raw != "nan");
+    gnss_fix_type                  = static_cast<uint8_t>(utils::parseLongOr(fix_type_raw, 0));
+    gnss_num_sats                  = static_cast<uint8_t>(utils::parseLongOr(utils::lookupDetail(gnss->details, "num_satellites"), 0));
+    gnss_pos_acc                   = utils::parseDoubleOr(utils::lookupDetail(gnss->details, "position_accuracy"), 100.0);
+    gnss_status_rate               = gnss->rate;
   }
 
   // gnss_status_rate/gnss_status_msg_ok are cached and never reset, so gate on freshness too.
-  if (have_system_health_info && gnss_status_rate > 0.0 && gnss_status_msg_ok) {
-    std::string fix_string;
-    if (gnss_fix_type < 1 || gnss_fix_type >= 8) {
-      fix_string += "-r ";
-    }
-    fix_string += "Fix Type: ";
+  const bool gnss_available = have_system_health_info && gnss_status_rate > 0.0 && gnss_status_msg_ok;
 
+  std::string fix_label;
+  bool        bad_fix = true;
+  if (gnss_available) {
+    bad_fix = true;
     switch (gnss_fix_type) {
     case 0:
-      fix_string += "NO GNSS";
+      fix_label = "NO GNSS";
       break;
     case 1:
-      fix_string += "NO FIX";
+      fix_label = "NO FIX";
       break;
     case 2:
-      fix_string += "2D FIX";
+      fix_label = "2D FIX";
+      bad_fix   = false;
       break;
     case 3:
-      fix_string += "3D FIX";
+      fix_label = "3D FIX";
+      bad_fix   = false;
       break;
     case 4:
-      fix_string += "3D SBAS FIX";
+      fix_label = "3D SBAS FIX";
+      bad_fix   = false;
       break;
     case 5:
-      fix_string += "RTK FLOAT";
+      fix_label = "RTK FLOAT";
+      bad_fix   = false;
       break;
     case 6:
-      fix_string += "RTK FIX (INT)";
+      fix_label = "RTK FIX (INT)";
+      bad_fix   = false;
       break;
     case 7:
-      fix_string += "STATIC - BASESTATION";
+      fix_label = "STATIC - BASESTATION";
+      bad_fix   = false;
       break;
     case 8:
-      fix_string += "PPP 3D FIX";
+      fix_label = "PPP 3D FIX";
+      bad_fix   = false;
       break;
     default:
-      fix_string += "UNKNOWN";
+      fix_label = "UNKNOWN";
       break;
     }
+  } else {
+    fix_label = "NO DATA";
+  }
 
+  const auto gnss_color = bad_fix ? ColorPair::Red : ColorPair::Green;
+  wattron(win, COLOR_PAIR(static_cast<int>(gnss_color)));
+  printLimitedString(win, row++, 1, "GNSS: " + fix_label, TEXT_WIDTH);
+  wattroff(win, COLOR_PAIR(static_cast<int>(gnss_color)));
+
+  if (gnss_available) {
     std::string gnss_acc_string;
     if (gnss_pos_acc >= 100.0) {
       gnss_acc_string = "N/A";
@@ -208,16 +216,22 @@ void PaneBox::renderGnssStringsPane(WINDOW *win) {
       stream << std::fixed << std::setprecision(2) << gnss_pos_acc;
       gnss_acc_string = stream.str();
     }
-    string_vector.push_back(fix_string);
-    string_vector.push_back("Num sats: " + std::to_string(gnss_num_sats) + " Acc: " + gnss_acc_string + " m");
+    printLimitedString(win, row++, 1, "Num sats: " + std::to_string(gnss_num_sats) + " Acc: " + gnss_acc_string + " m", TEXT_WIDTH);
   }
 
-  if (string_vector.empty()) {
-    string_vector.push_back("-y no GNSS / strings data");
+  // Eviction already happened in UavStatusCore::pruneStrings() (top of every tick());
+  // snapshot_->display_strings is whatever's currently live for display.
+  const auto &display_strings = snapshot_->display_strings;
+  if (display_strings.empty()) {
+    wattroff(win, A_BOLD);
+    wnoutrefresh(win);
+    return;
   }
 
-  constexpr int MAX_STRING_ROWS = 9;
-  constexpr int TEXT_WIDTH      = 80;
+  ++row; // blank separator
+  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
+  printLimitedString(win, row++, 1, "Strings: " + std::to_string(display_strings.size()), TEXT_WIDTH);
+  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
 
   struct ParsedLine
   {
@@ -226,8 +240,8 @@ void PaneBox::renderGnssStringsPane(WINDOW *win) {
     bool        blink;
   };
   std::vector<ParsedLine> parsed;
-  parsed.reserve(string_vector.size());
-  for (const auto &raw : string_vector) {
+  parsed.reserve(display_strings.size());
+  for (const auto &raw : display_strings) {
     int         tmp_color = static_cast<int>(ColorPair::Normal);
     bool        blink     = false;
     std::string display   = raw;
@@ -265,7 +279,7 @@ void PaneBox::renderGnssStringsPane(WINDOW *win) {
   std::vector<int> item_rows;
   item_rows.reserve(parsed.size());
   for (const auto &p : parsed) {
-    item_rows.push_back(static_cast<int>(wrapText(p.text, TEXT_WIDTH).size()));
+    item_rows.push_back(static_cast<int>(wrapText("- " + p.text, TEXT_WIDTH).size()));
   }
   const std::size_t shown = fitCountWithOverflow(item_rows, MAX_STRING_ROWS - row + 1);
 
@@ -275,7 +289,7 @@ void PaneBox::renderGnssStringsPane(WINDOW *win) {
       wattron(win, A_BLINK);
     }
     wattron(win, COLOR_PAIR(p.color));
-    row = printWrappedString(win, row, 1, p.text, TEXT_WIDTH, MAX_STRING_ROWS);
+    row = printWrappedString(win, row, 1, "- " + p.text, TEXT_WIDTH, MAX_STRING_ROWS);
     wattroff(win, COLOR_PAIR(p.color));
     wattroff(win, A_BLINK);
   }
