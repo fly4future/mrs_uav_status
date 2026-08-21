@@ -22,8 +22,8 @@ namespace mrs_uav_status::tui
 // when it has something important to show.
 class PaneBox {
 public:
-  // Populates the pane list with the 4 built-in panes (Sensors, ROS Node CPU, GNSS & strings,
-  // Problems & errors).
+  // Populates the pane list with the 4 built-in panes (Sensors, ROS Node CPU, GNSS & Strings,
+  // Problems & Errors).
   PaneBox();
 
   // panes_ holds std::functions (including a wants_focus lambda) that capture `this` -- a copy or
@@ -60,7 +60,7 @@ private:
   // Lists per-node CPU load from SystemHealthInfo, highest first.
   void renderNodeCpuPane(WINDOW *win);
   // Shows GNSS fix/accuracy and the current display_string entries.
-  void renderStringsGnssPane(WINDOW *win);
+  void renderGnssStringsPane(WINDOW *win);
 
   std::vector<Pane> panes_;
   std::size_t       pane_idx_ = 0;

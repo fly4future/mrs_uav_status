@@ -23,9 +23,9 @@ PaneBox::PaneBox() {
   // ROS per-node CPU usage (was its own top-right box)
   panes_.push_back({"ROS Node CPU", [this](WINDOW *win) { renderNodeCpuPane(win); }, nullptr});
   // GNSS fix + custom display strings
-  panes_.push_back({"GNSS & strings", [this](WINDOW *win) { renderStringsGnssPane(win); }, nullptr});
+  panes_.push_back({"GNSS & Strings", [this](WINDOW *win) { renderGnssStringsPane(win); }, nullptr});
   // Problems + errors. Auto-focused when either becomes non-empty
-  panes_.push_back({"Problems & errors", [this](WINDOW *win) { renderProblemsPane(win); },
+  panes_.push_back({"Problems & Errors", [this](WINDOW *win) { renderProblemsPane(win); },
                     [this]() {
                       // Avoid auto-focusing on frozen stale problems/errors.
                       return snapshot_->freshness.general_robot_info &&
@@ -128,9 +128,9 @@ int PaneBox::drawPaneChrome(WINDOW *win) {
 
 //}
 
-/* renderStringsGnssPane() //{ */
+/* renderGnssStringsPane() //{ */
 
-void PaneBox::renderStringsGnssPane(WINDOW *win) {
+void PaneBox::renderGnssStringsPane(WINDOW *win) {
   int row = drawPaneChrome(win);
 
   std::vector<std::string> string_vector;

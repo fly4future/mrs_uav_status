@@ -71,7 +71,7 @@ public:
   void onUavState(const StateData &data);
 
   // Parses an optional "-id <key>" / "-p" (persistent) preamble, then dedupes-or-appends the
-  // remaining text into string_info_vec_ (shown in the GNSS & strings pane). Called from a ROS
+  // remaining text into string_info_vec_ (shown in the GNSS & Strings pane). Called from a ROS
   // subscriber thread; now_seconds is the node clock at reception.
   void onString(double now_seconds, const std::string &data);
 
