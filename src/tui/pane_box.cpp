@@ -217,11 +217,17 @@ void PaneBox::renderGnssStringsPane(WINDOW *win) {
   }
 
   constexpr int MAX_STRING_ROWS = 9;
-  for (const auto &raw : string_vector) {
-    if (row > MAX_STRING_ROWS) {
-      break;
-    }
+  constexpr int TEXT_WIDTH      = 80;
 
+  struct ParsedLine
+  {
+    std::string text;
+    int         color;
+    bool        blink;
+  };
+  std::vector<ParsedLine> parsed;
+  parsed.reserve(string_vector.size());
+  for (const auto &raw : string_vector) {
     int         tmp_color = static_cast<int>(ColorPair::Normal);
     bool        blink     = false;
     std::string display   = raw;
@@ -253,13 +259,29 @@ void PaneBox::renderGnssStringsPane(WINDOW *win) {
       }
     }
 
-    if (blink) {
+    parsed.push_back({display, tmp_color, blink});
+  }
+
+  std::vector<int> item_rows;
+  item_rows.reserve(parsed.size());
+  for (const auto &p : parsed) {
+    item_rows.push_back(static_cast<int>(wrapText(p.text, TEXT_WIDTH).size()));
+  }
+  const std::size_t shown = fitCountWithOverflow(item_rows, MAX_STRING_ROWS - row + 1);
+
+  for (std::size_t i = 0; i < shown; ++i) {
+    const auto &p = parsed[i];
+    if (p.blink) {
       wattron(win, A_BLINK);
     }
-    wattron(win, COLOR_PAIR(tmp_color));
-    row = printWrappedString(win, row, 1, display, 80, MAX_STRING_ROWS);
-    wattroff(win, COLOR_PAIR(tmp_color));
+    wattron(win, COLOR_PAIR(p.color));
+    row = printWrappedString(win, row, 1, p.text, TEXT_WIDTH, MAX_STRING_ROWS);
+    wattroff(win, COLOR_PAIR(p.color));
     wattroff(win, A_BLINK);
+  }
+
+  if (shown < parsed.size()) {
+    printLimitedString(win, row++, 1, "+" + std::to_string(parsed.size() - shown) + " more", 40);
   }
 
   wattroff(win, A_BOLD);
@@ -288,23 +310,35 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
   constexpr int MAX_PROBLEM_ROWS = 9;
   constexpr int TEXT_WIDTH       = 80;
 
-  // Errors render first: they matter even mid-flight.
+  // Problems preventing start no longer apply once a real tracker (not NullTracker) is active.
+  const bool is_flying = snapshot_->freshness.control_info && !snapshot_->border_status.null_tracker;
+
+  // Errors render first: they matter even mid-flight. Reserve 2 rows (blank separator + header)
+  // so a long errors list can't push the "Problems preventing start" section off the pane.
+  const int errors_max_row = (!is_flying && !problems.empty()) ? MAX_PROBLEM_ROWS - 2 : MAX_PROBLEM_ROWS;
+
   const auto errors_color = errors.empty() ? ColorPair::Green : ColorPair::Red;
   wattron(win, COLOR_PAIR(static_cast<int>(errors_color)));
   printLimitedString(win, row++, 1, "Errors: " + std::to_string(errors.size()), TEXT_WIDTH);
   wattroff(win, COLOR_PAIR(static_cast<int>(errors_color)));
 
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-  for (const auto &e : errors) {
-    if (row > MAX_PROBLEM_ROWS) {
-      break;
+  {
+    std::vector<int> item_rows;
+    item_rows.reserve(errors.size());
+    for (const auto &e : errors) {
+      item_rows.push_back(static_cast<int>(wrapText("- " + e, TEXT_WIDTH).size()));
     }
-    row = printWrappedString(win, row, 1, "- " + e, TEXT_WIDTH, MAX_PROBLEM_ROWS);
+    const std::size_t shown = fitCountWithOverflow(item_rows, errors_max_row - row + 1);
+
+    for (std::size_t i = 0; i < shown; ++i) {
+      row = printWrappedString(win, row, 1, "- " + errors[i], TEXT_WIDTH, errors_max_row);
+    }
+    if (shown < errors.size() && row <= errors_max_row) {
+      printLimitedString(win, row++, 1, "+" + std::to_string(errors.size() - shown) + " more", TEXT_WIDTH);
+    }
   }
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-
-  // Problems preventing start no longer apply once a real tracker (not NullTracker) is active.
-  const bool is_flying = snapshot_->freshness.control_info && !snapshot_->border_status.null_tracker;
 
   if (!is_flying) {
     if (row <= MAX_PROBLEM_ROWS) {
@@ -319,11 +353,20 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
     }
 
     wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-    for (const auto &p : problems) {
-      if (row > MAX_PROBLEM_ROWS) {
-        break;
+    {
+      std::vector<int> item_rows;
+      item_rows.reserve(problems.size());
+      for (const auto &p : problems) {
+        item_rows.push_back(static_cast<int>(wrapText("- " + p, TEXT_WIDTH).size()));
       }
-      row = printWrappedString(win, row, 1, "- " + p, TEXT_WIDTH, MAX_PROBLEM_ROWS);
+      const std::size_t shown = fitCountWithOverflow(item_rows, MAX_PROBLEM_ROWS - row + 1);
+
+      for (std::size_t i = 0; i < shown; ++i) {
+        row = printWrappedString(win, row, 1, "- " + problems[i], TEXT_WIDTH, MAX_PROBLEM_ROWS);
+      }
+      if (shown < problems.size() && row <= MAX_PROBLEM_ROWS) {
+        printLimitedString(win, row++, 1, "+" + std::to_string(problems.size() - shown) + " more", TEXT_WIDTH);
+      }
     }
     wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   }
@@ -376,10 +419,20 @@ void PaneBox::renderSensorsPane(WINDOW *win) {
 
   constexpr int MAX_SENSOR_ROWS = 9;
   constexpr int MESSAGE_WIDTH   = 80;
+
+  std::vector<int> item_rows;
+  item_rows.reserve(sensors.size());
   for (const auto &s : sensors) {
-    if (row > MAX_SENSOR_ROWS) {
-      break;
+    int rows = 1;
+    if (s.level != status::SENSOR_STATUS_OK) {
+      rows += static_cast<int>(wrapText("    -> " + s.message, MESSAGE_WIDTH).size());
     }
+    item_rows.push_back(rows);
+  }
+  const std::size_t shown = fitCountWithOverflow(item_rows, MAX_SENSOR_ROWS - row + 1);
+
+  for (std::size_t i = 0; i < shown; ++i) {
+    const auto &s = sensors[i];
 
     printLimitedString(win, row, 1, s.name, 36);
     printLimitedDouble(win, row, 40, "%6.1f", s.rate, 100000);
@@ -411,7 +464,7 @@ void PaneBox::renderSensorsPane(WINDOW *win) {
     printLimitedString(win, row, 55, label, 12);
     ++row;
 
-    if (s.level != status::SENSOR_STATUS_OK && row <= MAX_SENSOR_ROWS) {
+    if (s.level != status::SENSOR_STATUS_OK) {
       row = printWrappedString(win, row, 1, "    -> " + s.message, MESSAGE_WIDTH, MAX_SENSOR_ROWS);
     }
     wattroff(win, COLOR_PAIR(color));
@@ -419,6 +472,8 @@ void PaneBox::renderSensorsPane(WINDOW *win) {
 
   if (sensors.empty()) {
     printLimitedString(win, row, 1, "no sensors reported", 40);
+  } else if (shown < sensors.size()) {
+    printLimitedString(win, row++, 1, "+" + std::to_string(sensors.size() - shown) + " more", 40);
   }
 
   wattroff(win, A_BOLD);
@@ -468,10 +523,11 @@ void PaneBox::renderNodeCpuPane(WINDOW *win) {
   std::sort(node_cpu_loads.begin(), node_cpu_loads.end(),
             [](const auto &a, const auto &b) { return (a.cpu_load > b.cpu_load) || ((a.cpu_load == b.cpu_load) && (a.node_name < b.node_name)); });
 
-  for (const auto &n : node_cpu_loads) {
-    if (row > MAX_NODE_ROWS) {
-      break;
-    }
+  const std::vector<int> item_rows(node_cpu_loads.size(), 1);
+  const std::size_t      shown = fitCountWithOverflow(item_rows, MAX_NODE_ROWS - row + 1);
+
+  for (std::size_t i = 0; i < shown; ++i) {
+    const auto &n = node_cpu_loads[i];
     printLimitedString(win, row, 1, n.node_name, 36);
 
     short tmp_color = static_cast<int>(ColorPair::Green);
@@ -484,6 +540,10 @@ void PaneBox::renderNodeCpuPane(WINDOW *win) {
     printLimitedDouble(win, row, 55, "%5.1f", n.cpu_load, 9999);
     wattroff(win, COLOR_PAIR(tmp_color));
     ++row;
+  }
+
+  if (shown < node_cpu_loads.size()) {
+    printLimitedString(win, row++, 1, "+" + std::to_string(node_cpu_loads.size() - shown) + " more", 40);
   }
 
   wattroff(win, A_BOLD);

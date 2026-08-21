@@ -68,20 +68,17 @@ inline void printLimitedString(WINDOW *win, int y, int x, const std::string &str
 
 //}
 
-/* printWrappedString() //{ */
+/* wrapText() //{ */
 
-// Word-wraps str_in across rows starting at (y, x), breaking each line at the last space at or
-// before width (hard-breaking only if a single word alone exceeds width). Stops once the next
-// row would exceed max_row. Returns the row after the last line printed, so callers can feed it
-// straight back into their own "if (row > max_row) break;" per-item loop.
-inline int printWrappedString(WINDOW *win, int y, int x, const std::string &str_in, unsigned long width, int max_row) {
-  std::string remaining = str_in;
-  int         row       = y;
+// Word-wraps str_in into lines of at most width chars. Pure, so callers can measure a row cost
+// before printing anything.
+inline std::vector<std::string> wrapText(const std::string &str_in, unsigned long width) {
+  std::vector<std::string> lines;
+  std::string              remaining = str_in;
 
-  while (!remaining.empty() && row <= max_row) {
+  while (!remaining.empty()) {
     if (remaining.length() <= width) {
-      mvwprintw(win, row, x, "%s", remaining.c_str());
-      ++row;
+      lines.push_back(remaining);
       break;
     }
 
@@ -90,14 +87,59 @@ inline int printWrappedString(WINDOW *win, int y, int x, const std::string &str_
       break_pos = width; // no space to break at -- hard-break the word itself
     }
 
-    mvwprintw(win, row, x, "%s", remaining.substr(0, break_pos).c_str());
-    ++row;
+    lines.push_back(remaining.substr(0, break_pos));
 
     std::size_t next_start = remaining.find_first_not_of(' ', break_pos);
     remaining              = (next_start == std::string::npos) ? "" : remaining.substr(next_start);
   }
 
+  return lines;
+}
+
+//}
+
+/* printWrappedString() //{ */
+
+// Prints wrapText(str_in, width) starting at (y, x), one line per row, stopping past max_row.
+// Returns the row after the last line printed.
+inline int printWrappedString(WINDOW *win, int y, int x, const std::string &str_in, unsigned long width, int max_row) {
+  int row = y;
+  for (const auto &line : wrapText(str_in, width)) {
+    if (row > max_row) {
+      break;
+    }
+    mvwprintw(win, row, x, "%s", line.c_str());
+    ++row;
+  }
   return row;
+}
+
+//}
+
+/* fitCountWithOverflow() //{ */
+
+// Given each item's row cost and how many rows are available, returns how many leading items to
+// print. If they all fit, returns item_rows.size(). Otherwise reserves 1 row for a "+N more"
+// indicator -- an item that would only partially fit isn't shown at all, it's folded into the count.
+inline std::size_t fitCountWithOverflow(const std::vector<int> &item_rows, int budget) {
+  int total = 0;
+  for (int r : item_rows) {
+    total += r;
+  }
+  if (total <= budget) {
+    return item_rows.size();
+  }
+
+  std::size_t shown = 0;
+  int         used  = 0;
+  for (int r : item_rows) {
+    if (used + r > budget - 1) {
+      break;
+    }
+    used += r;
+    ++shown;
+  }
+  return shown;
 }
 
 //}
