@@ -144,6 +144,32 @@ inline std::size_t fitCountWithOverflow(const std::vector<int> &item_rows, int b
 
 //}
 
+/* renderCappedList() //{ */
+
+// Shared skeleton behind every row-budget-capped pane list: cost each item via row_cost(i), print
+// as many as fit via print_item(row, i, max_row), and add a "+N more" line if some didn't fit.
+template <typename RowCost, typename PrintItem>
+inline int renderCappedList(WINDOW *win, int row, int max_row, std::size_t count, RowCost row_cost, PrintItem print_item, unsigned long more_width) {
+  std::vector<int> item_rows;
+  item_rows.reserve(count);
+  for (std::size_t i = 0; i < count; ++i) {
+    item_rows.push_back(row_cost(i));
+  }
+  const std::size_t shown = fitCountWithOverflow(item_rows, max_row - row + 1);
+
+  for (std::size_t i = 0; i < shown; ++i) {
+    row = print_item(row, i, max_row);
+  }
+
+  if (shown < count && row <= max_row) {
+    printLimitedString(win, row++, 1, "+" + std::to_string(count - shown) + " more", more_width);
+  }
+
+  return row;
+}
+
+//}
+
 /* printNoData(WINDOW *win, int y, int x, bool mini) //{ */
 
 // Prints a blinking red "NO DATA" marker at (y, x).
