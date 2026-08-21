@@ -294,7 +294,7 @@ void PaneBox::renderGnssStringsPane(WINDOW *win) {
     wattroff(win, A_BLINK);
   }
 
-  if (shown < parsed.size()) {
+  if (shown < parsed.size() && row <= MAX_STRING_ROWS) {
     printLimitedString(win, row++, 1, "+" + std::to_string(parsed.size() - shown) + " more", 40);
   }
 
@@ -328,8 +328,9 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
   const bool is_flying = snapshot_->freshness.control_info && !snapshot_->border_status.null_tracker;
 
   // Errors render first: they matter even mid-flight. Reserve 2 rows (blank separator + header)
-  // so a long errors list can't push the "Problems preventing start" section off the pane.
-  const int errors_max_row = (!is_flying && !problems.empty()) ? MAX_PROBLEM_ROWS - 2 : MAX_PROBLEM_ROWS;
+  // so a long errors list can't push the "Problems preventing start" header off the pane. Keyed
+  // off !is_flying alone, matching the header's own render condition below.
+  const int errors_max_row = !is_flying ? MAX_PROBLEM_ROWS - 2 : MAX_PROBLEM_ROWS;
 
   const auto errors_color = errors.empty() ? ColorPair::Green : ColorPair::Red;
   wattron(win, COLOR_PAIR(static_cast<int>(errors_color)));
@@ -486,7 +487,7 @@ void PaneBox::renderSensorsPane(WINDOW *win) {
 
   if (sensors.empty()) {
     printLimitedString(win, row, 1, "no sensors reported", 40);
-  } else if (shown < sensors.size()) {
+  } else if (shown < sensors.size() && row <= MAX_SENSOR_ROWS) {
     printLimitedString(win, row++, 1, "+" + std::to_string(sensors.size() - shown) + " more", 40);
   }
 
@@ -556,7 +557,7 @@ void PaneBox::renderNodeCpuPane(WINDOW *win) {
     ++row;
   }
 
-  if (shown < node_cpu_loads.size()) {
+  if (shown < node_cpu_loads.size() && row <= MAX_NODE_ROWS) {
     printLimitedString(win, row++, 1, "+" + std::to_string(node_cpu_loads.size() - shown) + " more", 40);
   }
 
