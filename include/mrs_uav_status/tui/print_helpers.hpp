@@ -68,6 +68,40 @@ inline void printLimitedString(WINDOW *win, int y, int x, const std::string &str
 
 //}
 
+/* printWrappedString() //{ */
+
+// Word-wraps str_in across rows starting at (y, x), breaking each line at the last space at or
+// before width (hard-breaking only if a single word alone exceeds width). Stops once the next
+// row would exceed max_row. Returns the row after the last line printed, so callers can feed it
+// straight back into their own "if (row > max_row) break;" per-item loop.
+inline int printWrappedString(WINDOW *win, int y, int x, const std::string &str_in, unsigned long width, int max_row) {
+  std::string remaining = str_in;
+  int         row       = y;
+
+  while (!remaining.empty() && row <= max_row) {
+    if (remaining.length() <= width) {
+      mvwprintw(win, row, x, "%s", remaining.c_str());
+      ++row;
+      break;
+    }
+
+    std::size_t break_pos = remaining.rfind(' ', width);
+    if (break_pos == std::string::npos || break_pos == 0) {
+      break_pos = width; // no space to break at -- hard-break the word itself
+    }
+
+    mvwprintw(win, row, x, "%s", remaining.substr(0, break_pos).c_str());
+    ++row;
+
+    std::size_t next_start = remaining.find_first_not_of(' ', break_pos);
+    remaining              = (next_start == std::string::npos) ? "" : remaining.substr(next_start);
+  }
+
+  return row;
+}
+
+//}
+
 /* printNoData(WINDOW *win, int y, int x, bool mini) //{ */
 
 // Prints a blinking red "NO DATA" marker at (y, x).

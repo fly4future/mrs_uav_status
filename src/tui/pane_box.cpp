@@ -257,7 +257,7 @@ void PaneBox::renderStringsGnssPane(WINDOW *win) {
       wattron(win, A_BLINK);
     }
     wattron(win, COLOR_PAIR(tmp_color));
-    printLimitedString(win, row++, 1, display, 80);
+    row = printWrappedString(win, row, 1, display, 80, MAX_STRING_ROWS);
     wattroff(win, COLOR_PAIR(tmp_color));
     wattroff(win, A_BLINK);
   }
@@ -299,7 +299,7 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
     if (row > MAX_PROBLEM_ROWS) {
       break;
     }
-    printLimitedString(win, row++, 1, "- " + e, TEXT_WIDTH);
+    row = printWrappedString(win, row, 1, "- " + e, TEXT_WIDTH, MAX_PROBLEM_ROWS);
   }
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
 
@@ -323,7 +323,7 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
       if (row > MAX_PROBLEM_ROWS) {
         break;
       }
-      printLimitedString(win, row++, 1, "- " + p, TEXT_WIDTH);
+      row = printWrappedString(win, row, 1, "- " + p, TEXT_WIDTH, MAX_PROBLEM_ROWS);
     }
     wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   }
@@ -412,8 +412,7 @@ void PaneBox::renderSensorsPane(WINDOW *win) {
     ++row;
 
     if (s.level != status::SENSOR_STATUS_OK && row <= MAX_SENSOR_ROWS) {
-      printLimitedString(win, row, 1, "    -> " + s.message, MESSAGE_WIDTH);
-      ++row;
+      row = printWrappedString(win, row, 1, "    -> " + s.message, MESSAGE_WIDTH, MAX_SENSOR_ROWS);
     }
     wattroff(win, COLOR_PAIR(color));
   }
