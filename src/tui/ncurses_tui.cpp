@@ -878,9 +878,17 @@ void NcursesTui::hwApiStateHandler() {
 
     // mass_nominal/mass_estimate come from UavInfo; !have_uav_info catches a frozen topic that the
     // sentinel check below can't (values stop updating but stay non-negative).
-    if (!have_uav_info || mass_set < 0.0 || mass_estimate < 0.0) {
+    if (!have_uav_info || mass_set < 0.0) {
 
       printNoData(win, 4, 1, params_.start_minimized);
+
+    } else if (mass_estimate < 0.0) {
+
+      // No room here for a "?/" prefix like the full-mode display -- blink red instead.
+      wattron(win, A_BLINK);
+      wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+      printLimitedDouble(win, 4, 1, "%4.1f kg", mass_set, 99.99);
+      wattroff(win, A_BLINK);
 
     } else {
 
@@ -1016,7 +1024,7 @@ void NcursesTui::hwApiStateHandler() {
 
     if (cmd_rate <= 0.0 || thrust < 0.0 || !have_system_health_info) {
 
-      printNoData(win, 5, 1, "Thrust: ", params_.start_minimized);
+      printNoData(win, 5, 1, "Thrst: ", params_.start_minimized);
 
     } else {
 
@@ -1027,45 +1035,57 @@ void NcursesTui::hwApiStateHandler() {
       } else if (thrust > 0.65 && color != static_cast<int>(ColorPair::Red)) {
         wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Yellow)));
       }
-      printLimitedDouble(win, 5, 1, "Thrust: %4.2f", thrust, 1.01);
+      printLimitedDouble(win, 5, 1, "Thrst: %4.2f", thrust, 1.01);
       wattron(win, COLOR_PAIR(color));
     }
 
-    if (!have_uav_info || mass_set < 0.0 || mass_estimate < 0.0) {
+    if (!have_uav_info || mass_set < 0.0) {
 
-      // x=17 clears "Thrust: NO DATA" (cols 1-15) when both blocks are missing at once.
+      // x=17 clears "Thrst: NO DATA" (cols 1-14) when both blocks are missing at once.
       printNoData(win, 5, 17, params_.start_minimized);
 
     } else {
 
-      color            = static_cast<int>(ColorPair::Green);
-      double mass_diff = std::fabs(mass_estimate - mass_set) / mass_set;
+      // mass_set always starts flush at the fixed x=18 (can't push further right -- window's
+      // only 25 cols wide). A wide estimate could in theory touch "Thrst: NO DATA", but thrust
+      // and mass_estimate share the same active control loop, so that combination can't occur.
+      constexpr int SET_X = 18;
 
-      if (mass_diff > 0.3) {
+      if (mass_estimate < 0.0) {
 
-        color = static_cast<int>(ColorPair::Red);
-
-      } else if (mass_diff > 0.2) {
-
-        color = static_cast<int>(ColorPair::Yellow);
-      }
-
-      if (mass_set > 10.0 || mass_estimate > 10.0) {
-
+        wattron(win, A_BLINK);
+        wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
+        printLimitedString(win, 5, SET_X - 2, "?", 1);
+        wattroff(win, A_BLINK);
+        wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
         wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
-        printLimitedDouble(win, 5, 13, "%.1f/", mass_set, 99.99);
-        wattron(win, COLOR_PAIR(color));
-        printLimitedDouble(win, 5, 18, "%.1f", mass_estimate, 99.99);
-        printLimitedString(win, 5, 22, "kg", 2);
+        printLimitedString(win, 5, SET_X - 1, "/", 1);
 
       } else {
 
-        wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
-        printLimitedDouble(win, 5, 15, "%.1f/", mass_set, 99.99);
+        color            = static_cast<int>(ColorPair::Green);
+        double mass_diff = std::fabs(mass_estimate - mass_set) / mass_set;
+
+        if (mass_diff > 0.3) {
+
+          color = static_cast<int>(ColorPair::Red);
+
+        } else if (mass_diff > 0.2) {
+
+          color = static_cast<int>(ColorPair::Yellow);
+        }
+
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(1) << mass_estimate << "/";
+        std::string lead_str = oss.str();
+
         wattron(win, COLOR_PAIR(color));
-        printLimitedDouble(win, 5, 19, "%.1f", mass_estimate, 99.99);
-        printLimitedString(win, 5, 22, "kg", 2);
+        printLimitedString(win, 5, SET_X - static_cast<int>(lead_str.length()), lead_str, lead_str.length());
       }
+
+      wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
+      printLimitedDouble(win, 5, SET_X, "%.1f", mass_set, 99.99);
+      printLimitedString(win, 5, SET_X + 4, "kg", 2);
     }
 
     if (!gnss_ok) {
