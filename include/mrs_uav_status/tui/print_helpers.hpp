@@ -98,6 +98,26 @@ inline std::vector<std::string> wrapText(const std::string &str_in, unsigned lon
 
 //}
 
+/* capWrappedLines() //{ */
+
+// Wraps str_in via wrapText(str_in, width) and keeps at most max_lines lines, marking truncation
+// with "..." on the last kept line. Bounds a single list entry's row cost so one verbose string
+// can't crowd out the rest of a row-budget-capped list (see renderCappedList()).
+inline std::vector<std::string> capWrappedLines(const std::string &str_in, unsigned long width, int max_lines) {
+  std::vector<std::string> lines = wrapText(str_in, width);
+  if (lines.size() > static_cast<std::size_t>(max_lines)) {
+    lines.resize(static_cast<std::size_t>(max_lines));
+    std::string &last = lines.back();
+    if (last.size() > 3) {
+      last.resize(last.size() - 3);
+    }
+    last += "...";
+  }
+  return lines;
+}
+
+//}
+
 /* printWrappedString() //{ */
 
 // Prints wrapText(str_in, width) starting at (y, x), one line per row, stopping past max_row.

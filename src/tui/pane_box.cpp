@@ -316,6 +316,18 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
 
   constexpr int MAX_PROBLEM_ROWS = 9;
   constexpr int TEXT_WIDTH       = 80;
+  constexpr int MAX_ENTRY_LINES  = 3; // caps a single verbose entry so it can't crowd out the rest of the list
+
+  auto cappedEntryLines = [&](const std::string &entry) { return capWrappedLines("- " + entry, TEXT_WIDTH, MAX_ENTRY_LINES); };
+  auto printCappedEntry = [&](int r, const std::string &entry, int max_r) {
+    for (const auto &line : cappedEntryLines(entry)) {
+      if (r > max_r) {
+        break;
+      }
+      mvwprintw(win, r++, 1, "%s", line.c_str());
+    }
+    return r;
+  };
 
   // Problems preventing start no longer apply once a real tracker (not NullTracker) is active.
   const bool is_flying = snapshot_->freshness.control_info && !snapshot_->border_status.null_tracker;
@@ -332,8 +344,8 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
 
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   row = renderCappedList(
-      win, row, errors_max_row, errors.size(), [&](std::size_t i) { return static_cast<int>(wrapText("- " + errors[i], TEXT_WIDTH).size()); },
-      [&](int r, std::size_t i, int max_r) { return printWrappedString(win, r, 1, "- " + errors[i], TEXT_WIDTH, max_r); }, TEXT_WIDTH);
+      win, row, errors_max_row, errors.size(), [&](std::size_t i) { return static_cast<int>(cappedEntryLines(errors[i]).size()); },
+      [&](int r, std::size_t i, int max_r) { return printCappedEntry(r, errors[i], max_r); }, TEXT_WIDTH);
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
 
   if (!is_flying) {
@@ -350,8 +362,8 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
 
     wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
     row = renderCappedList(
-        win, row, MAX_PROBLEM_ROWS, problems.size(), [&](std::size_t i) { return static_cast<int>(wrapText("- " + problems[i], TEXT_WIDTH).size()); },
-        [&](int r, std::size_t i, int max_r) { return printWrappedString(win, r, 1, "- " + problems[i], TEXT_WIDTH, max_r); }, TEXT_WIDTH);
+        win, row, MAX_PROBLEM_ROWS, problems.size(), [&](std::size_t i) { return static_cast<int>(cappedEntryLines(problems[i]).size()); },
+        [&](int r, std::size_t i, int max_r) { return printCappedEntry(r, problems[i], max_r); }, TEXT_WIDTH);
     wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   }
 
@@ -401,15 +413,18 @@ void PaneBox::renderSensorsPane(WINDOW *win) {
   };
   std::stable_sort(sensors.begin(), sensors.end(), [&severity_rank](const auto &a, const auto &b) { return severity_rank(a.level) < severity_rank(b.level); });
 
-  constexpr int MAX_SENSOR_ROWS = 9;
-  constexpr int MESSAGE_WIDTH   = 80;
+  constexpr int MAX_SENSOR_ROWS   = 9;
+  constexpr int MESSAGE_WIDTH     = 80;
+  constexpr int MAX_MESSAGE_LINES = 3; // caps a single verbose message so it can't crowd out every other sensor
+
+  auto cappedMessageLines = [&](const std::string &message) { return capWrappedLines("    -> " + message, MESSAGE_WIDTH, MAX_MESSAGE_LINES); };
 
   row = renderCappedList(
       win, row, MAX_SENSOR_ROWS, sensors.size(),
       [&](std::size_t i) {
         int rows = 1;
         if (sensors[i].level != status::SENSOR_STATUS_OK) {
-          rows += static_cast<int>(wrapText("    -> " + sensors[i].message, MESSAGE_WIDTH).size());
+          rows += static_cast<int>(cappedMessageLines(sensors[i].message).size());
         }
         return rows;
       },
@@ -447,7 +462,12 @@ void PaneBox::renderSensorsPane(WINDOW *win) {
         ++r;
 
         if (s.level != status::SENSOR_STATUS_OK) {
-          r = printWrappedString(win, r, 1, "    -> " + s.message, MESSAGE_WIDTH, max_r);
+          for (const auto &line : cappedMessageLines(s.message)) {
+            if (r > max_r) {
+              break;
+            }
+            mvwprintw(win, r++, 1, "%s", line.c_str());
+          }
         }
         wattroff(win, COLOR_PAIR(color));
         return r;
