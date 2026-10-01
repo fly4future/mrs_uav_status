@@ -6,6 +6,7 @@
 
 #include <mrs_uav_status/status/uav_status_core.hpp>
 #include <mrs_uav_status/tui/constants.hpp>
+#include <mrs_uav_status/utils/helpers.hpp>
 
 //}
 
@@ -1009,6 +1010,21 @@ TEST(UavStatusCore, PersistentDisplayStringSurvivesExpiry) {
 
   ASSERT_EQ(sm.snapshot(120.0).display_strings.size(), 1u);
   EXPECT_EQ(sm.snapshot(120.0).display_strings[0], "forever");
+}
+
+//}
+
+/* flight state colour //{ */
+
+TEST(Helpers, FlightStateHighlightsOnlyUnhealthyStates) {
+  // DiagnosticsManager's UavInfo.flight_state: normal ground and flight states are not highlighted
+  for (const std::string state : {"DISARMED", "ARMED", "OFFBOARD", "TAKEOFF", "HOVER", "GOTO", "TRAJECTORY", "LAND", "MIDAIR", "RC_MODE"}) {
+    EXPECT_FALSE(utils::isFlightStateUnhealthy(state)) << state;
+  }
+  // no link, a pilot flying, emergencies, and anything not recognised (incl. the "unknown" default)
+  for (const std::string state : {"UNKNOWN", "NO_LINK", "MANUAL", "EHOVER", "ELAND", "FAILSAFE", "unknown", ""}) {
+    EXPECT_TRUE(utils::isFlightStateUnhealthy(state)) << state;
+  }
 }
 
 //}

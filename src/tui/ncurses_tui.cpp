@@ -832,7 +832,7 @@ void NcursesTui::hwApiStateHandler() {
       printLimitedString(win, 1, 1, tmp_string, 15);
       wattron(win, COLOR_PAIR(color));
 
-      if (mode != "OFFBOARD") {
+      if (utils::isFlightStateUnhealthy(mode)) {
         wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
       }
 
@@ -978,7 +978,7 @@ void NcursesTui::hwApiStateHandler() {
       printLimitedString(win, 1, 1, "State: " + tmp_string, 15);
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
 
-      if (mode != "OFFBOARD") {
+      if (utils::isFlightStateUnhealthy(mode)) {
         wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
       }
 

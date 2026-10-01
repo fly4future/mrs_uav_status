@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <exception>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
@@ -78,6 +79,21 @@ inline std::string robotTypeToString(uint8_t robot_type) {
   default:
     return "UNKNOWN";
   }
+}
+
+//}
+
+/* isFlightStateUnhealthy() //{ */
+
+// DiagnosticsManager's UavInfo.flight_state: true when it should be highlighted -- no link, a pilot flying (MANUAL),
+// an emergency (EHOVER, ELAND, FAILSAFE), UNKNOWN, or anything not recognised; normal ground and MRS flight states are not
+inline bool isFlightStateUnhealthy(const std::string &flight_state) {
+  for (const char *healthy : {"DISARMED", "ARMED", "OFFBOARD", "TAKEOFF", "HOVER", "GOTO", "TRAJECTORY", "LAND", "MIDAIR", "RC_MODE"}) {
+    if (flight_state == healthy) {
+      return false;
+    }
+  }
+  return true;
 }
 
 //}
