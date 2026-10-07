@@ -96,13 +96,9 @@ int PaneBox::drawPaneChrome(WINDOW *win) {
   wattroff(win, A_STANDOUT);
   printBox(win, bs.avoiding_collision, bs.bumper_active, bs.can_takeoff, bs.null_tracker);
 
-  if (light_scheme_) {
-    wattron(win, A_STANDOUT);
-  }
-
   // Tab bar in the top border (row 0): numbered tabs. The active tab shows its
   // number + name in brackets (green); the others show just their number in red
-  // to signal they're switchable.
+  // to signal they're switchable. Drawn before standout, like the top-bar hotkeys.
   int x = 2;
   for (std::size_t i = 0; i < panes_.size(); ++i) {
     const bool        active = (i == pane_idx_);
@@ -121,6 +117,10 @@ int PaneBox::drawPaneChrome(WINDOW *win) {
       wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
     }
     x += 1; // single-space gap between tabs
+  }
+
+  if (light_scheme_) {
+    wattron(win, A_STANDOUT);
   }
 
   return 1;

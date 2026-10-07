@@ -391,21 +391,26 @@ inline int16_t rateColor(double rate, double expected) {
 /* printHotkey() //{ */
 
 // btop-style hotkey hint: render word with its first character (the trigger
-// key) in red+bold and the remainder in the normal colour. Returns the column
+// key) in red+bold and the remainder in the terminal's default colour, never
+// in standout, so it looks the same in both colorschemes. Returns the column
 // just past the word (plus one space) so hints can be chained left-to-right.
 inline int printHotkey(WINDOW *win, int y, int x, const std::string &word) {
   if (word.empty()) {
     return x;
   }
+  attr_t saved_attrs;
+  short  saved_pair;
+  wattr_get(win, &saved_attrs, &saved_pair, nullptr);
+
+  wattroff(win, A_STANDOUT);
   wattron(win, A_BOLD);
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   mvwaddch(win, y, x, static_cast<chtype>(word.front()));
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
 
-  wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
   mvwaddstr(win, y, x + 1, word.substr(1).c_str());
-  wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Normal)));
-  wattroff(win, A_BOLD);
+
+  wattr_set(win, saved_attrs, saved_pair, nullptr);
 
   return x + static_cast<int>(word.size()) + 1; // +1 for a single-space gap
 }
