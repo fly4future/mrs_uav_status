@@ -303,7 +303,7 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
   int row = drawPaneChrome(win);
 
   const std::vector<std::string> &problems                = snapshot_->general_robot_info.problems_preventing_start;
-  const std::vector<std::string> &errors                  = snapshot_->general_robot_info.errors;
+  const std::vector<std::string> &raw_errors              = snapshot_->general_robot_info.errors;
   const bool                      have_general_robot_info = snapshot_->freshness.general_robot_info;
 
   // Empty vectors are indistinguishable from "genuinely zero problems" without this check.
@@ -337,15 +337,34 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
   // off !is_flying alone, matching the header's own render condition below.
   const int errors_max_row = !is_flying ? MAX_PROBLEM_ROWS - 2 : MAX_PROBLEM_ROWS;
 
-  const auto errors_color = errors.empty() ? ColorPair::Green : ColorPair::Red;
+  const utils::SplitErrors        split              = utils::splitNotResponding(raw_errors);
+  const std::vector<std::string> &errors             = split.specific;
+  const std::size_t               num_not_responding = split.not_responding.size();
+  const bool                      has_not_responding = num_not_responding > 0;
+
+  std::string errors_header = "Errors: " + std::to_string(errors.size());
+  if (has_not_responding) {
+    errors_header += " (+" + std::to_string(num_not_responding) + " not responding)";
+  }
+
+  const auto errors_color = raw_errors.empty() ? ColorPair::Green : ColorPair::Red;
   wattron(win, COLOR_PAIR(static_cast<int>(errors_color)));
-  printLimitedString(win, row++, 1, "Errors: " + std::to_string(errors.size()), TEXT_WIDTH);
+  printLimitedString(win, row++, 1, errors_header, TEXT_WIDTH);
   wattroff(win, COLOR_PAIR(static_cast<int>(errors_color)));
 
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   row = renderCappedList(
-      win, row, errors_max_row, errors.size(), [&](std::size_t i) { return static_cast<int>(cappedEntryLines(errors[i]).size()); },
+      win, row, has_not_responding ? errors_max_row - 1 : errors_max_row, errors.size(),
+      [&](std::size_t i) { return static_cast<int>(cappedEntryLines(errors[i]).size()); },
       [&](int r, std::size_t i, int max_r) { return printCappedEntry(r, errors[i], max_r); }, TEXT_WIDTH);
+
+  if (has_not_responding && row <= errors_max_row) {
+    std::string line = "- Not responding (" + std::to_string(num_not_responding) + "): ";
+    for (std::size_t i = 0; i < num_not_responding; ++i) {
+      line += (i > 0 ? ", " : "") + split.not_responding[i];
+    }
+    printLimitedString(win, row++, 1, line, TEXT_WIDTH);
+  }
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
 
   if (!is_flying) {

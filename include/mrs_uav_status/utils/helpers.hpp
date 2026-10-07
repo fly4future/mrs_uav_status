@@ -98,6 +98,36 @@ inline bool isFlightStateUnhealthy(const std::string &flight_state) {
 
 //}
 
+/* splitNotResponding() //{ */
+
+struct SplitErrors
+{
+  std::vector<std::string> specific;
+  std::vector<std::string> not_responding;
+};
+
+// Matches the "<node>.<component>: not responding" format from DiagnosticsManager's find_error_roots() loop.
+inline SplitErrors splitNotResponding(const std::vector<std::string> &errors) {
+  const std::string suffix      = ": not responding";
+  const std::string main_suffix = ".main";
+
+  SplitErrors out;
+  for (const auto &e : errors) {
+    if (e != suffix && e.ends_with(suffix)) {
+      std::string source = e.substr(0, e.size() - suffix.size());
+      if (source != main_suffix && source.ends_with(main_suffix)) {
+        source.resize(source.size() - main_suffix.size());
+      }
+      out.not_responding.push_back(source);
+    } else {
+      out.specific.push_back(e);
+    }
+  }
+  return out;
+}
+
+//}
+
 /* findSensor() //{ */
 
 // Find the first SensorStatus of a given type. Returns nullptr if not present.
