@@ -333,11 +333,31 @@ ControlInfoData flyingControlInfo() {
 
 //}
 
+/* uavInfoIn() //{ */
+
+// A UavInfo reporting DiagnosticsManager's given flight_state.
+UavInfoData uavInfoIn(const std::string &flight_state) {
+  UavInfoData ui;
+  ui.flight_state = flight_state;
+  return ui;
+}
+
+//}
+
 /* tick() //{ */
 
-void tick(UavStatusCore &model, FakeTui &tui, int key, double now_seconds = 0.0) {
-  model.setFreshness(Freshness{});
+void tick(UavStatusCore &model, FakeTui &tui, int key, double now_seconds = 0.0, const Freshness &freshness = {}) {
+  model.setFreshness(freshness);
   model.tick(now_seconds, key, tui);
+}
+
+//}
+
+/* openMainMenuWithFreshUavInfo() //{ */
+
+// Opens the main menu with UavInfo fresh, so the flight_state-gated rows (Land, Takeoff) are decided by it.
+void openMainMenuWithFreshUavInfo(UavStatusCore &model, FakeTui &tui) {
+  tick(model, tui, 'm', 0.0, Freshness{.uav_info = true});
 }
 
 //}
@@ -459,8 +479,9 @@ TEST(UavStatusCore, MainMenuHidesTakeoffWhileFlying) {
   FakeTui       tui;
 
   sm.onControlInfo(flyingControlInfo());
+  sm.onUavInfo(uavInfoIn("HOVER"));
 
-  tick(sm, tui, 'm');
+  openMainMenuWithFreshUavInfo(sm, tui);
 
   ASSERT_EQ(sm.state(), StatusState::MAIN_MENU);
   EXPECT_EQ(tui.show_main_menu_calls, 1);
@@ -471,21 +492,84 @@ TEST(UavStatusCore, MainMenuHidesTakeoffWhileFlying) {
 
 //}
 
-/* TEST(UavStatusCore, MainMenuHidesLandUnderNullTracker) //{ */
+/* TEST(UavStatusCore, MainMenuHidesLandOnTheGround) //{ */
 
-TEST(UavStatusCore, MainMenuHidesLandUnderNullTracker) {
+TEST(UavStatusCore, MainMenuHidesLandOnTheGround) {
+  for (const std::string state : {"DISARMED", "ARMED", "OFFBOARD"}) {
+    SinkLog       log;
+    UavStatusCore sm(makeSink(log), defaultParams());
+    FakeTui       tui;
+
+    // A tracker left active (e.g. after a pilot took over and landed) must not make Land available.
+    sm.onControlInfo(flyingControlInfo());
+    sm.onUavInfo(uavInfoIn(state));
+
+    openMainMenuWithFreshUavInfo(sm, tui);
+
+    EXPECT_EQ(indexOf(tui.main_menu_labels, "Land"), -1) << state;
+    EXPECT_NE(indexOf(tui.main_menu_labels, "Takeoff"), -1) << state;
+  }
+}
+
+//}
+
+/* TEST(UavStatusCore, MainMenuOffersLandWhileMrsIsFlying) //{ */
+
+TEST(UavStatusCore, MainMenuOffersLandWhileMrsIsFlying) {
+  for (const std::string state : {"TAKEOFF", "LAND", "HOVER", "GOTO", "TRAJECTORY", "MIDAIR", "RC_MODE", "EHOVER", "ELAND", "FAILSAFE"}) {
+    SinkLog       log;
+    UavStatusCore sm(makeSink(log), defaultParams());
+    FakeTui       tui;
+
+    sm.onUavInfo(uavInfoIn(state));
+
+    openMainMenuWithFreshUavInfo(sm, tui);
+
+    EXPECT_NE(indexOf(tui.main_menu_labels, "Land"), -1) << state;
+    EXPECT_EQ(indexOf(tui.main_menu_labels, "Takeoff"), -1) << state;
+  }
+}
+
+//}
+
+/* TEST(UavStatusCore, MainMenuHidesLandAndTakeoffWhenMrsIsNotInCommand) //{ */
+
+TEST(UavStatusCore, MainMenuHidesLandAndTakeoffWhenMrsIsNotInCommand) {
+  // a pilot flying, no link, and unknown/unrecognised states
+  for (const std::string state : {"MANUAL", "NO_LINK", "UNKNOWN", "unknown", ""}) {
+    SinkLog       log;
+    UavStatusCore sm(makeSink(log), defaultParams());
+    FakeTui       tui;
+
+    sm.onControlInfo(flyingControlInfo());
+    sm.onUavInfo(uavInfoIn(state));
+
+    openMainMenuWithFreshUavInfo(sm, tui);
+
+    EXPECT_EQ(indexOf(tui.main_menu_labels, "Land"), -1) << state;
+    EXPECT_EQ(indexOf(tui.main_menu_labels, "Takeoff"), -1) << state;
+  }
+}
+
+//}
+
+/* TEST(UavStatusCore, MainMenuHidesLandAndTakeoffWithoutFreshUavInfo) //{ */
+
+TEST(UavStatusCore, MainMenuHidesLandAndTakeoffWithoutFreshUavInfo) {
   SinkLog       log;
   UavStatusCore sm(makeSink(log), defaultParams());
   FakeTui       tui;
 
-  ControlInfoData ci;
-  ci.active_tracker = "NullTracker";
-  sm.onControlInfo(ci);
+  // The last UavInfo said HOVER, but it has gone stale (or never arrived).
+  sm.onControlInfo(flyingControlInfo());
+  sm.onUavInfo(uavInfoIn("HOVER"));
 
   tick(sm, tui, 'm');
 
+  ASSERT_EQ(sm.state(), StatusState::MAIN_MENU);
   EXPECT_EQ(indexOf(tui.main_menu_labels, "Land"), -1);
-  EXPECT_NE(indexOf(tui.main_menu_labels, "Takeoff"), -1);
+  EXPECT_EQ(indexOf(tui.main_menu_labels, "Takeoff"), -1);
+  EXPECT_NE(indexOf(tui.main_menu_labels, "Set Constraints"), -1);
 }
 
 //}
@@ -569,7 +653,8 @@ TEST(UavStatusCore, SubmenuCancelRowBacksOutToTheMainMenu) {
   FakeTui       tui;
 
   sm.onControlInfo(flyingControlInfo());
-  tick(sm, tui, 'm');
+  sm.onUavInfo(uavInfoIn("HOVER"));
+  openMainMenuWithFreshUavInfo(sm, tui);
 
   tui.next_menu_event = selectMain(indexOf(tui.main_menu_labels, "Land"));
   tick(sm, tui, static_cast<int>(tui::Key::Enter));

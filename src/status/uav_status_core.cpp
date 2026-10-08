@@ -233,21 +233,22 @@ void UavStatusCore::setupMainMenu(tui::TuiActions &tui) {
   main_menu_rows_.clear();
   sub_menu_rows_.clear();
 
-  bool null_tracker;
+  bool can_land, can_takeoff;
   {
     std::scoped_lock lock(mutex_status_msg_);
-    null_tracker = (last_control_info_.active_tracker == "NullTracker");
+    can_land    = freshness_.uav_info && utils::isFlyingAutonomously(last_uav_info_.flight_state);
+    can_takeoff = freshness_.uav_info && utils::isOnGround(last_uav_info_.flight_state);
   }
 
-  // Config-driven Trigger services. Landing is pointless with the null tracker engaged and
-  // taking off is pointless without it, so drop whichever can't apply.
+  // Config-driven Trigger services. Landing (incl. land home) only applies while the MRS system is
+  // flying, taking off only on the ground; with no fresh UavInfo neither is offered.
   for (const auto &service : command_sink_.extra_services) {
     std::string name = service.display_name;
     std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-    if (null_tracker && (name.find("land") != std::string::npos)) {
+    if (!can_land && (name.find("land") != std::string::npos)) {
       continue;
     }
-    if (!null_tracker && (name.find("takeoff") != std::string::npos)) {
+    if (!can_takeoff && (name.find("takeoff") != std::string::npos)) {
       continue;
     }
     main_menu_rows_.push_back({service.display_name, [this, service](tui::TuiActions &t) { buildSubMenu(t, {"CANCEL", service.display_name}, service.call); }});

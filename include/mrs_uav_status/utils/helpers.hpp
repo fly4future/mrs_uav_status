@@ -98,6 +98,31 @@ inline bool isFlightStateUnhealthy(const std::string &flight_state) {
 
 //}
 
+/* isFlyingAutonomously() //{ */
+
+// DiagnosticsManager's UavInfo.flight_state: true while the MRS system is in command in the air, emergencies and midair
+// activation included (mirrors mrs_uav_managers' is_flying_autonomously()); false on the ground, for a pilot flying
+// (MANUAL), and for anything not recognised
+inline bool isFlyingAutonomously(const std::string &flight_state) {
+  for (const char *flying : {"TAKEOFF", "LAND", "HOVER", "GOTO", "TRAJECTORY", "MIDAIR", "RC_MODE", "EHOVER", "ELAND", "FAILSAFE"}) {
+    if (flight_state == flying) {
+      return true;
+    }
+  }
+  return false;
+}
+
+//}
+
+/* isOnGround() //{ */
+
+// DiagnosticsManager's UavInfo.flight_state: true for the ground states, from which a takeoff can be started
+inline bool isOnGround(const std::string &flight_state) {
+  return flight_state == "DISARMED" || flight_state == "ARMED" || flight_state == "OFFBOARD";
+}
+
+//}
+
 /* splitNotResponding() //{ */
 
 struct SplitErrors
