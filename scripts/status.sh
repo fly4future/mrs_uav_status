@@ -17,10 +17,18 @@ config_public=$pkg_share_dir/config/public/default.yaml
 colorscheme="COLORSCHEME_DARK"
 
 custom_config_arg=""
+lightmode_arg=""
 for arg in "$@"; do
   case "$arg" in
     custom_config:=*)
       custom_config_arg="${arg#custom_config:=}"
+      ;;
+    lightmode:=*)
+      lightmode_arg="${arg#lightmode:=}"
+      if [ "$lightmode_arg" != "true" ] && [ "$lightmode_arg" != "false" ]; then
+        echo "Invalid value for lightmode: '$lightmode_arg' (expected true or false)" >&2
+        exit 1
+      fi
       ;;
     *)
       echo "Unknown argument: $arg" >&2
@@ -43,6 +51,13 @@ fi
 # preference (not this package's concern), normally unset on drones, where the default above applies.
 if [[ "$PROFILES" == *COLORSCHEME_LIGHT* ]]; then
   colorscheme="COLORSCHEME_LIGHT"
+fi
+
+# An explicit lightmode:=true|false argument overrides both the default and $PROFILES.
+if [ "$lightmode_arg" == "true" ]; then
+  colorscheme="COLORSCHEME_LIGHT"
+elif [ "$lightmode_arg" == "false" ]; then
+  colorscheme="COLORSCHEME_DARK"
 fi
 
 # Names must exactly match what src/uav_status.cpp's ParamLoader calls load -- a mismatch silently
