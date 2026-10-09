@@ -53,7 +53,7 @@ private:
 
   // box + numbered tab bar in the top border; returns the first usable content row.
   int drawPaneChrome(WINDOW *win);
-  // Lists problems_preventing_start/errors from GeneralRobotInfo.
+  // Lists missing_for_automatic_takeoff/errors from GeneralRobotInfo.
   void renderProblemsPane(WINDOW *win);
   // Lists available_sensors from SystemHealthInfo, worst-severity first.
   void renderSensorsPane(WINDOW *win);

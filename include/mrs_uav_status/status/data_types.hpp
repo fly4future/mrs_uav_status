@@ -75,9 +75,9 @@ struct BatteryStateData
 struct GeneralRobotInfoData
 {
   std::string              robot_name;
-  uint8_t                  robot_type     = 0; // ROBOT_TYPE_DRONE
-  bool                     ready_to_start = false;
-  std::vector<std::string> problems_preventing_start;
+  uint8_t                  robot_type                  = 0; // ROBOT_TYPE_DRONE
+  bool                     ready_for_automatic_takeoff = false;
+  std::vector<std::string> missing_for_automatic_takeoff;
   std::vector<std::string> errors;
   BatteryStateData         battery_state;
 };

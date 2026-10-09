@@ -17,12 +17,12 @@ namespace
 
 mrs_uav_status::status::GeneralRobotInfoData toData(const mrs_msgs::msg::GeneralRobotInfo &msg) {
   return {
-      .robot_name                = msg.robot_name,
-      .robot_type                = msg.robot_type,
-      .ready_to_start            = msg.ready_to_start,
-      .problems_preventing_start = msg.problems_preventing_start,
-      .errors                    = msg.errors,
-      .battery_state             = {.voltage = msg.battery_state.voltage, .current = msg.battery_state.current, .wh_drained = msg.battery_state.wh_drained},
+      .robot_name                    = msg.robot_name,
+      .robot_type                    = msg.robot_type,
+      .ready_for_automatic_takeoff   = msg.ready_for_automatic_takeoff,
+      .missing_for_automatic_takeoff = msg.missing_for_automatic_takeoff,
+      .errors                        = msg.errors,
+      .battery_state                 = {.voltage = msg.battery_state.voltage, .current = msg.battery_state.current, .wh_drained = msg.battery_state.wh_drained},
   };
 }
 

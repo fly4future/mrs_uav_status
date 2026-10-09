@@ -176,7 +176,7 @@ RenderSnapshot UavStatusCore::snapshot(double now_seconds) const {
   out.border_status            = BorderStatus{
                  .avoiding_collision = last_collision_avoidance_info_.avoiding_collision,
                  .bumper_active      = last_collision_avoidance_info_.bumper_active,
-                 .can_takeoff        = last_general_robot_info_.ready_to_start,
+                 .can_takeoff        = last_general_robot_info_.ready_for_automatic_takeoff,
                  .null_tracker       = (last_control_info_.active_tracker == "NullTracker"),
   };
   out.display_strings.reserve(string_info_vec_.size());

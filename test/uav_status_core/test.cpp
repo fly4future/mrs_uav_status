@@ -1001,8 +1001,8 @@ TEST(UavStatusCore, SnapshotCarriesLatestDataFreshnessAndBorderStatus) {
   UavStatusCore sm(makeSink(log), defaultParams());
 
   GeneralRobotInfoData gri;
-  gri.robot_name     = "uav1";
-  gri.ready_to_start = true;
+  gri.robot_name                  = "uav1";
+  gri.ready_for_automatic_takeoff = true;
   sm.onGeneralRobotInfo(gri);
 
   ControlInfoData ci;

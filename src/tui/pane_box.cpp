@@ -29,7 +29,7 @@ PaneBox::PaneBox() {
                     [this]() {
                       // Avoid auto-focusing on frozen stale problems/errors.
                       return snapshot_->freshness.general_robot_info &&
-                             (!snapshot_->general_robot_info.problems_preventing_start.empty() || !snapshot_->general_robot_info.errors.empty());
+                             (!snapshot_->general_robot_info.missing_for_automatic_takeoff.empty() || !snapshot_->general_robot_info.errors.empty());
                     }});
 
   pane_focus_prev_.assign(panes_.size(), false);
@@ -302,7 +302,7 @@ void PaneBox::renderGnssStringsPane(WINDOW *win) {
 void PaneBox::renderProblemsPane(WINDOW *win) {
   int row = drawPaneChrome(win);
 
-  const std::vector<std::string> &problems                = snapshot_->general_robot_info.problems_preventing_start;
+  const std::vector<std::string> &problems                = snapshot_->general_robot_info.missing_for_automatic_takeoff;
   const std::vector<std::string> &raw_errors              = snapshot_->general_robot_info.errors;
   const bool                      have_general_robot_info = snapshot_->freshness.general_robot_info;
 
