@@ -352,18 +352,23 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
   printLimitedString(win, row++, 1, errors_header, TEXT_WIDTH);
   wattroff(win, COLOR_PAIR(static_cast<int>(errors_color)));
 
+  // Wrapped and capped like any other entry; its rows are reserved below the specific errors.
+  std::string not_responding_entry;
+  if (has_not_responding) {
+    not_responding_entry = "Not responding (" + std::to_string(num_not_responding) + "): ";
+    for (std::size_t i = 0; i < num_not_responding; ++i) {
+      not_responding_entry += (i > 0 ? ", " : "") + split.not_responding[i];
+    }
+  }
+  const int not_responding_rows = has_not_responding ? static_cast<int>(cappedEntryLines(not_responding_entry).size()) : 0;
+
   wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
   row = renderCappedList(
-      win, row, has_not_responding ? errors_max_row - 1 : errors_max_row, errors.size(),
-      [&](std::size_t i) { return static_cast<int>(cappedEntryLines(errors[i]).size()); },
+      win, row, errors_max_row - not_responding_rows, errors.size(), [&](std::size_t i) { return static_cast<int>(cappedEntryLines(errors[i]).size()); },
       [&](int r, std::size_t i, int max_r) { return printCappedEntry(r, errors[i], max_r); }, TEXT_WIDTH);
 
   if (has_not_responding && row <= errors_max_row) {
-    std::string line = "- Not responding (" + std::to_string(num_not_responding) + "): ";
-    for (std::size_t i = 0; i < num_not_responding; ++i) {
-      line += (i > 0 ? ", " : "") + split.not_responding[i];
-    }
-    printLimitedString(win, row++, 1, line, TEXT_WIDTH);
+    row = printCappedEntry(row, not_responding_entry, errors_max_row);
   }
   wattroff(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
 
