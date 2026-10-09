@@ -329,11 +329,11 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
     return r;
   };
 
-  // Problems preventing start no longer apply once a real tracker (not NullTracker) is active.
+  // What is missing for automatic takeoff no longer applies once a real tracker (not NullTracker) is active.
   const bool is_flying = snapshot_->freshness.control_info && !snapshot_->border_status.null_tracker;
 
   // Errors render first: they matter even mid-flight. Reserve 2 rows (blank separator + header)
-  // so a long errors list can't push the "Problems preventing start" header off the pane. Keyed
+  // so a long errors list can't push the "Missing for automatic takeoff" header off the pane. Keyed
   // off !is_flying alone, matching the header's own render condition below.
   const int errors_max_row = !is_flying ? MAX_PROBLEM_ROWS - 2 : MAX_PROBLEM_ROWS;
 
@@ -380,7 +380,7 @@ void PaneBox::renderProblemsPane(WINDOW *win) {
     if (row <= MAX_PROBLEM_ROWS) {
       const auto problems_color = problems.empty() ? ColorPair::Green : ColorPair::Red;
       wattron(win, COLOR_PAIR(static_cast<int>(problems_color)));
-      printLimitedString(win, row++, 1, "Problems preventing start: " + std::to_string(problems.size()), TEXT_WIDTH);
+      printLimitedString(win, row++, 1, "Missing for automatic takeoff: " + std::to_string(problems.size()), TEXT_WIDTH);
       wattroff(win, COLOR_PAIR(static_cast<int>(problems_color)));
     }
 
