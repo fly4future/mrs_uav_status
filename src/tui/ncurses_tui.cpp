@@ -743,7 +743,7 @@ void NcursesTui::hwApiStateHandler() {
   bool        gnss_ok, armed, have_uav_info, autopilot_ok, have_system_health_info, have_general_robot_info;
   std::string mode;
   double      battery_volt, battery_curr, battery_wh_drained;
-  double      thrust, mass_estimate, mass_set, gnss_qual, mag_norm, mag_norm_rate;
+  double      throttle, mass_estimate, mass_set, gnss_qual, mag_norm, mag_norm_rate;
 
   const status::BorderStatus bs = snapshot_.border_status;
 
@@ -783,7 +783,7 @@ void NcursesTui::hwApiStateHandler() {
     battery_volt       = have_general_robot_info ? bat.voltage : -1.0;
     battery_curr       = bat.current;
     battery_wh_drained = bat.wh_drained;
-    thrust             = snapshot_.control_info.thrust / 100.0;
+    throttle           = snapshot_.control_info.throttle;
     mass_estimate      = snapshot_.uav_info.mass_estimate;
     mass_set           = snapshot_.uav_info.mass_nominal;
   }
@@ -861,18 +861,18 @@ void NcursesTui::hwApiStateHandler() {
     }
 
 
-    if (cmd_rate <= 0.0 || thrust < 0.0 || !have_system_health_info) {
+    if (cmd_rate <= 0.0 || throttle < 0.0 || !have_system_health_info) {
 
       printLimitedString(win, 3, 5, "ERR", 3);
 
     } else {
 
-      if (thrust > 0.75) {
+      if (throttle > 0.75) {
         wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-      } else if (thrust > 0.65 && color != static_cast<int>(ColorPair::Red)) {
+      } else if (throttle > 0.65 && color != static_cast<int>(ColorPair::Red)) {
         wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Yellow)));
       }
-      printLimitedDouble(win, 3, 5, ".%2.0f", thrust * 100, 100);
+      printLimitedDouble(win, 3, 5, ".%2.0f", throttle * 100, 100);
       wattron(win, COLOR_PAIR(color));
     }
 
@@ -1022,32 +1022,32 @@ void NcursesTui::hwApiStateHandler() {
       printLimitedDouble(win, 3, 1, "Mag: %4.2f", mag_norm, 9.99);
     }
 
-    if (cmd_rate <= 0.0 || thrust < 0.0 || !have_system_health_info) {
+    if (cmd_rate <= 0.0 || throttle < 0.0 || !have_system_health_info) {
 
-      printNoData(win, 5, 1, "Thrst: ", params_.start_minimized);
+      printNoData(win, 5, 1, "Thrtl: ", params_.start_minimized);
 
     } else {
 
       wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Green)));
 
-      if (thrust > 0.75) {
+      if (throttle > 0.75) {
         wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Red)));
-      } else if (thrust > 0.65 && color != static_cast<int>(ColorPair::Red)) {
+      } else if (throttle > 0.65 && color != static_cast<int>(ColorPair::Red)) {
         wattron(win, COLOR_PAIR(static_cast<int>(ColorPair::Yellow)));
       }
-      printLimitedDouble(win, 5, 1, "Thrst: %4.2f", thrust, 1.01);
+      printLimitedDouble(win, 5, 1, "Thrtl: %4.2f", throttle, 1.01);
       wattron(win, COLOR_PAIR(color));
     }
 
     if (!have_uav_info || mass_set < 0.0) {
 
-      // x=17 clears "Thrst: NO DATA" (cols 1-14) when both blocks are missing at once.
+      // x=17 clears "Thrtl: NO DATA" (cols 1-14) when both blocks are missing at once.
       printNoData(win, 5, 17, params_.start_minimized);
 
     } else {
 
       // mass_set always starts flush at the fixed x=18 (can't push further right -- window's
-      // only 25 cols wide). A wide estimate could in theory touch "Thrst: NO DATA", but thrust
+      // only 25 cols wide). A wide estimate could in theory touch "Thrtl: NO DATA", but throttle
       // and mass_estimate share the same active control loop, so that combination can't occur.
       constexpr int SET_X = 18;
 

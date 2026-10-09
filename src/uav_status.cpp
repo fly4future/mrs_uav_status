@@ -53,7 +53,7 @@ mrs_uav_status::status::ControlInfoData toData(const mrs_msgs::msg::ControlInfo 
       .available_trackers    = msg.available_trackers,
       .active_constraints    = msg.active_constraints,
       .available_constraints = msg.available_constraints,
-      .thrust                = msg.thrust,
+      .throttle              = msg.throttle,
       .cmd_pose_x            = msg.cmd_pose.position.x,
       .cmd_pose_y            = msg.cmd_pose.position.y,
       .cmd_pose_z            = msg.cmd_pose.position.z,

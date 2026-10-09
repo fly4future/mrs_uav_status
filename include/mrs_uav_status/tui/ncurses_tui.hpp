@@ -98,7 +98,7 @@ public:
   void renderSlow() override;
   // Draws position/heading, commanded-vs-estimated error, and current estimator names.
   void uavStateHandler();
-  // Draws armed state, flight mode, battery, thrust, mass estimate, and GNSS/magnetometer readouts.
+  // Draws armed state, flight mode, battery, throttle, mass estimate, and GNSS/magnetometer readouts.
   void hwApiStateHandler();
   // Draws CPU load/frequency, RAM, and disk space.
   void generalInfoHandler();

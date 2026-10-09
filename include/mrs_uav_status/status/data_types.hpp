@@ -116,7 +116,7 @@ struct ControlInfoData
   std::vector<std::string> available_trackers;
   std::string              active_constraints = "unknown";
   std::vector<std::string> available_constraints;
-  float                    thrust     = -1.0f;
+  float                    throttle   = -1.0f;
   double                   cmd_pose_x = 0.0, cmd_pose_y = 0.0, cmd_pose_z = 0.0, cmd_pose_heading = 0.0;
   bool                     flying_normally     = false;
   bool                     have_goal           = false;
