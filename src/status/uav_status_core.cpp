@@ -254,8 +254,6 @@ void UavStatusCore::setupMainMenu(tui::TuiActions &tui) {
     main_menu_rows_.push_back({service.display_name, [this, service](tui::TuiActions &t) { buildSubMenu(t, {"CANCEL", service.display_name}, service.call); }});
   }
 
-  main_menu_rows_.push_back({"Toggle Output", [this](tui::TuiActions &t) { buildSubMenu(t, {"CANCEL", "Toggle Output"}, command_sink_.toggleOutput); }});
-
   // Each of these reads the *live* available_* list when the row is selected, not now.
   main_menu_rows_.push_back({"Set Constraints", [this](tui::TuiActions &t) {
                                std::vector<std::string> labels;

@@ -287,7 +287,6 @@ status::CommandSink UavStatus::buildCommandSink(const std::vector<std::string> &
   sc_set_tracker_        = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_tracker_out", cbkgrp_sc_);
   sc_set_estimator_      = mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>(node_, "~/set_estimator_out", cbkgrp_sc_);
   sc_hover_              = mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>(node_, "~/hover_out", cbkgrp_sc_);
-  sc_toggle_output_      = mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>(node_, "~/toggle_output_out", cbkgrp_sc_);
 
   status::CommandSink command_sink;
 
@@ -337,16 +336,6 @@ status::CommandSink UavStatus::buildCommandSink(const std::vector<std::string> &
   command_sink.hover = [this]() -> status::CommandSink::ServiceResult {
     auto request  = std::make_shared<std_srvs::srv::Trigger::Request>();
     auto response = sc_hover_.callSync(request);
-    if (!response) {
-      return {false, "service could not be called"};
-    }
-    return {response.value()->success, response.value()->message};
-  };
-
-  command_sink.toggleOutput = [this]() -> status::CommandSink::ServiceResult {
-    auto request  = std::make_shared<std_srvs::srv::SetBool::Request>();
-    request->data = true;
-    auto response = sc_toggle_output_.callSync(request);
     if (!response) {
       return {false, "service could not be called"};
     }

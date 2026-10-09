@@ -37,7 +37,6 @@ struct CommandSink
   std::function<ServiceResult(const std::string &value)>                                                 setTracker;
   std::function<ServiceResult(const std::string &value)>                                                 setEstimator;
   std::function<ServiceResult()>                                                                         hover;
-  std::function<ServiceResult()>                                                                         toggleOutput;
 
   std::vector<NamedService> extra_services;
 };

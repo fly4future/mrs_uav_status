@@ -21,7 +21,6 @@
 #include <mrs_msgs/srv/reference_stamped_srv.hpp>
 #include <mrs_msgs/srv/velocity_reference_stamped_srv.hpp>
 #include <std_srvs/srv/trigger.hpp>
-#include <std_srvs/srv/set_bool.hpp>
 
 #include <mrs_lib/node.h>
 #include <mrs_lib/profiler.h>
@@ -83,7 +82,6 @@ private:
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_tracker_;
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::String>                      sc_set_estimator_;
   mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>                     sc_hover_;
-  mrs_lib::ServiceClientHandler<std_srvs::srv::SetBool>                     sc_toggle_output_;
   std::vector<mrs_lib::ServiceClientHandler<std_srvs::srv::Trigger>>        sc_extra_services_;
 
   std::shared_ptr<TimerType> timer_render_;

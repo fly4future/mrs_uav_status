@@ -286,10 +286,6 @@ CommandSink makeSink(SinkLog &log) {
     log.calls.push_back("hover");
     return CommandSink::ServiceResult{true, "hovering"};
   };
-  sink.toggleOutput = [&log]() {
-    log.calls.push_back("toggleOutput");
-    return CommandSink::ServiceResult{true, "toggled"};
-  };
 
   sink.extra_services.push_back({"Land", [&log]() {
                                    log.calls.push_back("Land");
